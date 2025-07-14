@@ -20,7 +20,7 @@ mongoose
     .connect(dbURI)
     .then(() => {
         console.log("MongoDB connected successfully");
-        startCronJob();
+        // startCronJob(); // Removed automatic start
     })
     .catch((err) => console.error("MongoDB connection error:", err));
 
@@ -37,12 +37,22 @@ app.post("/jobs", async (req, res) => {
 
 // Route to get all job postings
 app.get("/jobs", async (req, res) => {
-  console.group(("sjkaskdbb"))
+    console.group("sjkaskdbb");
     try {
         const jobs = await Job.find({});
         res.status(200).send(jobs);
     } catch (error) {
         res.status(500).send(error);
+    }
+});
+
+// Route to start the cron job manually
+app.get("/start-cron", (req, res) => {
+    try {
+        startCronJob();
+        res.status(200).send({ message: "Cron job started successfully." });
+    } catch (error) {
+        res.status(500).send({ error: "Failed to start cron job." });
     }
 });
 

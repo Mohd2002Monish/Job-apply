@@ -1,4 +1,3 @@
-const cron = require("node-cron");
 const Job = require("../models/Job");
 const { sendEmail } = require("./emailService");
 const { generateEmailContent } = require("./chatGptService");
@@ -8,7 +7,6 @@ const processUnsentEmails = async () => {
     try {
         // Find all jobs where emails haven't been sent
         const unsentJobs = await Job.find({ isEmailSent: false });
-        console.log(unsentJobs);
         for (const job of unsentJobs) {
             // Generate personalized email content using ChatGPT
             const emailText = await generateEmailContent(job);
@@ -18,7 +16,7 @@ const processUnsentEmails = async () => {
             }
 
             // Send email
-             const emailSent = await sendEmail(job.email, `Job Application: ${job.job}`, emailText);
+            const emailSent = await sendEmail(job.email, `Job Application: ${job.job}`, emailText);
 
             if (emailSent) {
                 // Update the job document to mark email as sent
@@ -32,12 +30,10 @@ const processUnsentEmails = async () => {
     }
 };
 
-// Schedule cron job to run every second
-const startCronJob = () => {
-    cron.schedule("*/10 * * * * *", async () => {
-        console.log("Running cron job for unsent emails...");
-        await processUnsentEmails();
-    });
+// Run processUnsentEmails immediately when called
+const startCronJob = async () => {
+    console.log("Running processUnsentEmails immediately...");
+    await processUnsentEmails();
 };
 
 module.exports = { startCronJob };
