@@ -39,7 +39,7 @@ const JobsTable = () => {
 
   const fetchJobs = async () => {
     try {
-      const response = await axios.get('http://localhost:3000/jobs');
+      const response = await axios.get("https://job-apply-l52x.onrender.com/jobs");
       setJobs(response.data);
     } catch (error) {
       toast({
@@ -81,7 +81,7 @@ const JobsTable = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await axios.post('http://localhost:3000/jobs', newJob);
+      await axios.post("https://job-apply-l52x.onrender.com/jobs", newJob);
       setNewJob({ job: '', email: '', description: '' });
       fetchJobs();
       toast({
