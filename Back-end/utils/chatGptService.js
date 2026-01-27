@@ -1,7 +1,7 @@
 const OpenAI = require("openai");
 
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY
+    apiKey: process.env.OPENAI_API_KEY,
 });
 const generateEmailContent = async (job) => {
     try {
@@ -27,15 +27,13 @@ Job Description: ${job.description}
 
 Return only the email body. Do not include a subject line or extra formatting. Keep it tight, professional, and to the point.`;
 
-
-
         const completion = await openai.chat.completions.create({
             model: "gpt-3.5-turbo",
             messages: [{ role: "user", content: prompt }],
             max_tokens: 500,
-            temperature: 0.7
+            temperature: 0.7,
         });
-        
+
         console.log(completion.choices[0].message.content.trim());
         return completion.choices[0].message.content.trim();
     } catch (error) {

@@ -3,10 +3,12 @@ const { sendEmail } = require("./emailService");
 const { generateEmailContent } = require("./chatGptService");
 
 // Function to process unsent emails
-const processUnsentEmails = async () => {
+const processUnsentEmails = async (id) => {
     try {
         // Find all jobs where emails haven't been sent
-        const unsentJobs = await Job.find({ isEmailSent: false });
+        const unsentJobs = id
+            ? await Job.find({ _id: id })
+            : await Job.find({ isEmailSent: false, includeInCron: true });
         for (const job of unsentJobs) {
             // Generate personalized email content using ChatGPT
             const emailText = await generateEmailContent(job);
@@ -35,5 +37,9 @@ const startCronJob = async () => {
     console.log("Running processUnsentEmails immediately...");
     await processUnsentEmails();
 };
+const singleSend = async (id) => {
+    console.log("Running to Single immediately...");
+    await processUnsentEmails(id);
+};
 
-module.exports = { startCronJob };
+module.exports = { startCronJob,singleSend  };
