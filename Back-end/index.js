@@ -20,7 +20,7 @@ app.use(cors());
 app.use(express.json());
 
 // MongoDB connection URI from environment variables
-const dbURI = process.env.MONGODB_URI;
+const dbURI = process.env.MONGO_URI;
 mongoose
   .connect(dbURI)
   .then(() => {
