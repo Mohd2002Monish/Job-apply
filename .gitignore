@@ -7,3 +7,5 @@
 /Front-end/.env.local
 /Front-end/npm-debug.log
 /Front-end/dist/
+temp_auto_push.bat
+temp_interactive_push.bat
