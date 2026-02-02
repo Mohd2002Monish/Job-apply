@@ -168,7 +168,7 @@ const JobsTable = () => {
     );
   };
 
-  const handleSend = async (id) => {
+  const handleSend = async (id,name) => {
     setSendingSingleMailId(id);
     try {
       const response = await axios.get(
@@ -178,7 +178,7 @@ const JobsTable = () => {
         }
       );
       toast({
-        title: "Email sent successfully",
+        title: `Email sent successfully to ${name}`,
         description:
           "Your application email has been sent to the recruiter.",
         status: "success",
@@ -792,7 +792,7 @@ const JobsTable = () => {
                               colorScheme="green"
                               variant="ghost"
                               onClick={() =>
-                                handleSend(job._id)
+                                handleSend(job._id,job.recuiterName)
                               }
                               isLoading={
                                 sendingSingleMailId ===

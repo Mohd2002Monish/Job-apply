@@ -1,0 +1,9 @@
+/Back-end/node_modules
+/Back-end/.env
+/Back-end/.env.local
+/Back-end/npm-debug.log
+/Front-end/node_modules
+/Front-end/.env
+/Front-end/.env.local
+/Front-end/npm-debug.log
+/Front-end/dist/
