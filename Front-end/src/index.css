@@ -1,68 +1,157 @@
-:root {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  line-height: 1.5;
-  font-weight: 400;
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import "tailwindcss";
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #242424;
 
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
+/* Dark mode via .dark class on <html> */
+@custom-variant dark (&:where(.dark, .dark *));
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-body {
-  margin: 0;
-  display: flex;
-  place-items: center;
-  min-width: 320px;
-  min-height: 100vh;
-}
-
-h1 {
-  font-size: 3.2em;
-  line-height: 1.1;
-}
-
-button {
-  border-radius: 8px;
-  border: 1px solid transparent;
-  padding: 0.6em 1.2em;
-  font-size: 1em;
-  font-weight: 500;
-  font-family: inherit;
-  background-color: #1a1a1a;
-  cursor: pointer;
-  transition: border-color 0.25s;
-}
-button:hover {
-  border-color: #646cff;
-}
-button:focus,
-button:focus-visible {
-  outline: 4px auto -webkit-focus-ring-color;
-}
-
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
+@layer base {
+  * {
+    box-sizing: border-box;
   }
-  a:hover {
-    color: #747bff;
+
+  html {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
-  button {
-    background-color: #f9f9f9;
+
+  body {
+    @apply bg-slate-50 text-slate-900 dark:bg-zinc-950 dark:text-slate-100;
+    transition: background-color 0.2s ease, color 0.2s ease;
   }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-slate-300 dark:bg-zinc-700;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-slate-400 dark:bg-zinc-600;
+  }
+
+  /* Input focus ring */
+  input:focus,
+  textarea:focus,
+  select:focus {
+    outline: none;
+  }
+
+  /* Checkbox accent */
+  input[type="checkbox"] {
+    accent-color: #6366f1;
+    cursor: pointer;
+  }
+}
+
+@layer components {
+  /* Card */
+  .card {
+    @apply bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl;
+  }
+
+  /* Input */
+  .input {
+    @apply w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700
+           text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm
+           placeholder:text-slate-400 dark:placeholder:text-zinc-500
+           focus:border-indigo-500 dark:focus:border-indigo-500
+           focus:ring-2 focus:ring-indigo-500/20
+           transition-colors duration-150;
+  }
+
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800
+           text-white text-sm font-semibold
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Secondary/ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
+           bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700
+           text-slate-700 dark:text-slate-300 text-sm font-medium
+           transition-colors duration-150
+           disabled:opacity-40 disabled:cursor-not-allowed;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-success {
+    @apply bg-emerald-50 text-emerald-700 border border-emerald-200
+           dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20;
+  }
+  .badge-pending {
+    @apply bg-amber-50 text-amber-700 border border-amber-200
+           dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20;
+  }
+  .badge-default {
+    @apply bg-slate-100 text-slate-600 border border-slate-200
+           dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700;
+  }
+  .badge-indigo {
+    @apply bg-indigo-50 text-indigo-700 border border-indigo-200
+           dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20;
+  }
+
+  /* Table header cell */
+  .th {
+    @apply px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-zinc-500
+           uppercase tracking-wide border-b border-slate-200 dark:border-zinc-800
+           select-none whitespace-nowrap cursor-pointer
+           hover:text-slate-700 dark:hover:text-zinc-300 transition-colors;
+  }
+
+  /* Table data cell */
+  .td {
+    @apply px-4 py-3.5 text-sm text-slate-700 dark:text-slate-300
+           border-b border-slate-100 dark:border-zinc-800/50 align-middle;
+  }
+}
+
+/* Spin animation */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spin 0.8s linear infinite;
+}
+
+/* Fade in animation */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.25s ease forwards;
+}
+
+/* Toast slide up */
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUp 0.2s ease forwards;
+}
+
+/* Slide in from right drawer animation */
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+.animate-slide-in {
+  animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

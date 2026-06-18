@@ -2,60 +2,75 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
-const Job = require("./models/Job");
+const cookieParser = require("cookie-parser");
+
+const authRoutes = require("./routes/authRoutes");
+const jobRoutes = require("./routes/jobRoutes");
+const emailRoutes = require("./routes/emailRoutes");
+const resumeRoutes = require("./routes/resumeRoutes");
+
 const { startCronJob } = require("./utils/cronService");
 
 const app = express();
 const port = process.env.PORT || 3000;
 
-// Enable CORS for all routes
-app.use(cors());
+// ─── CORS ─────────────────────────────────────────────────────────────────────
+app.use(cors({
+  origin: (origin, callback) => {
+    const allowed = ["http://localhost:5173", "http://localhost:5174", "http://localhost:4173"];
+    if (!origin || allowed.includes(origin) || origin.startsWith("chrome-extension://")) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true,
+}));
 
-// Middleware to parse JSON bodies
+// ─── Request Logger ────────────────────────────────────────────────────────────
+app.use((req, res, next) => {
+  console.log(`→ ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
-// MongoDB connection URI from environment variables
-const dbURI = process.env.MONGODB_URI;
+const path = require("path");
+app.use(express.static(path.join(__dirname, "public")));
+
+// ─── MongoDB ───────────────────────────────────────────────────────────────────
+let dbConnected = false;
 mongoose
-    .connect(dbURI)
-    .then(() => {
-        console.log("MongoDB connected successfully");
-        // startCronJob(); // Removed automatic start
-    })
-    .catch((err) => console.error("MongoDB connection error:", err));
+  .connect(process.env.MONGODB_URI)
+  .then(() => { console.log("MongoDB connected"); dbConnected = true; })
+  .catch((err) => {
+    console.error("MongoDB error:", err.message);
+  });
 
-// Route to create a new job posting
-app.post("/jobs", async (req, res) => {
-    try {
-        const job = new Job(req.body);
-        await job.save();
-        res.status(201).send(job);
-    } catch (error) {
-        res.status(400).send(error);
-    }
+process.on("uncaughtException", (err) => console.error("Uncaught:", err.message));
+process.on("unhandledRejection", (err) => console.error("Rejection:", err?.message));
+
+// ─── Routes ───────────────────────────────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.json({ status: "ok", db: dbConnected ? "connected" : "disconnected" });
 });
 
-// Route to get all job postings
-app.get("/jobs", async (req, res) => {
-    console.group("sjkaskdbb");
-    try {
-        const jobs = await Job.find({});
-        res.status(200).send(jobs);
-    } catch (error) {
-        res.status(500).send(error);
-    }
-});
+app.use("/auth", authRoutes);
+app.use("/jobs", jobRoutes);
+app.use("/", emailRoutes); // Mounts /apply and /emails/replies
+app.use("/", resumeRoutes); // Mounts /upload-resume, /resume-data, /export-resume, /preview-template
 
-// Route to start the cron job manually
+// ─── Legacy cron route ─────────────────────────────────────────────────────────
 app.get("/start-cron", (req, res) => {
-    try {
-        startCronJob();
-        res.status(200).send({ message: "Cron job started successfully." });
-    } catch (error) {
-        res.status(500).send({ error: "Failed to start cron job." });
-    }
+  try {
+    startCronJob();
+    res.status(200).send({ message: "Cron job started." });
+  } catch (error) {
+    res.status(500).send({ error: "Failed to start cron job." });
+  }
 });
 
-app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-});
+// ─── Start server ──────────────────────────────────────────────────────────────
+app.listen(port, () => console.log(`Server running on port ${port}`));

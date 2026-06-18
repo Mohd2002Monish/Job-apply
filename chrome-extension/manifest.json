@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "Job Apply Importer",
+  "version": "1.0",
+  "description": "Imports job postings from LinkedIn and Indeed directly into your Job Apply dashboard.",
+  "permissions": [
+    "activeTab",
+    "tabs"
+  ],
+  "host_permissions": [
+    "*://*.linkedin.com/*",
+    "*://*.indeed.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.linkedin.com/jobs/*",
+        "*://*.linkedin.com/jobs/view/*",
+        "*://*.indeed.com/*",
+        "*://*.indeed.com/viewjob*",
+        "*://*.indeed.com/jobs*"
+      ],
+      "js": ["content.js"]
+    }
+  ]
+}

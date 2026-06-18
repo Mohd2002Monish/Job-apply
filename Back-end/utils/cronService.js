@@ -1,6 +1,6 @@
 const Job = require("../models/Job");
 const { sendEmail } = require("./emailService");
-const { generateEmailContent } = require("./chatGptService");
+const { generateEmailContent } = require("./geminiService");
 
 // Function to process unsent emails
 const processUnsentEmails = async () => {
