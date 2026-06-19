@@ -166,7 +166,7 @@ const Dashboard = () => {
               </svg>
             </div>
             <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-              Job Apply AI
+              RecoCareer.ai
             </span>
           </div>
 

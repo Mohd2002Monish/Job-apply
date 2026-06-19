@@ -15,11 +15,12 @@ const getOAuth2Client = () => {
  * Generate the Google consent screen URL.
  * We request gmail.send scope + profile so we can get user info.
  */
-const getAuthUrl = () => {
+const getAuthUrl = (state) => {
   const oAuth2Client = getOAuth2Client();
   return oAuth2Client.generateAuthUrl({
     access_type: 'offline',   // get refresh_token
     prompt: 'consent',        // always show consent screen to ensure refresh_token
+    state: state || undefined,
     scope: [
       'https://www.googleapis.com/auth/gmail.send',
       'https://www.googleapis.com/auth/gmail.readonly',  // to read reply threads

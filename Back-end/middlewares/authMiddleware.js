@@ -10,7 +10,11 @@ const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'jaa-
  */
 const authenticate = async (req, res, next) => {
   req.user = null;
-  const token = req.cookies?.jaa_session_token;
+  let token = req.cookies?.jaa_session_token;
+
+  if (!token && req.headers.authorization?.startsWith('Bearer ')) {
+    token = req.headers.authorization.split(' ')[1];
+  }
 
   if (token) {
     try {

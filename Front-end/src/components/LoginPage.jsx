@@ -61,8 +61,8 @@ const LoginPage = ({ isDark, onToggleTheme }) => {
         </div>
 
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight mb-2">
-            Job Apply AI
+          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
+            RecoCareer.ai
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
             Upload your resume, let AI craft personalised<br/>

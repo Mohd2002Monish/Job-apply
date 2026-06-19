@@ -8,6 +8,7 @@ const {
   getAnalytics,
   updateJob,
   extractJdInfo,
+  extractUrlInfo,
   uploadJobDescription,
   generateCoverLetterCustom,
   deleteJob,
@@ -62,6 +63,7 @@ router.post('/import', authenticate, requireAuth, importJobFromExtension);
 // Extract info from a JD file (PDF/DOCX/image) BEFORE saving a job
 // Must be defined before /:id routes so Express doesn't treat 'extract-jd' as an ID
 router.post('/extract-jd', authenticate, requireAuth, jdUpload.single('jdFile'), extractJdInfo);
+router.post('/extract-url', authenticate, requireAuth, extractUrlInfo);
 
 router.patch('/:id', authenticate, requireAuth, updateJob);
 router.delete('/:id', authenticate, requireAuth, deleteJob);

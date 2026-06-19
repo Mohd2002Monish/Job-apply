@@ -4,11 +4,15 @@ const path = require('path');
 /**
  * Generate the Microsoft OAuth 2.0 authorization URL.
  */
-const getMicrosoftAuthUrl = () => {
+const getMicrosoftAuthUrl = (state) => {
   const clientId = process.env.MICROSOFT_CLIENT_ID;
   const redirectUri = encodeURIComponent(process.env.MICROSOFT_REDIRECT_URI);
   const scopes = encodeURIComponent('openid profile email offline_access User.Read Mail.ReadWrite Mail.Send');
-  return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${scopes}`;
+  let url = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${clientId}&response_type=code&redirect_uri=${redirectUri}&response_mode=query&scope=${scopes}`;
+  if (state) {
+    url += `&state=${state}`;
+  }
+  return url;
 };
 
 /**

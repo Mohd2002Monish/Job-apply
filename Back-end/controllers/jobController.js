@@ -109,6 +109,71 @@ const extractJdInfo = async (req, res) => {
 };
 
 /**
+ * Extract job info from a URL using Puppeteer and Gemini AI.
+ * Scrapes the URL, extracts details, calculates ATS score, and saves the job to the DB.
+ */
+const extractUrlInfo = async (req, res) => {
+  const { url } = req.body;
+  const user = req.user;
+
+  if (!url) return res.status(400).json({ error: 'URL is required' });
+
+  let browser;
+  try {
+    const puppeteer = require('puppeteer');
+    browser = await puppeteer.launch({ headless: 'new', args: ['--no-sandbox', '--disable-setuid-sandbox'] });
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30000 });
+    
+    // Extract visible text from the page body
+    const rawText = await page.evaluate(() => document.body.innerText);
+    await browser.close();
+
+    if (!rawText || rawText.trim().length < 50) {
+      return res.status(422).json({ error: 'Could not extract meaningful text from the provided URL.' });
+    }
+
+    console.log(`✅ URL extract: ${rawText.length} chars from ${url}`);
+
+    // Use Gemini to structure the raw text
+    const extracted = await extractJobInfoFromText(rawText);
+
+    // Prepare job data
+    const jobData = {
+      job: extracted.jobTitle || 'Unknown Title',
+      companyName: extracted.companyName || 'Unknown Company',
+      hrName: extracted.hrName || '',
+      email: extracted.hrEmail || '',
+      description: extracted.description || rawText.substring(0, 5000), // Fallback if AI fails to isolate description
+      sourceUrl: url,
+    };
+
+    const job = new Job(jobData);
+
+    // Calculate ATS Score if user has a resume
+    const { getActiveResume } = require('./resumeController');
+    const active = getActiveResume(user);
+    if (active && active.resumeData) {
+      console.log(`Calculating ATS match score for scraped job ${job.job}...`);
+      try {
+        const { generateAtsScore } = require('../utils/geminiService');
+        const analysis = await generateAtsScore(job.description, active.resumeData);
+        job.atsAnalysis = analysis;
+      } catch (atsErr) {
+        console.error('Failed to calculate ATS score in background during url extract:', atsErr.message);
+      }
+    }
+
+    await job.save();
+    res.status(201).json(job);
+  } catch (err) {
+    if (browser) await browser.close();
+    console.error('extractUrlInfo error:', err.message);
+    res.status(500).json({ error: 'Failed to scrape or analyze the URL. ' + err.message });
+  }
+};
+
+/**
  * Upload and parse a job description file (PDF, DOCX, image).
  * Stores extracted text + file metadata on the job document.
  */

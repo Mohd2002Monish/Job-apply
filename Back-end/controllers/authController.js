@@ -31,7 +31,8 @@ const generateTokenCookie = (res, email) => {
 
 const googleAuth = (req, res) => {
   try {
-    const url = getAuthUrl();
+    const state = req.query.redirect_uri ? encodeURIComponent(req.query.redirect_uri) : undefined;
+    const url = getAuthUrl(state);
     res.redirect(url);
   } catch (err) {
     console.error('Failed to generate Google auth URL:', err.message);
@@ -40,10 +41,12 @@ const googleAuth = (req, res) => {
 };
 
 const googleCallback = async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
 
-  if (error) return res.redirect(`${FRONTEND_URL}/?auth=error&reason=${encodeURIComponent(error)}`);
-  if (!code) return res.redirect(`${FRONTEND_URL}/?auth=error&reason=no_code`);
+  const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
+
+  if (error) return res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(error)}`);
+  if (!code) return res.redirect(`${baseRedirect}?auth=error&reason=no_code`);
 
   try {
     const tokens = await Promise.race([
@@ -67,7 +70,7 @@ const googleCallback = async (req, res) => {
     );
 
     console.log(`✅ Google user signed in: ${userInfo.email}`);
-    generateTokenCookie(res, userInfo.email.toLowerCase());
+    const token = generateTokenCookie(res, userInfo.email.toLowerCase());
 
     const params = new URLSearchParams({
       auth: 'success',
@@ -77,10 +80,16 @@ const googleCallback = async (req, res) => {
       provider: 'google',
     });
 
-    res.redirect(`${FRONTEND_URL}/?${params.toString()}`);
+    // If it's a mobile redirect, include the JWT token in the URL
+    if (state) {
+      params.append('token', token);
+    }
+
+    res.redirect(`${baseRedirect}?${params.toString()}`);
   } catch (err) {
     console.error('Google OAuth callback error:', err.message);
-    res.redirect(`${FRONTEND_URL}/?auth=error&reason=${encodeURIComponent(err.message)}`);
+    const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
+    res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(err.message)}`);
   }
 };
 
@@ -88,7 +97,8 @@ const googleCallback = async (req, res) => {
 
 const microsoftAuth = (req, res) => {
   try {
-    const url = getMicrosoftAuthUrl();
+    const state = req.query.redirect_uri ? encodeURIComponent(req.query.redirect_uri) : undefined;
+    const url = getMicrosoftAuthUrl(state);
     res.redirect(url);
   } catch (err) {
     console.error('Failed to generate Microsoft auth URL:', err.message);
@@ -97,10 +107,12 @@ const microsoftAuth = (req, res) => {
 };
 
 const microsoftCallback = async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
 
-  if (error) return res.redirect(`${FRONTEND_URL}/?auth=error&reason=${encodeURIComponent(error)}`);
-  if (!code) return res.redirect(`${FRONTEND_URL}/?auth=error&reason=no_code`);
+  const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
+
+  if (error) return res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(error)}`);
+  if (!code) return res.redirect(`${baseRedirect}?auth=error&reason=no_code`);
 
   try {
     const tokens = await Promise.race([
@@ -123,7 +135,7 @@ const microsoftCallback = async (req, res) => {
     );
 
     console.log(`✅ Microsoft user signed in: ${userInfo.email}`);
-    generateTokenCookie(res, userInfo.email.toLowerCase());
+    const token = generateTokenCookie(res, userInfo.email.toLowerCase());
 
     const params = new URLSearchParams({
       auth: 'success',
@@ -133,10 +145,15 @@ const microsoftCallback = async (req, res) => {
       provider: 'microsoft',
     });
 
-    res.redirect(`${FRONTEND_URL}/?${params.toString()}`);
+    if (state) {
+      params.append('token', token);
+    }
+
+    res.redirect(`${baseRedirect}?${params.toString()}`);
   } catch (err) {
     console.error('Microsoft OAuth callback error:', err.message);
-    res.redirect(`${FRONTEND_URL}/?auth=error&reason=${encodeURIComponent(err.message)}`);
+    const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
+    res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(err.message)}`);
   }
 };
 
