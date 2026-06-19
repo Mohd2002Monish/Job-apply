@@ -6,6 +6,7 @@ import JobsTable from './components/JobsTable';
 import ResumeUpload from './components/ResumeUpload';
 import ResumeBuilder from './components/ResumeBuilder';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import InteractiveBackground from './components/InteractiveBackground';
 import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon } from './components/Icons';
 import { setAuth, setResumeInfo, setResumesInfo, toggleTheme, setActiveTab, logoutUser } from './store/authSlice';
 import './index.css';
@@ -153,7 +154,7 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 transition-colors duration-200">
+    <div className="min-h-screen transition-colors duration-200">
       {/* Topbar */}
       <header className="sticky top-0 z-30 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800">
         <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
@@ -489,7 +490,14 @@ function App() {
 
           dispatch(setAuth({
             authenticated: true,
-            user: { email, name, picture, provider: res.data.provider || 'google' },
+            user: { 
+              email, 
+              name, 
+              picture, 
+              provider: res.data.provider || 'google',
+              hasGoogleTokens: res.data.hasGoogleTokens,
+              hasMicrosoftTokens: res.data.hasMicrosoftTokens 
+            },
             resumeName: res.data.resumeName || null,
             resumeData: res.data.resumeData || null,
           }));
@@ -526,10 +534,20 @@ function App() {
   }, [isDark]);
 
   if (!authenticated) {
-    return <LoginPage isDark={isDark} onToggleTheme={() => dispatch(toggleTheme())} />;
+    return (
+      <>
+        <InteractiveBackground />
+        <LoginPage isDark={isDark} onToggleTheme={() => dispatch(toggleTheme())} />
+      </>
+    );
   }
 
-  return <Dashboard />;
+  return (
+    <>
+      <InteractiveBackground />
+      <Dashboard />
+    </>
+  );
 }
 
 export default App;

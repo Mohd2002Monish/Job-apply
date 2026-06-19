@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { useDispatch } from 'react-redux';
 import axios from 'axios';
 import { 
   XIcon, 
@@ -11,7 +10,6 @@ import {
   AlertTriangleIcon,
   ClockIcon
 } from './Icons';
-import { setResumeInfo } from '../store/authSlice';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -34,14 +32,18 @@ const MicrosoftIcon = () => (
 );
 
 export default function OutreachModal({ job, user, onClose, onSuccess }) {
-  const dispatch = useDispatch();
-
   // Local States
   const [coverLetter, setCoverLetter] = useState(job.coverLetter || '');
   const [atsScore, setAtsScore] = useState(job.atsAnalysis?.score ?? null);
   const [atsAnalysis, setAtsAnalysis] = useState(job.atsAnalysis || null);
+  const [atsScoreBefore, setAtsScoreBefore] = useState(null); // score snapshot before tailoring
+  const [atsScoreAfter, setAtsScoreAfter] = useState(null);  // score after tailoring
   const [showAnalysis, setShowAnalysis] = useState(false);
-  
+  const [tailoredResumeData, setTailoredResumeData] = useState(job.tailoredResume?.json || null);
+  const [keywordSuggestions, setKeywordSuggestions] = useState(null);
+  const [gapAnalysisResult, setGapAnalysisResult] = useState(null);
+  const [templateId, setTemplateId] = useState(job.templateId || 'classic');
+
   const [savingCL, setSavingCL] = useState(false);
   const [regeneratingCL, setRegeneratingCL] = useState(false);
   const [calculatingAts, setCalculatingAts] = useState(false);
@@ -59,7 +61,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
 
   // Check auth provider
   const provider = user?.activeProvider || 'google';
-  const isAuthenticated = provider === 'microsoft' ? !!user?.microsoftTokens : !!user?.googleTokens;
+  const isAuthenticated = provider === 'microsoft' ? !!user?.hasMicrosoftTokens : !!user?.hasGoogleTokens;
 
   // Auto calculate ATS score and auto-generate cover letter on load if not present
   useEffect(() => {
@@ -96,24 +98,24 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     }
   };
 
-  // Tailor Resume JSON for 100% match
+  // Tailor Resume JSON for 100% match — saves per-job, does NOT overwrite primary resume
   const handleTailorResume = async () => {
     setTailoring(true);
     setModalError('');
     setModalSuccess('');
+    // Snapshot the current score before tailoring
+    if (atsScore !== null) setAtsScoreBefore(atsScore);
     try {
       const res = await axios.post(`${BACKEND}/resume/tailor`, { jobId: job._id });
-      if (res.data.resumeData) {
-        // Update Redux state with updated active resume JSON
-        dispatch(setResumeInfo({
-          resumeName: resumeName,
-          resumeData: res.data.resumeData
-        }));
-        
-        // Update ATS score and details from tailoring response
-        setAtsScore(res.data.atsAnalysis.score);
+      if (res.data.tailoredResumeData) {
+        const newScore = res.data.atsAnalysis?.score ?? null;
+        setAtsScore(newScore);
+        setAtsScoreAfter(newScore);
         setAtsAnalysis(res.data.atsAnalysis);
-        setModalSuccess('Resume optimized successfully for 100% ATS score! The layout will use this updated version.');
+        setTailoredResumeData(res.data.tailoredResumeData);
+        if (res.data.keywordSuggestions) setKeywordSuggestions(res.data.keywordSuggestions);
+        if (res.data.gapAnalysis) setGapAnalysisResult(res.data.gapAnalysis);
+        setModalSuccess('Resume optimized for this job! Your primary resume is unchanged.');
       }
     } catch (err) {
       console.error(err);
@@ -163,8 +165,8 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     setSending(true);
     setModalError('');
     try {
-      // First save the current cover letter to the database
-      await axios.patch(`${BACKEND}/jobs/${job._id}`, { coverLetter });
+      // First save the current cover letter and templateId to the database
+      await axios.patch(`${BACKEND}/jobs/${job._id}`, { coverLetter, templateId });
       
       // Send application
       const res = await axios.post(`${BACKEND}/apply`, { 
@@ -306,14 +308,61 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                   </p>
                 </div>
               </div>
+
+              {/* Template Selector */}
+              <div className="mt-3 pt-3 border-t border-slate-200/40 dark:border-zinc-800/60">
+                <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block mb-2">Export Template</span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'classic', label: 'Classic' },
+                    { id: 'modern', label: 'Modern' },
+                    { id: 'minimal', label: 'ATS Clean' },
+                    { id: 'executive', label: 'Executive' }
+                  ].map(t => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setTemplateId(t.id)}
+                      className={`px-1.5 py-1.5 rounded-lg text-[9.5px] font-bold transition-all border cursor-pointer select-none ${
+                        templateId === t.id
+                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/25'
+                          : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-400 hover:text-indigo-600'
+                      }`}
+                    >
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tailored resume badge */}
+              {tailoredResumeData && (
+                <div className="mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/50 dark:border-emerald-500/20 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
+                  <CheckCircleIcon size={10} className="shrink-0" />
+                  Tailored version ready for this job
+                </div>
+              )}
             </div>
 
             {/* ATS Match Score */}
             <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-3">
-              <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
-                ATS Compatibility Match
-              </span>
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
+                  ATS Compatibility Match
+                </span>
+                {atsScore !== null && !calculatingAts && (
+                  <button
+                    type="button"
+                    onClick={handleCalculateAts}
+                    className="text-[10px] flex items-center gap-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                    title="Recalculate ATS Score"
+                  >
+                    <RefreshIcon size={10} /> Recalculate
+                  </button>
+                )}
+              </div>
               
+              {/* ATS Score — Before / After comparison */}
               <div className="flex items-center gap-4">
                 {calculatingAts ? (
                   <div className="flex items-center gap-2 py-2.5 text-xs text-slate-500 font-medium">
@@ -321,39 +370,62 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                     Calculating ATS Score...
                   </div>
                 ) : atsScore !== null ? (
-                  <div className="flex items-center gap-3.5">
-                    
-                    {/* SVG Circular indicator */}
-                    <div className="relative flex items-center justify-center w-12 h-12">
-                      <svg className="w-12 h-12 transform -rotate-90">
-                        <circle cx="24" cy="24" r="16" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="3.5" fill="transparent" />
-                        <circle 
-                          cx="24" 
-                          cy="24" 
-                          r="16" 
-                          className={`transition-all duration-700 ease-out ${scoreColor}`} 
-                          strokeWidth="3.5" 
-                          fill="transparent"
-                          strokeDasharray={circ} 
-                          strokeDashoffset={strokeDashoffset} 
-                          strokeLinecap="round"
-                        />
+                  <div className="flex items-center gap-3.5 w-full">
+
+                    {/* Before score */}
+                    {atsScoreBefore !== null && atsScoreAfter !== null && (
+                      <div className="flex flex-col items-center">
+                        <span className="text-[8.5px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider mb-1">Before</span>
+                        <div className="relative flex items-center justify-center w-10 h-10">
+                          <svg className="w-10 h-10 transform -rotate-90">
+                            <circle cx="20" cy="20" r="14" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="3" fill="transparent" />
+                            <circle cx="20" cy="20" r="14" className="stroke-slate-400" strokeWidth="3" fill="transparent" strokeDasharray="88" strokeDashoffset={88 - (atsScoreBefore / 100) * 88} strokeLinecap="round" />
+                          </svg>
+                          <span className="absolute text-[9px] font-bold text-slate-500 dark:text-slate-400 font-mono">{atsScoreBefore}%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {atsScoreBefore !== null && atsScoreAfter !== null && (
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-500 shrink-0">
+                        <polyline points="9 18 15 12 9 6" />
                       </svg>
-                      <span className="absolute text-xs font-bold text-slate-800 dark:text-slate-200 font-mono">
-                        {atsScore}%
-                      </span>
+                    )}
+
+                    {/* Current / After score */}
+                    <div className="flex flex-col items-center">
+                      {atsScoreAfter !== null && <span className="text-[8.5px] text-emerald-500 font-bold uppercase tracking-wider mb-1">After ✓</span>}
+                      <div className="relative flex items-center justify-center w-12 h-12">
+                        <svg className="w-12 h-12 transform -rotate-90">
+                          <circle cx="24" cy="24" r="16" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="3.5" fill="transparent" />
+                          <circle
+                            cx="24" cy="24" r="16"
+                            className={`transition-all duration-700 ease-out ${scoreColor}`}
+                            strokeWidth="3.5" fill="transparent"
+                            strokeDasharray={circ}
+                            strokeDashoffset={strokeDashoffset}
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                        <span className="absolute text-xs font-bold text-slate-800 dark:text-slate-200 font-mono">{atsScore}%</span>
+                      </div>
                     </div>
 
                     <div className="flex-1">
                       <div className="text-xs font-bold text-slate-850 dark:text-slate-200">
                         {atsScore >= 85 ? 'Excellent compatibility' : atsScore >= 60 ? 'Moderate compatibility' : 'Needs improvement'}
                       </div>
+                      {atsAnalysis?.scoreBreakdown && (
+                        <div className="text-[9px] text-slate-400 dark:text-zinc-500 mt-0.5">
+                          Skills {atsAnalysis.scoreBreakdown.skills || 0} · Exp {atsAnalysis.scoreBreakdown.experience || 0} · KW {atsAnalysis.scoreBreakdown.keywords || 0} · Edu {atsAnalysis.scoreBreakdown.education || 0}
+                        </div>
+                      )}
                       <button
                         type="button"
                         onClick={() => setShowAnalysis(!showAnalysis)}
                         className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline mt-1 flex items-center gap-1 cursor-pointer"
                       >
-                        {showAnalysis ? 'Hide Keyword Analysis ▲' : 'Show Keyword Analysis ▼'}
+                        {showAnalysis ? 'Hide Analysis ▲' : 'Show Keyword Analysis ▼'}
                       </button>
                     </div>
                   </div>
@@ -461,10 +533,54 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
               {atsScore >= 85 && atsScore !== null && (
                 <div className="mt-1 flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-405 text-xs border border-emerald-500/10">
                   <CheckCircleIcon size={13} className="shrink-0 mt-0.5" />
-                  <span>Resume tailored for this role! PDF is dynamically compiled.</span>
+                  <span>Great match! {tailoredResumeData ? 'Tailored version saved for this job.' : 'Resume is well-aligned for this role.'}</span>
                 </div>
               )}
             </div>
+
+            {/* Keyword Suggestions Panel — appears after tailoring */}
+            {keywordSuggestions && (
+              <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-3 animate-fade-in">
+                <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
+                  Keyword Suggestions
+                </span>
+
+                {keywordSuggestions.strongKeywords?.length > 0 && (
+                  <div>
+                    <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1.5">Strong Keywords</span>
+                    <div className="flex flex-wrap gap-1">
+                      {keywordSuggestions.strongKeywords.slice(0, 8).map((kw, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-150/40 dark:border-emerald-500/20">✓ {kw}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {keywordSuggestions.missingKeywords?.length > 0 && (
+                  <div>
+                    <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wider block mb-1.5">Still Missing</span>
+                    <div className="flex flex-wrap gap-1">
+                      {keywordSuggestions.missingKeywords.slice(0, 8).map((kw, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-150/40 dark:border-rose-500/20">✗ {kw}</span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {keywordSuggestions.recommendations?.length > 0 && (
+                  <div>
+                    <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block mb-1.5">Recommendations</span>
+                    <ul className="space-y-1">
+                      {keywordSuggestions.recommendations.slice(0, 3).map((rec, i) => (
+                        <li key={i} className="text-[10px] text-slate-600 dark:text-zinc-400 leading-snug flex gap-1.5">
+                          <span className="text-amber-500 shrink-0">→</span> {rec}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Email Provider Auth */}
             <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-2.5">

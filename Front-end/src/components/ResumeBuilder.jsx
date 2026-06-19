@@ -11,170 +11,14 @@ const BACKEND = 'http://localhost:3000';
 
 // ─── Template definitions ─────────────────────────────────────────────────────
 const TEMPLATES = [
-  {
-    id: 'classic',
-    name: 'Classic',
-    desc: 'Traditional serif layout, clean and timeless',
-    accent: '#1a1a1a',
-    thumb: (
-      <svg viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="120" height="160" fill="#fff"/>
-        <rect x="8" y="10" width="60" height="7" rx="1" fill="#1a1a1a"/>
-        <rect x="8" y="20" width="35" height="3" rx="1" fill="#6b7280"/>
-        <rect x="8" y="26" width="104" height="1" fill="#1a1a1a"/>
-        <rect x="8" y="32" width="20" height="2.5" rx="0.5" fill="#1a1a1a"/>
-        <rect x="8" y="37" width="100" height="2" rx="1" fill="#9ca3af"/>
-        <rect x="8" y="41" width="90" height="2" rx="1" fill="#9ca3af"/>
-        <rect x="8" y="48" width="20" height="2.5" rx="0.5" fill="#1a1a1a"/>
-        <rect x="8" y="53" width="80" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="8" y="57" width="70" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="8" y="61" width="75" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="8" y="68" width="20" height="2.5" rx="0.5" fill="#1a1a1a"/>
-        <rect x="8" y="73" width="80" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="8" y="77" width="65" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="8" y="84" width="20" height="2.5" rx="0.5" fill="#1a1a1a"/>
-        <rect x="8" y="89" width="42" height="4" rx="2" fill="#f3f4f6"/>
-        <rect x="52" y="89" width="32" height="4" rx="2" fill="#f3f4f6"/>
-        <rect x="8" y="95" width="36" height="4" rx="2" fill="#f3f4f6"/>
-      </svg>
-    )
-  },
-  {
-    id: 'modern',
-    name: 'Modern',
-    desc: 'Bold blue sidebar with card-based sections',
-    accent: '#1e40af',
-    thumb: (
-      <svg viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="120" height="160" fill="#fff"/>
-        <rect width="120" height="36" fill="#1e40af"/>
-        <rect x="8" y="8" width="55" height="8" rx="1" fill="#fff"/>
-        <rect x="8" y="19" width="35" height="3" rx="1" fill="rgba(255,255,255,0.6)"/>
-        <rect width="34" height="160" x="0" y="36" fill="#f1f5f9"/>
-        <rect x="4" y="42" width="10" height="2" rx="0.5" fill="#1e40af"/>
-        <rect x="4" y="46" width="24" height="2" rx="1" fill="#94a3b8"/>
-        <rect x="4" y="50" width="20" height="2" rx="1" fill="#94a3b8"/>
-        <rect x="4" y="54" width="22" height="2" rx="1" fill="#94a3b8"/>
-        <rect x="4" y="62" width="10" height="2" rx="0.5" fill="#1e40af"/>
-        <rect x="4" y="66" width="24" height="3.5" rx="1.5" fill="#dbeafe"/>
-        <rect x="4" y="71" width="20" height="3.5" rx="1.5" fill="#dbeafe"/>
-        <rect x="4" y="76" width="22" height="3.5" rx="1.5" fill="#dbeafe"/>
-        <rect x="4" y="81" width="18" height="3.5" rx="1.5" fill="#dbeafe"/>
-        <rect x="38" y="42" width="18" height="2.5" rx="0.5" fill="#1e40af"/>
-        <rect x="38" y="47" width="75" height="2" rx="1" fill="#e2e8f0"/>
-        <rect x="38" y="51" width="65" height="2" rx="1" fill="#e2e8f0"/>
-        <rect x="38" y="58" width="18" height="2.5" rx="0.5" fill="#1e40af"/>
-        <rect x="38" y="63" width="70" height="2" rx="1" fill="#e2e8f0"/>
-        <rect x="38" y="67" width="60" height="2" rx="1" fill="#e2e8f0"/>
-        <rect x="38" y="71" width="55" height="2" rx="1" fill="#e2e8f0"/>
-      </svg>
-    )
-  },
-  {
-    id: 'minimal',
-    name: 'Minimal',
-    desc: 'Ultra-clean whitespace, typography-first',
-    accent: '#111111',
-    thumb: (
-      <svg viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="120" height="160" fill="#fff"/>
-        <rect x="10" y="14" width="45" height="9" rx="1" fill="#111"/>
-        <rect x="10" y="26" width="28" height="3" rx="1" fill="#9ca3af"/>
-        <rect x="10" y="32" width="100" height="0.75" fill="#f3f4f6"/>
-        <rect x="10" y="35" width="70" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="10" y="39" width="80" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="10" y="49" width="12" height="2" rx="0.5" fill="#9ca3af"/>
-        <rect x="10" y="54" width="100" height="0.75" fill="#f3f4f6"/>
-        <rect x="10" y="57" width="65" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="10" y="61" width="55" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="10" y="65" width="70" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="10" y="75" width="12" height="2" rx="0.5" fill="#9ca3af"/>
-        <rect x="10" y="80" width="100" height="0.75" fill="#f3f4f6"/>
-        <rect x="10" y="83" width="36" height="4" rx="2" fill="#f3f4f6"/>
-        <rect x="48" y="83" width="28" height="4" rx="2" fill="#f3f4f6"/>
-        <rect x="78" y="83" width="30" height="4" rx="2" fill="#f3f4f6"/>
-        <rect x="10" y="89" width="30" height="4" rx="2" fill="#f3f4f6"/>
-      </svg>
-    )
-  },
-  {
-    id: 'creative',
-    name: 'Creative',
-    desc: 'Emerald green sidebar, vibrant and modern',
-    accent: '#065f46',
-    thumb: (
-      <svg viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="120" height="160" fill="#fff"/>
-        <rect width="38" height="160" fill="url(#creativeGrad)"/>
-        <defs>
-          <linearGradient id="creativeGrad" x1="0" y1="0" x2="0" y2="160" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#065f46"/>
-            <stop offset="1" stopColor="#059669"/>
-          </linearGradient>
-        </defs>
-        <circle cx="19" cy="22" r="12" fill="rgba(255,255,255,0.15)" stroke="rgba(255,255,255,0.4)" strokeWidth="1"/>
-        <rect x="5" y="38" width="28" height="4" rx="1" fill="rgba(255,255,255,0.9)"/>
-        <rect x="5" y="44" width="22" height="2" rx="1" fill="rgba(255,255,255,0.5)"/>
-        <rect x="5" y="52" width="12" height="1.5" rx="0.5" fill="rgba(255,255,255,0.4)"/>
-        <rect x="5" y="56" width="26" height="2" rx="1" fill="rgba(255,255,255,0.6)"/>
-        <rect x="5" y="60" width="20" height="2" rx="1" fill="rgba(255,255,255,0.6)"/>
-        <rect x="5" y="66" width="12" height="1.5" rx="0.5" fill="rgba(255,255,255,0.4)"/>
-        <rect x="5" y="69" width="26" height="3" rx="1.5" fill="rgba(255,255,255,0.2)"/>
-        <rect x="5" y="74" width="20" height="3" rx="1.5" fill="rgba(255,255,255,0.2)"/>
-        <rect x="5" y="79" width="24" height="3" rx="1.5" fill="rgba(255,255,255,0.2)"/>
-        <rect x="44" y="10" width="14" height="1.5" rx="0.5" fill="#065f46"/>
-        <rect x="44" y="14" width="70" height="0.5" fill="#d1fae5"/>
-        <rect x="44" y="17" width="68" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="44" y="21" width="55" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="44" y="30" width="14" height="1.5" rx="0.5" fill="#065f46"/>
-        <rect x="44" y="34" width="70" height="0.5" fill="#d1fae5"/>
-        <rect x="44" y="37" width="68" height="8" rx="2" fill="#f0fdf4"/>
-        <rect x="47" y="39" width="40" height="2" rx="1" fill="#374151"/>
-        <rect x="47" y="43" width="30" height="1.5" rx="0.5" fill="#9ca3af"/>
-        <rect x="44" y="47" width="68" height="8" rx="2" fill="#f0fdf4"/>
-        <rect x="44" y="60" width="14" height="1.5" rx="0.5" fill="#065f46"/>
-        <rect x="44" y="64" width="68" height="8" rx="2" fill="#f0fdf4"/>
-      </svg>
-    )
-  },
-  {
-    id: 'executive',
-    name: 'Executive',
-    desc: 'Navy & gold prestige — command the room',
-    accent: '#0f2d52',
-    thumb: (
-      <svg viewBox="0 0 120 160" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <rect width="120" height="160" fill="#fff"/>
-        <rect width="120" height="40" fill="#0f2d52"/>
-        <rect x="0" y="39" width="120" height="3" fill="url(#goldGrad)"/>
-        <defs>
-          <linearGradient id="goldGrad" x1="0" y1="0" x2="120" y2="0" gradientUnits="userSpaceOnUse">
-            <stop stopColor="#c9a84c"/>
-            <stop offset="0.5" stopColor="#e8c97e"/>
-            <stop offset="1" stopColor="#c9a84c"/>
-          </linearGradient>
-        </defs>
-        <rect x="8" y="9" width="60" height="9" rx="1" fill="#fff"/>
-        <rect x="8" y="21" width="30" height="3" rx="1" fill="#c9a84c"/>
-        <rect x="8" y="27" width="90" height="2" rx="1" fill="rgba(255,255,255,0.3)"/>
-        <rect x="8" y="47" width="18" height="2" rx="0.5" fill="#0f2d52"/>
-        <rect x="8" y="51" width="72" height="0.5" fill="#c9a84c"/>
-        <rect x="8" y="54" width="65" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="8" y="58" width="55" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="8" y="64" width="18" height="2" rx="0.5" fill="#0f2d52"/>
-        <rect x="8" y="68" width="72" height="0.5" fill="#c9a84c"/>
-        <rect x="8" y="71" width="65" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="8" y="75" width="55" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="8" y="79" width="50" height="2" rx="1" fill="#e5e7eb"/>
-        <rect x="86" y="47" width="26" height="2" rx="0.5" fill="#0f2d52"/>
-        <rect x="86" y="51" width="26" height="0.5" fill="#e5e7eb"/>
-        <rect x="86" y="54" width="22" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="86" y="58" width="20" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="86" y="62" width="18" height="2" rx="1" fill="#d1d5db"/>
-        <rect x="86" y="66" width="24" height="2" rx="1" fill="#d1d5db"/>
-      </svg>
-    )
-  },
+  { id: 'profile-classic', name: 'Profile Classic', desc: 'Classic layout with profile picture', accent: '#1a1a1a', colors: { primary: { label: 'Accent Color', default: '#1a1a1a' } } },
+  { id: 'profile-modern', name: 'Profile Modern', desc: 'Modern sidebar with profile picture', accent: '#1e40af', colors: { primary: { label: 'Primary Color', default: '#1e40af' }, secondary: { label: 'Secondary Color', default: '#3b82f6' } } },
+  { id: 'profile-creative', name: 'Profile Creative', desc: 'Creative header with profile picture', accent: '#065f46', colors: { primary: { label: 'Primary Color', default: '#065f46' }, secondary: { label: 'Secondary Color', default: '#059669' } } },
+  { id: 'classic', name: 'Classic', desc: 'Traditional serif layout, clean and timeless', accent: '#1a1a1a', colors: { primary: { label: 'Accent Color', default: '#1a1a1a' } } },
+  { id: 'modern', name: 'Modern', desc: 'Bold blue sidebar with card-based sections', accent: '#1e40af', colors: { primary: { label: 'Primary Color', default: '#1e40af' }, secondary: { label: 'Secondary Color', default: '#3b82f6' } } },
+  { id: 'minimal', name: 'Minimal', desc: 'Ultra-clean whitespace, typography-first', accent: '#111111', colors: { primary: { label: 'Accent Color', default: '#111111' } } },
+  { id: 'creative', name: 'Creative', desc: 'Emerald green sidebar, vibrant and modern', accent: '#065f46', colors: { primary: { label: 'Primary Color', default: '#065f46' }, secondary: { label: 'Secondary Color', default: '#059669' } } },
+  { id: 'executive', name: 'Executive', desc: 'Navy & gold prestige — command the room', accent: '#0f2d52', colors: { primary: { label: 'Primary Color', default: '#0f2d52' }, secondary: { label: 'Secondary Color', default: '#c9a84c' } } },
 ];
 
 const FORMATS = [
@@ -210,6 +54,54 @@ const Field = ({ label, value, onChange, multiline = false, placeholder = '', ro
   </div>
 );
 
+const ImageField = ({ label, value, onChange }) => {
+  const handleFile = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (ev) => onChange(ev.target.result);
+      reader.readAsDataURL(file);
+    }
+  };
+  return (
+    <div className="col-span-full mb-2">
+      <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">
+        {label}
+      </label>
+      <div className="flex items-center gap-3">
+        {value ? (
+          <img src={value} alt="Profile" className="w-12 h-12 rounded-full object-cover border" />
+        ) : (
+          <div className="w-12 h-12 rounded-full bg-slate-100 dark:bg-zinc-800 border flex items-center justify-center">
+            <span className="text-[10px] text-slate-400">None</span>
+          </div>
+        )}
+        <div className="flex flex-col gap-1">
+          <input type="file" accept="image/*" onChange={handleFile} className="text-[10px] file:mr-2 file:py-1 file:px-2 file:rounded file:border-0 file:text-[10px] file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
+          {value && (
+            <button onClick={() => onChange('')} className="text-[10px] text-red-500 hover:text-red-700 text-left w-max">Remove Picture</button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const ColorPickerField = ({ label, value, defaultValue, onChange }) => (
+  <div>
+    <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1 uppercase tracking-wide">
+      {label}
+    </label>
+    <div className="flex items-center gap-2">
+      <input type="color" value={value || defaultValue} onChange={(e) => onChange(e.target.value)} className="w-8 h-8 rounded cursor-pointer border-0 p-0" />
+      <span className="text-xs text-slate-500">{value || defaultValue}</span>
+      {(value && value !== defaultValue) && (
+        <button onClick={() => onChange('')} className="text-[10px] text-slate-400 hover:text-slate-600 ml-2">Reset</button>
+      )}
+    </div>
+  </div>
+);
+
 const Section = ({ title, children, defaultOpen = false }) => {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -228,16 +120,44 @@ const Section = ({ title, children, defaultOpen = false }) => {
 
 const TagInput = ({ label, items = [], onChange }) => {
   const [input, setInput] = useState('');
+  const [draggedIdx, setDraggedIdx] = useState(null);
+
   const add = () => {
     const t = input.trim();
     if (t && !items.includes(t)) { onChange([...items, t]); setInput(''); }
   };
+
+  const handleDragStart = (e, i) => {
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+    }
+    setDraggedIdx(i);
+  };
+
+  const handleDragEnter = (e, i) => {
+    e.preventDefault();
+    if (draggedIdx !== null && draggedIdx !== i) {
+      const arr = [...items];
+      const [dragged] = arr.splice(draggedIdx, 1);
+      arr.splice(i, 0, dragged);
+      onChange(arr);
+      setDraggedIdx(i);
+    }
+  };
+
   return (
     <div>
       <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">{label}</label>
-      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]">
+      <div className="flex flex-wrap gap-1.5 mb-2 min-h-[28px]" onDragOver={(e) => e.preventDefault()}>
         {items.map((tag, i) => (
-          <span key={i} className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-xs font-medium text-indigo-700 dark:text-indigo-400">
+          <span 
+            key={i} 
+            draggable
+            onDragStart={(e) => handleDragStart(e, i)}
+            onDragEnter={(e) => handleDragEnter(e, i)}
+            onDragEnd={() => setDraggedIdx(null)}
+            className={`cursor-move inline-flex items-center gap-1 pl-2.5 pr-1.5 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 text-xs font-medium text-indigo-700 dark:text-indigo-400 transition-opacity ${draggedIdx === i ? 'opacity-50' : ''}`}
+          >
             {tag}
             <button onClick={() => onChange(items.filter((_, j) => j !== i))} className="text-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors">
                <XIcon size={11} />
@@ -271,6 +191,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   const [selectedTemplate, setSelectedTemplate] = useState(() => localStorage.getItem('rb_template') || 'classic');
   const [step, setStep] = useState('select'); // 'select' | 'edit'
   const [previewHtml, setPreviewHtml] = useState('');
+  const [templatePreviews, setTemplatePreviews] = useState({});
   const [loadingPreview, setLoadingPreview] = useState(false);
   const [exporting, setExporting] = useState(null);
   const [exportError, setExportError] = useState('');
@@ -286,22 +207,89 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   const [savingCoverLetter, setSavingCoverLetter] = useState(false);
   const [exportingCoverLetter, setExportingCoverLetter] = useState(null);
 
+  const [draggedItem, setDraggedItem] = useState(null);
+
+  const handleDragStart = (e, index, type) => {
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', type);
+    }
+    setDraggedItem({ index, type });
+  };
+
+  const handleDragEnter = (e, index, type) => {
+    e.preventDefault();
+    if (draggedItem && draggedItem.type === type && draggedItem.index !== index) {
+      setResumeData(d => {
+        const nextData = { ...d };
+        const arr = [...(d[type] || [])];
+        const [dragged] = arr.splice(draggedItem.index, 1);
+        arr.splice(index, 0, dragged);
+        nextData[type] = arr;
+        autoSave(nextData);
+        return nextData;
+      });
+      setDraggedItem({ index, type });
+    }
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+  };
+
+  const handleDragEnd = () => {
+    setDraggedItem(null);
+  };
+
   const previewTimer = useRef(null);
   const saveTimer = useRef(null);
 
   // Sync resumeData when parent sends a new one (e.g. resume switch)
   useEffect(() => {
-    if (initialResumeData) setResumeData(initialResumeData);
-  }, [initialResumeData]);
+    if (initialResumeData) {
+      let data = { ...initialResumeData };
+      if (user?.picture && (!data.personalInfo || !data.personalInfo.picture)) {
+        data.personalInfo = { ...(data.personalInfo || {}), picture: user.picture };
+      }
+      setResumeData(data);
+    }
+  }, [initialResumeData, user]);
 
   // Load from backend if not yet loaded
   useEffect(() => {
     if (!resumeData && user?.email) {
-      axios.get(`${BACKEND}/resume-data`)
-        .then(res => { if (res.data.hasData) setResumeData(res.data.resumeData); })
+      axios.get(`${BACKEND}/resume-data`, { withCredentials: true })
+        .then(res => { 
+          if (res.data.hasData) {
+            let data = { ...res.data.resumeData };
+            if (user?.picture && (!data.personalInfo || !data.personalInfo.picture)) {
+              data.personalInfo = { ...(data.personalInfo || {}), picture: user.picture };
+            }
+            setResumeData(data);
+          } 
+        })
         .catch(() => {});
     }
-  }, [user?.email]);
+  }, [user]);
+
+  // Fetch thumbnails for template grid
+  useEffect(() => {
+    if (step === 'select' && resumeData && Object.keys(templatePreviews).length === 0) {
+      const fetchPreviews = async () => {
+        const previews = {};
+        await Promise.all(TEMPLATES.map(async (t) => {
+          try {
+            const res = await axios.post(`${BACKEND}/preview-template`, { templateId: t.id, resumeData }, { withCredentials: true });
+            previews[t.id] = res.data;
+          } catch (e) {
+            console.error(e);
+          }
+        }));
+        setTemplatePreviews(previews);
+      };
+      fetchPreviews();
+    }
+  }, [step, resumeData, templatePreviews]);
 
   // Auto-preview with debounce
   useEffect(() => {
@@ -479,6 +467,9 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
     const a = [...(d.projects || [])]; a[i] = { ...a[i], [k]: v };
     const n = { ...d, projects: a }; autoSave(n); return n;
   });
+  const updTheme = (k, v) => setResumeData(d => {
+    const n = { ...d, theme: { ...(d.theme || {}), [k]: v } }; autoSave(n); return n;
+  });
 
   // ─── Empty state ────────────────────────────────────────────────────────────
   if (!resumeData) {
@@ -604,9 +595,23 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
                 }`}
               >
                 {/* Thumbnail */}
-                <div className={`aspect-[3/4] w-full bg-white flex items-center justify-center p-1 transition-transform duration-300 group-hover:scale-105 origin-center`}>
-                  <div className="w-full h-full">
-                    {t.thumb}
+                <div className={`aspect-[3/4] w-full bg-white flex items-center justify-center p-1 transition-transform duration-300 group-hover:scale-105 origin-center overflow-hidden`}>
+                  <div className="w-full h-full relative">
+                    {templatePreviews[t.id] ? (
+                      <iframe 
+                        srcDoc={templatePreviews[t.id]} 
+                        title={`Preview ${t.name}`}
+                        className="absolute top-0 left-0"
+                        style={{ width: '400%', height: '400%', transform: 'scale(0.25)', transformOrigin: 'top left', border: 'none', pointerEvents: 'none' }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-slate-50 text-slate-400">
+                        <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -728,8 +733,32 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
           <div className="flex-1 overflow-y-auto space-y-2 pr-1">
             {editTab === 'edit' ? (
               <>
+                {activeTpl.colors && (
+                  <Section title="Appearance" defaultOpen>
+                    <div className="grid grid-cols-2 gap-3">
+                      {activeTpl.colors.primary && (
+                        <ColorPickerField 
+                          label={activeTpl.colors.primary.label} 
+                          value={resumeData.theme?.primary} 
+                          defaultValue={activeTpl.colors.primary.default} 
+                          onChange={v => updTheme('primary', v)} 
+                        />
+                      )}
+                      {activeTpl.colors.secondary && (
+                        <ColorPickerField 
+                          label={activeTpl.colors.secondary.label} 
+                          value={resumeData.theme?.secondary} 
+                          defaultValue={activeTpl.colors.secondary.default} 
+                          onChange={v => updTheme('secondary', v)} 
+                        />
+                      )}
+                    </div>
+                  </Section>
+                )}
+
                 <Section title="Personal Information" defaultOpen>
                   <div className="grid grid-cols-2 gap-3">
+                    <ImageField label="Profile Picture" value={p.picture} onChange={v => updPI('picture', v)} />
                     <Field label="Full Name" value={p.name} onChange={v => updPI('name', v)} placeholder="Jane Smith" />
                     <Field label="Job Title" value={p.jobTitle} onChange={v => updPI('jobTitle', v)} placeholder="Full Stack Developer" />
                     <Field label="Email" value={p.email} onChange={v => updPI('email', v)} placeholder="jane@example.com" />
@@ -747,24 +776,47 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
 
                 <Section title="Work Experience">
                   {(resumeData.experience || []).map((exp, i) => (
-                    <div key={i} className="border border-slate-200 dark:border-zinc-700 rounded-lg p-3 space-y-3">
+                    <div 
+                      key={i} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i, 'experience')}
+                      onDragEnter={(e) => handleDragEnter(e, i, 'experience')}
+                      onDragOver={handleDragOver}
+                      onDragEnd={handleDragEnd}
+                      className={`border border-slate-200 dark:border-zinc-700 rounded-lg p-3 space-y-3 cursor-move transition-opacity ${draggedItem?.type === 'experience' && draggedItem?.index === i ? 'opacity-50' : ''}`}
+                    >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Experience {i + 1}</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400 flex items-center gap-2">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
+                          Experience {i + 1}
+                        </span>
                         <button onClick={() => setResumeData(d => { const n = { ...d, experience: d.experience.filter((_, j) => j !== i) }; autoSave(n); return n; })} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors">
                           <TrashIcon size={13} />
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3" onMouseDown={e => e.stopPropagation()}>
                         <Field label="Role" value={exp.role} onChange={v => updExp(i, 'role', v)} />
                         <Field label="Company" value={exp.company} onChange={v => updExp(i, 'company', v)} />
                         <Field label="Start Date" value={exp.startDate} onChange={v => updExp(i, 'startDate', v)} placeholder="Jan 2022" />
                         <Field label="End Date" value={exp.current ? 'Present' : exp.endDate} onChange={v => { if (v === 'Present') { updExp(i, 'current', true); } else { updExp(i, 'endDate', v); updExp(i, 'current', false); } }} placeholder="Present" />
                         <Field label="Location" value={exp.location} onChange={v => updExp(i, 'location', v)} />
                       </div>
-                      <Field label="Description" value={exp.description} onChange={v => updExp(i, 'description', v)} multiline />
+                      <div onMouseDown={e => e.stopPropagation()}>
+                        <Field label="Description" value={exp.description} onChange={v => updExp(i, 'description', v)} multiline />
+                      </div>
+                      <div onMouseDown={e => e.stopPropagation()}>
+                        <Field 
+                          label="Achievements / Bullet Points (One per line)" 
+                          value={(exp.achievements || []).join('\n')} 
+                          onChange={v => updExp(i, 'achievements', v.split('\n').filter(s => s.trim() !== ''))} 
+                          multiline 
+                          rows={4} 
+                          placeholder="e.g. Increased revenue by 20%..."
+                        />
+                      </div>
                     </div>
                   ))}
-                  <button onClick={() => setResumeData(d => { const n = { ...d, experience: [...(d.experience || []), { company: '', role: '', startDate: '', endDate: '', current: false, location: '', description: '', achievements: [] }] }; autoSave(n); return n; })}
+                  <button onClick={() => setResumeData(d => { const n = { ...d, experience: [{ company: '', role: '', startDate: '', endDate: '', current: false, location: '', description: '', achievements: [] }, ...(d.experience || [])] }; autoSave(n); return n; })}
                     className="w-full py-2 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 text-xs text-slate-400 dark:text-zinc-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-1.5">
                     <PlusIcon size={13} /> Add Experience
                   </button>
@@ -772,14 +824,25 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
 
                 <Section title="Education">
                   {(resumeData.education || []).map((edu, i) => (
-                    <div key={i} className="border border-slate-200 dark:border-zinc-700 rounded-lg p-3 space-y-3">
+                    <div 
+                      key={i} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i, 'education')}
+                      onDragEnter={(e) => handleDragEnter(e, i, 'education')}
+                      onDragOver={handleDragOver}
+                      onDragEnd={handleDragEnd}
+                      className={`border border-slate-200 dark:border-zinc-700 rounded-lg p-3 space-y-3 cursor-move transition-opacity ${draggedItem?.type === 'education' && draggedItem?.index === i ? 'opacity-50' : ''}`}
+                    >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Education {i + 1}</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400 flex items-center gap-2">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
+                          Education {i + 1}
+                        </span>
                         <button onClick={() => setResumeData(d => { const n = { ...d, education: d.education.filter((_, j) => j !== i) }; autoSave(n); return n; })} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors">
                           <TrashIcon size={13} />
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3" onMouseDown={e => e.stopPropagation()}>
                         <Field label="Institution" value={edu.institution} onChange={v => updEdu(i, 'institution', v)} />
                         <Field label="Degree" value={edu.degree} onChange={v => updEdu(i, 'degree', v)} />
                         <Field label="Field of Study" value={edu.field} onChange={v => updEdu(i, 'field', v)} />
@@ -788,7 +851,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
                       </div>
                     </div>
                   ))}
-                  <button onClick={() => setResumeData(d => { const n = { ...d, education: [...(d.education || []), { institution: '', degree: '', field: '', startDate: '', endDate: '', gpa: '' }] }; autoSave(n); return n; })}
+                  <button onClick={() => setResumeData(d => { const n = { ...d, education: [{ institution: '', degree: '', field: '', startDate: '', endDate: '', gpa: '' }, ...(d.education || [])] }; autoSave(n); return n; })}
                     className="w-full py-2 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 text-xs text-slate-400 dark:text-zinc-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-1.5">
                     <PlusIcon size={13} /> Add Education
                   </button>
@@ -805,23 +868,38 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
 
                 <Section title="Projects">
                   {(resumeData.projects || []).map((pr, i) => (
-                    <div key={i} className="border border-slate-200 dark:border-zinc-700 rounded-lg p-3 space-y-3">
+                    <div 
+                      key={i} 
+                      draggable
+                      onDragStart={(e) => handleDragStart(e, i, 'projects')}
+                      onDragEnter={(e) => handleDragEnter(e, i, 'projects')}
+                      onDragOver={handleDragOver}
+                      onDragEnd={handleDragEnd}
+                      className={`border border-slate-200 dark:border-zinc-700 rounded-lg p-3 space-y-3 cursor-move transition-opacity ${draggedItem?.type === 'projects' && draggedItem?.index === i ? 'opacity-50' : ''}`}
+                    >
                       <div className="flex items-center justify-between">
-                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400">Project {i + 1}</span>
+                        <span className="text-xs font-semibold text-slate-500 dark:text-zinc-400 flex items-center gap-2">
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-400"><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>
+                          Project {i + 1}
+                        </span>
                         <button onClick={() => setResumeData(d => { const n = { ...d, projects: d.projects.filter((_, j) => j !== i) }; autoSave(n); return n; })} className="p-1 rounded text-slate-400 hover:text-red-500 transition-colors">
                           <TrashIcon size={13} />
                         </button>
                       </div>
-                      <div className="grid grid-cols-2 gap-3">
+                      <div className="grid grid-cols-2 gap-3" onMouseDown={e => e.stopPropagation()}>
                         <Field label="Project Name" value={pr.name} onChange={v => updPr(i, 'name', v)} />
                         <Field label="Live URL" value={pr.url} onChange={v => updPr(i, 'url', v)} />
                         <Field label="GitHub URL" value={pr.github} onChange={v => updPr(i, 'github', v)} />
                       </div>
-                      <Field label="Description" value={pr.description} onChange={v => updPr(i, 'description', v)} multiline />
-                      <TagInput label="Tech Stack" items={pr.techStack || []} onChange={v => updPr(i, 'techStack', v)} />
+                      <div onMouseDown={e => e.stopPropagation()}>
+                        <Field label="Description" value={pr.description} onChange={v => updPr(i, 'description', v)} multiline />
+                      </div>
+                      <div onMouseDown={e => e.stopPropagation()}>
+                        <TagInput label="Tech Stack" items={pr.techStack || []} onChange={v => updPr(i, 'techStack', v)} />
+                      </div>
                     </div>
                   ))}
-                  <button onClick={() => setResumeData(d => { const n = { ...d, projects: [...(d.projects || []), { name: '', description: '', techStack: [], url: '', github: '' }] }; autoSave(n); return n; })}
+                  <button onClick={() => setResumeData(d => { const n = { ...d, projects: [{ name: '', description: '', techStack: [], url: '', github: '' }, ...(d.projects || [])] }; autoSave(n); return n; })}
                     className="w-full py-2 rounded-lg border border-dashed border-slate-200 dark:border-zinc-700 text-xs text-slate-400 dark:text-zinc-500 hover:border-indigo-300 dark:hover:border-indigo-700 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors flex items-center justify-center gap-1.5">
                     <PlusIcon size={13} /> Add Project
                   </button>

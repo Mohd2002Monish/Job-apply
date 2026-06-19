@@ -411,102 +411,324 @@ Important rules:
 };
 
 /**
+ * STEP 1 — JD Analysis.
+ * Extract structured requirements from a raw job description text.
+ */
+const analyzeJobDescription = async (jdText) => {
+  const prompt = `You are an ATS recruiter.
+
+Analyze the following job description and extract structured information.
+
+Return JSON only. No markdown, no extra text.
+
+{
+  "jobTitle": "",
+  "requiredSkills": [],
+  "preferredSkills": [],
+  "tools": [],
+  "frameworks": [],
+  "softSkills": [],
+  "responsibilities": [],
+  "keywords": []
+}
+
+Job Description:
+${jdText.slice(0, 5000)}`;
+
+  const completion = await createChatCompletionWithRetry({
+    model: "gemini-2.5-flash",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+    response_format: { type: "json_object" }
+  });
+
+  const raw = completion.choices[0].message.content.trim().replace(/^```json/i, '').replace(/```$/, '').trim();
+  return extractJson(raw);
+};
+
+/**
+ * STEP 2 — Resume Gap Analysis.
+ * Compare resume against JD analysis to find gaps — analysis only, no rewriting.
+ */
+const analyzeResumeGap = async (resumeData, jdAnalysis) => {
+  const resumeContext = formatResumeContext(resumeData);
+
+  const prompt = `You are an ATS optimization expert.
+
+Compare the resume and job description analysis.
+
+Rules:
+- Do not rewrite anything.
+- Do not generate a new resume.
+- Only analyze and identify gaps.
+
+Identify:
+1. Matching skills
+2. Missing skills (present in JD but absent in resume)
+3. Weakly represented skills (mentioned but not elaborated)
+4. Experience entries that should be emphasized
+5. Projects that should be emphasized
+6. Keywords already present in the resume
+7. Keywords missing from the resume
+
+Return JSON only. No markdown, no extra text.
+
+{
+  "matchingSkills": [],
+  "missingSkills": [],
+  "weakSkills": [],
+  "experienceToHighlight": [],
+  "projectsToHighlight": [],
+  "presentKeywords": [],
+  "missingKeywords": []
+}
+
+Resume:
+${resumeContext.slice(0, 3000)}
+
+JD Analysis:
+${JSON.stringify(jdAnalysis).slice(0, 2000)}`;
+
+  const completion = await createChatCompletionWithRetry({
+    model: "gemini-2.5-flash",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.1,
+    response_format: { type: "json_object" }
+  });
+
+  const raw = completion.choices[0].message.content.trim().replace(/^```json/i, '').replace(/```$/, '').trim();
+  return extractJson(raw);
+};
+
+/**
+ * STEP 5 — Keyword Suggestions.
+ * Analyze a tailored resume and return keyword strength ratings and actionable recommendations.
+ */
+const generateKeywordSuggestions = async (tailoredResume, jdAnalysis) => {
+  const resumeContext = formatResumeContext(tailoredResume);
+
+  const prompt = `Analyze the tailored resume against the job description keywords.
+
+Identify:
+1. Strong keywords (present and well-represented in the resume)
+2. Missing keywords (present in JD but absent in resume)
+3. Specific actionable recommendations to add more missing context
+
+Return JSON only.
+
+{
+  "strongKeywords": [],
+  "missingKeywords": [],
+  "recommendations": []
+}
+
+Tailored Resume:
+${resumeContext.slice(0, 2500)}
+
+JD Keywords:
+${JSON.stringify(jdAnalysis?.keywords || [])}`;
+
+  const completion = await createChatCompletionWithRetry({
+    model: "gemini-2.5-flash",
+    messages: [{ role: "user", content: prompt }],
+    temperature: 0.2,
+    response_format: { type: "json_object" }
+  });
+
+  const raw = completion.choices[0].message.content.trim().replace(/^```json/i, '').replace(/```$/, '').trim();
+  return extractJson(raw);
+};
+
+/**
+ * Build a Skill Evidence Map from the resume to prevent AI from claiming skills
+ * not evidenced anywhere in the candidate's experience, projects, or skills sections.
+ */
+const buildSkillEvidenceMap = (resumeData) => {
+  const map = {};
+
+  const addEvidence = (skill, source) => {
+    const key = skill.trim().toLowerCase();
+    if (!map[key]) map[key] = [];
+    if (!map[key].includes(source)) map[key].push(source);
+  };
+
+  // From skills sections
+  const allSkills = [
+    ...(resumeData?.skills?.technical || []),
+    ...(resumeData?.skills?.tools || []),
+    ...(resumeData?.skills?.soft || []),
+    ...(resumeData?.skills?.languages || [])
+  ];
+  allSkills.forEach(s => addEvidence(s, 'Skills Section'));
+
+  // From experience descriptions
+  (resumeData?.experience || []).forEach(exp => {
+    const text = `${exp.description || ''} ${(exp.achievements || []).join(' ')}`;
+    allSkills.forEach(s => {
+      if (text.toLowerCase().includes(s.toLowerCase())) {
+        addEvidence(s, exp.company || 'Work Experience');
+      }
+    });
+  });
+
+  // From projects
+  (resumeData?.projects || []).forEach(proj => {
+    (proj.techStack || []).forEach(s => addEvidence(s, proj.name || 'Project'));
+  });
+
+  return map;
+};
+
+/**
+ * STEP 4 — Deterministic ATS Scoring (no AI).
+ * Skills 40% + Experience 30% + Keywords 20% + Education 10% = 100
+ */
+const calculateDeterministicAtsScore = (resumeData, jdAnalysis) => {
+  if (!jdAnalysis || !resumeData) return { score: 0, breakdown: {} };
+
+  const resumeSkills = [
+    ...(resumeData?.skills?.technical || []),
+    ...(resumeData?.skills?.tools || []),
+    ...(resumeData?.skills?.soft || [])
+  ].map(s => s.toLowerCase());
+
+  const requiredSkills = [
+    ...(jdAnalysis.requiredSkills || []),
+    ...(jdAnalysis.tools || []),
+    ...(jdAnalysis.frameworks || [])
+  ].map(s => s.toLowerCase());
+
+  // Skills score (40pts)
+  let skillsScore = 0;
+  if (requiredSkills.length > 0) {
+    const matched = requiredSkills.filter(s => resumeSkills.some(rs => rs.includes(s) || s.includes(rs)));
+    skillsScore = Math.round((matched.length / requiredSkills.length) * 40);
+  } else {
+    skillsScore = 30; // no required skills listed — partial credit
+  }
+
+  // Experience score (30pts)
+  const hasExperience = (resumeData?.experience || []).length > 0;
+  const responsibilities = (jdAnalysis.responsibilities || []).map(r => r.toLowerCase());
+  const expText = (resumeData?.experience || []).map(e =>
+    `${e.description || ''} ${(e.achievements || []).join(' ')}`
+  ).join(' ').toLowerCase();
+  let expMatchCount = 0;
+  if (responsibilities.length > 0) {
+    expMatchCount = responsibilities.filter(r => {
+      const words = r.split(' ').filter(w => w.length > 4);
+      return words.some(w => expText.includes(w));
+    }).length;
+    const expScore = Math.round((expMatchCount / responsibilities.length) * 30);
+    skillsScore = skillsScore; // keep
+    var experienceScore = Math.min(30, expScore + (hasExperience ? 5 : 0));
+  } else {
+    var experienceScore = hasExperience ? 25 : 0;
+  }
+
+  // Keywords score (20pts)
+  const keywords = (jdAnalysis.keywords || []).map(k => k.toLowerCase());
+  const fullResumeText = formatResumeContext(resumeData).toLowerCase();
+  let keywordScore = 0;
+  if (keywords.length > 0) {
+    const matchedKw = keywords.filter(k => fullResumeText.includes(k));
+    keywordScore = Math.round((matchedKw.length / keywords.length) * 20);
+  } else {
+    keywordScore = 15;
+  }
+
+  // Education score (10pts)
+  const hasEducation = (resumeData?.education || []).length > 0;
+  const educationScore = hasEducation ? 10 : 0;
+
+  const total = Math.min(100, skillsScore + experienceScore + keywordScore + educationScore);
+
+  return {
+    score: total,
+    breakdown: {
+      skills: skillsScore,
+      experience: experienceScore,
+      keywords: keywordScore,
+      education: educationScore
+    }
+  };
+};
+
+/**
+ * STEP 3 — Tailored Resume Generator (upgraded to 3-step chain).
  * Tailor/optimize resume data structure to match the job description and hit a high ATS score.
  */
 const tailorResumeData = async (jobDescription, resumeData) => {
   try {
-    const openai = getGemini();
-    const candidateContext = formatResumeContext(resumeData);
+    console.log('🔍 Step 1: Analyzing job description...');
+    const jdAnalysis = await analyzeJobDescription(jobDescription);
 
-    const prompt = `You are an expert ATS optimization assistant. Your task is to rewrite and optimize the candidate's resume JSON data to tailor it specifically for the target job description to achieve a 100% ATS match score.
+    console.log('📊 Step 2: Running resume gap analysis...');
+    const gapAnalysis = await analyzeResumeGap(resumeData, jdAnalysis);
 
-Here is the Target Job Description:
-${jobDescription}
+    // Build skill evidence map to prevent hallucination
+    const skillEvidenceMap = buildSkillEvidenceMap(resumeData);
+    const evidencedSkills = Object.keys(skillEvidenceMap);
 
-Here is the Candidate's Resume JSON Data:
-${JSON.stringify(resumeData)}
+    console.log('✍️ Step 3: Generating tailored resume...');
 
-Instructions:
-1. Tailor the "summary", "skills" (technical, tools, soft), "experience", and "projects" sections of the resume to align perfectly with the target Job Description.
-2. Incorporate important keywords, technologies, skills, and tools mentioned in the Job Description.
-3. For "experience" descriptions and achievements, rewrite them to highlight matching duties and bullet points, aligning them to the requirements.
-4. IMPORTANT: Do NOT fabricate or invent new companies, employment dates, job roles/titles, location, or educational degrees. Keep the structure of the work history and education identical to the original resume. Only enhance/tailor the summaries, skills, experience bullet points/descriptions, and projects to showcase maximum alignment.
-5. Return ONLY a valid JSON object matching the exact schema of the input resume data. Do not include any markdown formatting, headers, or extra text.
+    const prompt = `You are a senior ATS resume optimization expert.
 
-The output JSON must follow this structure exactly:
+Your task is to optimize a resume for a specific job description.
+
+CRITICAL RULES — You MUST follow these strictly:
+- NEVER invent new skills, technologies, companies, projects, certifications, degrees, years of experience, or responsibilities.
+- ONLY use information already present in the candidate's resume.
+- The candidate's evidenced skills are: ${evidencedSkills.join(', ')}. Do NOT add any skill not in this list.
+- You MAY: reorder sections, rewrite bullet points, improve wording, move relevant skills higher, prioritize matching projects, highlight matching experience, rewrite summaries, and improve keyword alignment.
+
+Objective: Maximize ATS compatibility while remaining 100% truthful.
+
+JOB DESCRIPTION:
+${jobDescription.slice(0, 3000)}
+
+CURRENT RESUME (JSON):
+${JSON.stringify(resumeData).slice(0, 4000)}
+
+GAP ANALYSIS:
+${JSON.stringify(gapAnalysis).slice(0, 2000)}
+
+Optimization priorities:
+1. Rewrite professional summary to match the job title and key requirements.
+2. Move most relevant skills to top of each skills list.
+3. Rewrite experience bullet points using recruiter language that matches the JD.
+4. Prioritize and rewrite projects that overlap with job requirements.
+5. Emphasize matching technologies naturally in descriptions.
+6. Preserve all factual information — company names, dates, degrees, locations.
+
+Return ONLY a valid JSON object. No markdown, no extra text. Use this exact schema:
 {
-  "personalInfo": {
-    "name": "...",
-    "email": "...",
-    "phone": "...",
-    "location": "...",
-    "linkedin": "...",
-    "github": "...",
-    "website": "...",
-    "jobTitle": "..."
-  },
-  "summary": "...",
-  "experience": [
-    {
-      "company": "...",
-      "role": "...",
-      "startDate": "...",
-      "endDate": "...",
-      "current": false,
-      "location": "...",
-      "description": "...",
-      "achievements": ["..."]
-    }
-  ],
-  "education": [
-    {
-      "institution": "...",
-      "degree": "...",
-      "field": "...",
-      "startDate": "...",
-      "endDate": "...",
-      "gpa": "...",
-      "location": "..."
-    }
-  ],
-  "skills": {
-    "technical": ["..."],
-    "soft": ["..."],
-    "languages": ["..."],
-    "tools": ["..."]
-  },
-  "certifications": [
-    {
-      "name": "...",
-      "issuer": "...",
-      "date": "...",
-      "url": "..."
-    }
-  ],
-  "projects": [
-    {
-      "name": "...",
-      "description": "...",
-      "techStack": ["..."],
-      "url": "...",
-      "github": "..."
-    }
-  ],
-  "awards": ["..."]
-}
-
-Make sure the JSON response is clean, valid, and fully parsed.`;
+  "personalInfo": { "name": "", "email": "", "phone": "", "location": "", "linkedin": "", "github": "", "website": "", "jobTitle": "" },
+  "summary": "",
+  "experience": [{ "company": "", "role": "", "startDate": "", "endDate": "", "current": false, "location": "", "description": "", "achievements": [] }],
+  "education": [{ "institution": "", "degree": "", "field": "", "startDate": "", "endDate": "", "gpa": "", "location": "" }],
+  "skills": { "technical": [], "soft": [], "languages": [], "tools": [] },
+  "certifications": [{ "name": "", "issuer": "", "date": "", "url": "" }],
+  "projects": [{ "name": "", "description": "", "techStack": [], "url": "", "github": "" }],
+  "awards": []
+}`;
 
     const completion = await createChatCompletionWithRetry({
       model: "gemini-2.5-flash",
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.3,
+      temperature: 0.25,
       response_format: { type: "json_object" }
     });
 
     const cleanContent = completion.choices[0].message.content.trim();
     const jsonString = cleanContent.replace(/^```json/i, '').replace(/```$/, '').trim();
-    return extractJson(jsonString);
+    const tailoredData = extractJson(jsonString);
+
+    // Attach metadata for callers to use
+    tailoredData._jdAnalysis = jdAnalysis;
+    tailoredData._gapAnalysis = gapAnalysis;
+
+    return tailoredData;
   } catch (error) {
     console.error("Error tailoring resume data with Gemini:", error.message);
     throw error;
@@ -641,6 +863,10 @@ Return a JSON object with:
 module.exports = {
   generateEmailContent,
   generateAtsScore,
+  analyzeJobDescription,
+  analyzeResumeGap,
+  generateKeywordSuggestions,
+  calculateDeterministicAtsScore,
   generateCoverLetter,
   generateCustomCoverLetter,
   extractJobInfoFromText,

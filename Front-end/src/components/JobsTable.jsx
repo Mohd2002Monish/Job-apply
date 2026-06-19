@@ -739,7 +739,7 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
               {/* Actions */}
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setCoverOpen(true)} className="btn-ghost text-xs flex-1">Cover Letter</button>
-                <button onClick={() => setOutreachOpen(true)} className="btn-primary text-xs flex-1"><SendIcon /> Send Outreach</button>
+                <button onClick={() => setOutreachOpen(true)} className="btn-primary text-xs flex-1"><SparkleIcon /> Optimize & Outreach</button>
               </div>
             </div>
           )}

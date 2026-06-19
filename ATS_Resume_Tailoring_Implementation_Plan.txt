@@ -1,0 +1,318 @@
+
+AI RESUME TAILORING FEATURE - IMPLEMENTATION PLAN
+
+GOAL:
+Generate the highest possible ATS score using only the candidate's real experience.
+Never invent skills, companies, projects, certifications, education, or years of experience.
+
+==================================================
+OVERALL FLOW
+==================================================
+
+User Resume JSON
+        +
+Job Description
+        ↓
+AI Resume Analyzer
+        ↓
+Gap Analysis
+        ↓
+Resume Optimization
+        ↓
+Tailored Resume JSON
+        ↓
+ATS Scoring Engine
+        ↓
+Resume PDF Generation
+        ↓
+Attach to Email
+
+==================================================
+DATABASE DESIGN
+==================================================
+
+Job Schema:
+
+{
+  _id,
+  title,
+  company,
+  jdText,
+  originalResumeId,
+  tailoredResume: {
+    score: Number,
+    generatedAt: Date,
+    json: Object
+  },
+  templateId: String
+}
+
+==================================================
+STEP 1 - JD ANALYSIS
+==================================================
+
+Prompt:
+
+You are an ATS recruiter.
+
+Analyze the following job description.
+
+Return JSON only.
+
+Extract:
+1. Job title
+2. Required skills
+3. Preferred skills
+4. Tools
+5. Frameworks
+6. Soft skills
+7. Experience requirements
+8. Responsibilities
+9. Important keywords recruiters will search for
+10. ATS ranking importance score (1-10)
+
+Return format:
+
+{
+  "jobTitle":"",
+  "requiredSkills":[],
+  "preferredSkills":[],
+  "tools":[],
+  "frameworks":[],
+  "softSkills":[],
+  "responsibilities":[],
+  "keywords":[]
+}
+
+==================================================
+STEP 2 - RESUME GAP ANALYSIS
+==================================================
+
+Prompt:
+
+You are an ATS optimization expert.
+
+Compare the resume and job description.
+
+Rules:
+- Do not rewrite anything.
+- Do not generate a new resume.
+- Only analyze.
+
+Identify:
+1. Matching skills
+2. Missing skills
+3. Weakly represented skills
+4. Experience that should be emphasized
+5. Projects that should be emphasized
+6. Keywords present
+7. Keywords missing
+
+Return JSON only.
+
+{
+  "matchingSkills":[],
+  "missingSkills":[],
+  "weakSkills":[],
+  "experienceToHighlight":[],
+  "projectsToHighlight":[],
+  "presentKeywords":[],
+  "missingKeywords":[]
+}
+
+==================================================
+STEP 3 - TAILORED RESUME GENERATOR
+==================================================
+
+MAIN PROMPT:
+
+You are a senior ATS resume optimization expert.
+
+Your task is to optimize a resume for a specific job description.
+
+CRITICAL RULES:
+
+NEVER invent:
+- skills
+- technologies
+- companies
+- projects
+- certifications
+- degrees
+- years of experience
+- responsibilities
+
+Only use information already present in the candidate's resume.
+
+You MAY:
+- reorder sections
+- rewrite bullet points
+- improve wording
+- move important skills higher
+- prioritize relevant projects
+- highlight matching experience
+- rewrite summaries
+- improve keyword alignment
+
+Your objective:
+Maximize ATS compatibility while remaining 100% truthful.
+
+JOB DESCRIPTION:
+{{jobDescription}}
+
+CURRENT RESUME:
+{{resumeJson}}
+
+GAP ANALYSIS:
+{{gapAnalysis}}
+
+Optimization priorities:
+1. Rewrite professional summary to match job title.
+2. Move most relevant skills to top.
+3. Rewrite experience bullets using recruiter language.
+4. Rewrite projects using ATS-friendly wording.
+5. Emphasize matching technologies.
+6. Preserve all factual information.
+
+Return JSON only.
+
+Schema:
+
+{
+  "summary":"",
+  "skills":[],
+  "experience":[
+    {
+      "company":"",
+      "role":"",
+      "startDate":"",
+      "endDate":"",
+      "description":[]
+    }
+  ],
+  "projects":[]
+}
+
+==================================================
+STEP 4 - ATS SCORING
+==================================================
+
+Do NOT ask AI for a score.
+
+Use deterministic scoring:
+
+Skills Score = 40
+Experience Score = 30
+Keywords Score = 20
+Education Score = 10
+
+Total = 100
+
+Example:
+
+Required Skills:
+React, Node.js, MongoDB, Docker
+
+Resume Skills:
+React, Node.js, MongoDB
+
+Score:
+3/4 * 40 = 30
+
+Final Score Example:
+Skills = 30
+Experience = 26
+Keywords = 18
+Education = 10
+
+Total ATS Score = 84
+
+==================================================
+STEP 5 - KEYWORD SUGGESTIONS
+==================================================
+
+Prompt:
+
+Analyze the tailored resume.
+
+Identify:
+1. Missing keywords
+2. Weak keywords
+3. Strong keywords
+4. Skills that should be highlighted more
+
+Return JSON.
+
+Example:
+
+{
+  "strongKeywords":[
+    "React",
+    "Node.js",
+    "REST API"
+  ],
+  "missingKeywords":[
+    "Docker",
+    "Redis"
+  ],
+  "recommendations":[
+    "Highlight deployment experience",
+    "Mention Docker if actually used"
+  ]
+}
+
+==================================================
+UI FLOW
+==================================================
+
+Send Email
+    ↓
+
+Resume Selection
+
+ATS Score Before: 74%
+Generate Tailored Resume
+ATS Score After: 91%
+
+Choose Template:
+- Modern
+- ATS Clean
+- Executive
+- Compact
+
+Use this template by default
+
+Send Email
+
+==================================================
+API STRUCTURE
+==================================================
+
+POST /resume/analyze-jd
+POST /resume/gap-analysis
+POST /resume/tailor
+POST /resume/ats-score
+POST /resume/render-pdf
+POST /jobs/:id/send-email
+
+==================================================
+SKILL EVIDENCE MAP
+==================================================
+
+{
+  "React": [
+    "ATS Platform",
+    "Admin Panel"
+  ],
+  "Node.js": [
+    "REST APIs",
+    "Authentication"
+  ],
+  "Docker": [
+    "Deployment Project"
+  ]
+}
+
+Purpose:
+Prevent the AI from claiming a skill unless evidence exists in the resume.
+This keeps the tailored resume ATS-optimized and trustworthy.

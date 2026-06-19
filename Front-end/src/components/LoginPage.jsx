@@ -32,7 +32,7 @@ const FeatureRow = ({ icon, label }) => (
 
 const LoginPage = ({ isDark, onToggleTheme }) => {
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-zinc-950 flex flex-col items-center justify-center p-6 transition-colors duration-200">
+    <div className="min-h-screen flex flex-col items-center justify-center p-6 transition-colors duration-200">
 
       {/* Top-right theme toggle */}
       <div className="fixed top-4 right-4">

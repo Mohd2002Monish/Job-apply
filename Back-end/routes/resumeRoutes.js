@@ -14,7 +14,9 @@ const {
   calculateAtsScore,
   createCoverLetter,
   exportCoverLetterDoc,
-  tailorResume
+  tailorResume,
+  analyzeJd,
+  gapAnalysis
 } = require('../controllers/resumeController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
 
@@ -59,5 +61,9 @@ router.post('/resume/ats-score', authenticate, requireAuth, calculateAtsScore);
 router.post('/resume/cover-letter', authenticate, requireAuth, createCoverLetter);
 router.post('/resume/cover-letter/export', authenticate, requireAuth, exportCoverLetterDoc);
 router.post('/resume/tailor', authenticate, requireAuth, tailorResume);
+
+// ATS Pipeline routes (Step 1 & Step 2)
+router.post('/resume/analyze-jd', authenticate, requireAuth, analyzeJd);
+router.post('/resume/gap-analysis', authenticate, requireAuth, gapAnalysis);
 
 module.exports = router;

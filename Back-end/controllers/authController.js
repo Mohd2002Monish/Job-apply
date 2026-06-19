@@ -159,6 +159,8 @@ const status = async (req, res) => {
       resumeName: req.user.resumeFileName || null,
       hasResumeData: !!req.user.resumeData,
       resumeData: req.user.resumeData || null,
+      hasGoogleTokens: !!req.user.googleTokens,
+      hasMicrosoftTokens: !!req.user.microsoftTokens,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

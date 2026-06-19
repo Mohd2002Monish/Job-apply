@@ -57,6 +57,13 @@ const jobSchema = new mongoose.Schema({
     suggestions: [{ type: String }]
   },
   coverLetter: { type: String, default: '' },
+  // Per-job tailored resume (does NOT overwrite user's primary resume)
+  tailoredResume: {
+    score: { type: Number, default: null },
+    generatedAt: { type: Date, default: null },
+    json: { type: Object, default: null }
+  },
+  templateId: { type: String, default: 'classic' },
   followUpDate: { type: Date, default: null },
   followUpStatus: { type: String, enum: ['none', 'pending', 'sent'], default: 'none' },
   followUpText: { type: String, default: '' },

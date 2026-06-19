@@ -5,7 +5,8 @@
   "description": "Imports job postings from LinkedIn and Indeed directly into your Job Apply dashboard.",
   "permissions": [
     "activeTab",
-    "tabs"
+    "tabs",
+    "scripting"
   ],
   "host_permissions": [
     "*://*.linkedin.com/*",
@@ -17,13 +18,11 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.linkedin.com/jobs/*",
-        "*://*.linkedin.com/jobs/view/*",
-        "*://*.indeed.com/*",
-        "*://*.indeed.com/viewjob*",
-        "*://*.indeed.com/jobs*"
+        "*://*.linkedin.com/*",
+        "*://*.indeed.com/*"
       ],
-      "js": ["content.js"]
+      "js": ["content.js"],
+      "run_at": "document_idle"
     }
   ]
 }

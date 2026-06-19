@@ -3,8 +3,8 @@ const User = require('../models/User');
 const Job = require('../models/Job');
 const { parseResume } = require('../utils/resumeParser');
 const { structureResume } = require('../utils/resumeStructurer');
-const { exportResume, exportCoverLetter, buildClassicHTML, buildModernHTML, buildMinimalHTML, buildCreativeHTML, buildExecutiveHTML } = require('../utils/exportService');
-const { generateAtsScore, generateCoverLetter, tailorResumeData } = require('../utils/geminiService');
+const { exportResume, exportCoverLetter, buildClassicHTML, buildModernHTML, buildMinimalHTML, buildCreativeHTML, buildExecutiveHTML, buildProfileClassicHTML, buildProfileModernHTML, buildProfileCreativeHTML } = require('../utils/exportService');
+const { generateAtsScore, analyzeJobDescription, analyzeResumeGap, generateKeywordSuggestions, calculateDeterministicAtsScore, generateCoverLetter, tailorResumeData } = require('../utils/geminiService');
 
 /**
  * Migration helper to ensure active resume profile is loaded.
@@ -217,6 +217,9 @@ const previewTemplate = (req, res) => {
     minimal: buildMinimalHTML,
     creative: buildCreativeHTML,
     executive: buildExecutiveHTML,
+    'profile-classic': buildProfileClassicHTML,
+    'profile-modern': buildProfileModernHTML,
+    'profile-creative': buildProfileCreativeHTML,
   };
   const builder = builders[templateId] || buildClassicHTML;
   const html = builder(resumeData);
@@ -240,11 +243,24 @@ const calculateAtsScore = async (req, res) => {
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
     console.log(`Calculating ATS match score for Job ${job.job}...`);
+
+    // Use the 2-step process: JD Analysis -> Deterministic Score
+    const jdAnalysis = await analyzeJobDescription(job.description);
+    const deterministicResult = calculateDeterministicAtsScore(active.resumeData, jdAnalysis);
+
+    // Get keyword analysis
     const analysis = await generateAtsScore(job.description, active.resumeData);
-    job.atsAnalysis = analysis;
+
+    const finalAnalysis = {
+      ...analysis,
+      score: deterministicResult.score,
+      scoreBreakdown: deterministicResult.breakdown
+    };
+
+    job.atsAnalysis = finalAnalysis;
     await job.save();
 
-    res.json({ message: 'ATS Matching score calculated successfully', atsAnalysis: analysis });
+    res.json({ message: 'ATS Matching score calculated successfully', atsAnalysis: finalAnalysis });
   } catch (err) {
     console.error('ATS Scoring error:', err.message);
     res.status(500).json({ error: err.message });
@@ -320,6 +336,67 @@ const exportCoverLetterDoc = async (req, res) => {
   }
 };
 
+/**
+ * POST /resume/analyze-jd
+ * Step 1: Analyze a job description and return structured JSON.
+ */
+const analyzeJd = async (req, res) => {
+  const { jobId, jdText } = req.body;
+
+  try {
+    let text = jdText;
+
+    // If a jobId was supplied, load jd text from the job record
+    if (!text && jobId) {
+      const job = await Job.findById(jobId);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      text = job.description || job.jdFileContent || '';
+    }
+
+    if (!text) return res.status(400).json({ error: 'jdText or jobId with description is required' });
+
+    console.log('Analyzing job description...');
+    const analysis = await analyzeJobDescription(text);
+    res.json({ message: 'JD analyzed successfully', jdAnalysis: analysis });
+  } catch (err) {
+    console.error('JD analysis error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+/**
+ * POST /resume/gap-analysis
+ * Step 2: Compare user's active resume against a JD to find gaps.
+ */
+const gapAnalysis = async (req, res) => {
+  const { jobId, jdText } = req.body;
+  const user = req.user;
+
+  try {
+    const active = getActiveResume(user);
+    if (!active || !active.resumeData) {
+      return res.status(400).json({ error: 'Please upload and parse a resume first.' });
+    }
+
+    let text = jdText;
+    if (!text && jobId) {
+      const job = await Job.findById(jobId);
+      if (!job) return res.status(404).json({ error: 'Job not found' });
+      text = job.description || job.jdFileContent || '';
+    }
+
+    if (!text) return res.status(400).json({ error: 'jdText or jobId with description is required' });
+
+    console.log('Running gap analysis...');
+    const jdAnalysis = await analyzeJobDescription(text);
+    const gap = await analyzeResumeGap(active.resumeData, jdAnalysis);
+    res.json({ message: 'Gap analysis complete', jdAnalysis, gapAnalysis: gap });
+  } catch (err) {
+    console.error('Gap analysis error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 const tailorResume = async (req, res) => {
   const { jobId } = req.body;
   const user = req.user;
@@ -333,31 +410,59 @@ const tailorResume = async (req, res) => {
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    console.log(`Tailoring active resume for Job ${job.job} at ${job.companyName || 'Unknown company'}...`);
-    
-    // Tailor using Gemini
-    const tailoredData = await tailorResumeData(job.description, active.resumeData);
-    
-    // Save tailored JSON back to the user's active resume.
-    const activeId = user.activeResumeId || (user.resumes.length > 0 ? user.resumes[0].id : null);
-    const resumeIdx = user.resumes.findIndex(r => r.id === activeId);
-    if (resumeIdx !== -1) {
-      user.resumes[resumeIdx].resumeData = tailoredData;
-      user.markModified('resumes');
-    }
-    user.resumeData = tailoredData;
-    await user.save();
+    console.log(`Tailoring resume for Job "${job.job}" at ${job.companyName || 'Unknown company'}...`);
 
-    // Recalculate ATS score for this job with the newly tailored resume
-    console.log(`Recalculating ATS match score for tailored resume against Job ${job.job}...`);
-    const analysis = await generateAtsScore(job.description, tailoredData);
-    job.atsAnalysis = analysis;
+    // Run 3-step chain (jdAnalysis → gapAnalysis → tailored resume)
+    const tailoredData = await tailorResumeData(job.description, active.resumeData);
+
+    // Extract metadata attached by tailorResumeData (Step 1 & 2 results)
+    const jdAnalysis = tailoredData._jdAnalysis || null;
+    const gapAnalysisResult = tailoredData._gapAnalysis || null;
+    delete tailoredData._jdAnalysis;
+    delete tailoredData._gapAnalysis;
+
+    // Step 4: Deterministic ATS scoring
+    let deterministicResult = { score: null, breakdown: {} };
+    if (jdAnalysis) {
+      deterministicResult = calculateDeterministicAtsScore(tailoredData, jdAnalysis);
+    }
+
+    // AI analysis for keyword lists
+    console.log(`Recalculating ATS score for tailored resume...`);
+    const aiAnalysis = await generateAtsScore(job.description, tailoredData);
+
+    // Combine: deterministic score + AI keyword lists
+    const finalAnalysis = {
+      ...aiAnalysis,
+      score: deterministicResult.score !== null ? deterministicResult.score : aiAnalysis.score,
+      scoreBreakdown: deterministicResult.breakdown
+    };
+
+    // Step 5: Keyword suggestions
+    let keywordSuggestions = null;
+    if (jdAnalysis) {
+      try {
+        keywordSuggestions = await generateKeywordSuggestions(tailoredData, jdAnalysis);
+      } catch (kErr) {
+        console.warn('Keyword suggestions failed (non-critical):', kErr.message);
+      }
+    }
+
+    // ✅ Save tailored resume PER-JOB — does NOT overwrite user's primary resume
+    job.tailoredResume = {
+      score: finalAnalysis.score,
+      generatedAt: new Date(),
+      json: tailoredData
+    };
+    job.atsAnalysis = finalAnalysis;
     await job.save();
 
     res.json({
-      message: 'Resume tailored successfully to 100% match',
-      resumeData: tailoredData,
-      atsAnalysis: analysis
+      message: 'Resume tailored successfully',
+      tailoredResumeData: tailoredData,
+      atsAnalysis: finalAnalysis,
+      gapAnalysis: gapAnalysisResult,
+      keywordSuggestions
     });
   } catch (err) {
     console.error('Resume tailoring error:', err.message);
@@ -378,5 +483,7 @@ module.exports = {
   createCoverLetter,
   exportCoverLetterDoc,
   tailorResume,
+  analyzeJd,
+  gapAnalysis,
   getActiveResume
 };
