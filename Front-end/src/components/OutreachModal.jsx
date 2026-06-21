@@ -10,6 +10,7 @@ import {
   AlertTriangleIcon,
   ClockIcon
 } from './Icons';
+import ResumeDiffViewer from './ResumeDiffViewer';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -54,6 +55,10 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
   const [modalError, setModalError] = useState('');
   const [modalSuccess, setModalSuccess] = useState('');
 
+  const [tailoringProgress, setTailoringProgress] = useState(0);
+  const [tailoringLog, setTailoringLog] = useState('');
+  const tailorEsRef = React.useRef(null);
+
   // Active Resume details
   const activeResumeId = user?.activeResumeId;
   const activeResume = user?.resumes?.find(r => r.id === activeResumeId) || user?.resumes?.[0] || null;
@@ -71,6 +76,11 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     if (!job.coverLetter && !coverLetter) {
       handleRegenerateCoverLetter();
     }
+    return () => {
+      if (tailorEsRef.current) {
+        tailorEsRef.current.close();
+      }
+    };
   }, []);
 
   // Update cover letter state if prop updates
@@ -92,7 +102,15 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
       }
     } catch (err) {
       console.error(err);
-      setModalError('Failed to calculate ATS match score.');
+      let errorMsg = 'Failed to calculate ATS match score.';
+      if (err.response?.data?.details) {
+        errorMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setModalError(errorMsg);
     } finally {
       setCalculatingAts(false);
     }
@@ -103,24 +121,80 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     setTailoring(true);
     setModalError('');
     setModalSuccess('');
+    setTailoringProgress(0);
+    setTailoringLog('');
+
     // Snapshot the current score before tailoring
     if (atsScore !== null) setAtsScoreBefore(atsScore);
+
     try {
       const res = await axios.post(`${BACKEND}/resume/tailor`, { jobId: job._id });
-      if (res.data.tailoredResumeData) {
-        const newScore = res.data.atsAnalysis?.score ?? null;
-        setAtsScore(newScore);
-        setAtsScoreAfter(newScore);
-        setAtsAnalysis(res.data.atsAnalysis);
-        setTailoredResumeData(res.data.tailoredResumeData);
-        if (res.data.keywordSuggestions) setKeywordSuggestions(res.data.keywordSuggestions);
-        if (res.data.gapAnalysis) setGapAnalysisResult(res.data.gapAnalysis);
-        setModalSuccess('Resume optimized for this job! Your primary resume is unchanged.');
+      if (res.data.success) {
+        setTailoringLog('Background tailoring task enqueued...');
       }
+
+      // Extract token for SSE auth fallback
+      const token = document.cookie
+        .split('; ')
+        .find(row => row.startsWith('jaa_session_token='))
+        ?.split('=')[1];
+
+      const url = new URL(`${BACKEND}/resume/stream`);
+      if (token) url.searchParams.append('token', token);
+
+      if (tailorEsRef.current) tailorEsRef.current.close();
+
+      const es = new EventSource(url.toString(), { withCredentials: true });
+      tailorEsRef.current = es;
+
+      es.addEventListener('tailor-progress', (e) => {
+        const data = JSON.parse(e.data);
+        if (data.jobId !== job._id) return;
+
+        if (data.progress !== undefined) {
+          setTailoringProgress(data.progress);
+        }
+        if (data.log) {
+          setTailoringLog(data.log);
+        }
+
+        if (data.status === 'complete') {
+          es.close();
+          setTailoring(false);
+          
+          const newScore = data.atsAnalysis?.score ?? null;
+          setAtsScore(newScore);
+          setAtsScoreAfter(newScore);
+          setAtsAnalysis(data.atsAnalysis);
+          setTailoredResumeData(data.tailoredResumeData);
+          if (data.keywordSuggestions) setKeywordSuggestions(data.keywordSuggestions);
+          if (data.gapAnalysis) setGapAnalysisResult(data.gapAnalysis);
+          setModalSuccess('Resume optimized for this job! Your primary resume is unchanged.');
+        } else if (data.status === 'failed') {
+          es.close();
+          setTailoring(false);
+          setModalError(data.log || 'Tailoring failed.');
+        }
+      });
+
+      es.onerror = (err) => {
+        console.error('Tailor SSE error:', err);
+        es.close();
+        setTailoring(false);
+        setModalError('Connection to resume tailoring stream lost.');
+      };
+
     } catch (err) {
       console.error(err);
-      setModalError(err.response?.data?.error || 'Failed to tailor resume.');
-    } finally {
+      let errorMsg = 'Failed to tailor resume.';
+      if (err.response?.data?.details) {
+        errorMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setModalError(errorMsg);
       setTailoring(false);
     }
   };
@@ -134,7 +208,16 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
       setClStatus('saved');
       setTimeout(() => setClStatus(''), 2500);
     } catch (err) {
-      setModalError('Failed to save cover letter changes.');
+      console.error(err);
+      let errorMsg = 'Failed to save cover letter changes.';
+      if (err.response?.data?.details) {
+        errorMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setModalError(errorMsg);
     } finally {
       setSavingCL(false);
     }
@@ -154,7 +237,15 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
       }
     } catch (err) {
       console.error(err);
-      setModalError('Failed to generate cover letter.');
+      let errorMsg = 'Failed to generate cover letter.';
+      if (err.response?.data?.details) {
+        errorMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setModalError(errorMsg);
     } finally {
       setRegeneratingCL(false);
     }
@@ -185,7 +276,15 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
       }
     } catch (err) {
       console.error(err);
-      setModalError(err.response?.data?.error || 'Dispatch application failed.');
+      let errorMsg = 'Dispatch application failed.';
+      if (err.response?.data?.details) {
+        errorMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setModalError(errorMsg);
     } finally {
       setSending(false);
     }
@@ -503,22 +602,38 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
 
               {/* Optimize Resume (ATS tailoring) Button */}
               {atsScore !== null && atsScore < 85 && (
-                <div className="mt-1.5 pt-3 border-t border-slate-200/50 dark:border-zinc-800/80">
-                  <div className="flex gap-2 p-2.5 rounded-lg bg-rose-500/5 dark:bg-rose-500/10 text-rose-600 dark:text-rose-450 text-[10.5px] border border-rose-500/10 mb-3 leading-relaxed">
+                <div className="mt-1.5 pt-3 border-t border-slate-200/50 dark:border-zinc-800/80 space-y-3">
+                  <div className="flex gap-2 p-2.5 rounded-lg bg-rose-500/5 dark:bg-rose-500/10 text-rose-600 dark:text-rose-450 text-[10.5px] border border-rose-500/10 mb-2 leading-relaxed animate-pulse-slow">
                     <AlertTriangleIcon size={13} className="shrink-0 mt-0.5" />
                     <span>
                       ATS score is lower than recommended (85%). Tailor keywords and project highlights using AI to maximize recruiters response.
                     </span>
                   </div>
+
+                  {tailoring && (
+                    <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/30 border border-slate-100 dark:border-zinc-800 animate-fade-in">
+                      <div className="flex justify-between text-[10px] font-bold text-slate-500 dark:text-zinc-400">
+                        <span className="truncate">{tailoringLog || 'Preparing optimization...'}</span>
+                        <span>{tailoringProgress}%</span>
+                      </div>
+                      <div className="w-full bg-slate-250 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden relative">
+                        <div 
+                          className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_#6366f1]"
+                          style={{ width: `${tailoringProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={handleTailorResume}
                     disabled={tailoring || calculatingAts}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-650 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-xs shadow-md shadow-indigo-500/15 disabled:opacity-50 transition-all cursor-pointer select-none"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-650 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-xs shadow-md shadow-indigo-500/15 disabled:opacity-50 transition-all cursor-pointer select-none border-0"
                   >
                     {tailoring ? (
                       <>
                         <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        AI Optimizing Resume Data...
+                        AI Optimizing ({tailoringProgress}%)
                       </>
                     ) : (
                       <>
@@ -538,45 +653,52 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
               )}
             </div>
 
-            {/* Keyword Suggestions Panel — appears after tailoring */}
-            {keywordSuggestions && (
-              <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-3 animate-fade-in">
-                <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
-                  Keyword Suggestions
-                </span>
+            {/* Keyword Suggestions Panel & Diff Viewer — appears after tailoring */}
+            {tailoredResumeData && (
+              <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-4 animate-fade-in">
+                
+                <ResumeDiffViewer originalResume={activeResume?.resumeData} tailoredResume={tailoredResumeData} />
 
-                {keywordSuggestions.strongKeywords?.length > 0 && (
-                  <div>
-                    <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1.5">Strong Keywords</span>
-                    <div className="flex flex-wrap gap-1">
-                      {keywordSuggestions.strongKeywords.slice(0, 8).map((kw, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-150/40 dark:border-emerald-500/20">✓ {kw}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                {keywordSuggestions && (
+                  <div className="flex flex-col gap-3 pt-4 border-t border-slate-200/60 dark:border-zinc-800/80">
+                    <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
+                      Keyword Suggestions
+                    </span>
 
-                {keywordSuggestions.missingKeywords?.length > 0 && (
-                  <div>
-                    <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wider block mb-1.5">Still Missing</span>
-                    <div className="flex flex-wrap gap-1">
-                      {keywordSuggestions.missingKeywords.slice(0, 8).map((kw, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-150/40 dark:border-rose-500/20">✗ {kw}</span>
-                      ))}
-                    </div>
-                  </div>
-                )}
+                    {keywordSuggestions.strongKeywords?.length > 0 && (
+                      <div>
+                        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1.5">Strong Keywords</span>
+                        <div className="flex flex-wrap gap-1">
+                          {keywordSuggestions.strongKeywords.slice(0, 8).map((kw, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-150/40 dark:border-emerald-500/20">✓ {kw}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                {keywordSuggestions.recommendations?.length > 0 && (
-                  <div>
-                    <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block mb-1.5">Recommendations</span>
-                    <ul className="space-y-1">
-                      {keywordSuggestions.recommendations.slice(0, 3).map((rec, i) => (
-                        <li key={i} className="text-[10px] text-slate-600 dark:text-zinc-400 leading-snug flex gap-1.5">
-                          <span className="text-amber-500 shrink-0">→</span> {rec}
-                        </li>
-                      ))}
-                    </ul>
+                    {keywordSuggestions.missingKeywords?.length > 0 && (
+                      <div>
+                        <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wider block mb-1.5">Still Missing</span>
+                        <div className="flex flex-wrap gap-1">
+                          {keywordSuggestions.missingKeywords.slice(0, 8).map((kw, i) => (
+                            <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-150/40 dark:border-rose-500/20">✗ {kw}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {keywordSuggestions.recommendations?.length > 0 && (
+                      <div>
+                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block mb-1.5">Recommendations</span>
+                        <ul className="space-y-1">
+                          {keywordSuggestions.recommendations.slice(0, 3).map((rec, i) => (
+                            <li key={i} className="text-[10px] text-slate-600 dark:text-zinc-400 leading-snug flex gap-1.5">
+                              <span className="text-amber-500 shrink-0">→</span> {rec}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

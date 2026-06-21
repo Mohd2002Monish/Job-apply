@@ -42,45 +42,47 @@ graph TD
 ## ✨ Features
 
 ### 🔐 1. Authentication & Profile Settings
-* **OAuth Login**: Authenticate securely using Google OAuth 2.0 or Microsoft OAuth 2.0.
-* **Session Management**: Cookie-based persistent sessions handled securely via `jaa_session_token`.
-* **Profile Settings**: Edit profile details, change email addresses, and upload custom profile pictures (supported by Multer image uploading).
+* **Secure OAuth 2.0 Integration**: Supports fast and secure single sign-on (SSO) using Google and Microsoft OAuth providers. Passwords are never stored or managed locally.
+* **Persistent Session Management**: Uses secure HTTP-only cookies (`jaa_session_token`) infused with JSON Web Tokens (JWT) to maintain authenticated sessions across browser restarts without exposing tokens to client-side scripts.
+* **Profile Customization**: Users can seamlessly update their personal information, preferred email signatures, and upload profile pictures. Profile pictures are processed and securely stored locally using Multer.
 
 ### 📄 2. Resume Builder & Multi-Resume Manager
-* **Resume Parsing**: Drag and drop resumes (PDF, DOCX, Images) to automatically parse credentials, skills, work experience, and education using Gemini AI and Tesseract OCR.
-* **Resume Editor**: A visual JSON resume builder enabling real-time updates to sections (Education, Experience, Skills, Projects).
-* **Multi-Resume Support**: Manage multiple uploaded resumes, delete outdated versions, and choose a **primary resume** to be used dynamically for ATS score matches and outreach content generation.
+* **Intelligent Resume Parsing**: Users can drag and drop their existing resumes in multiple formats (PDF, DOCX, PNG, JPG). The backend leverages Gemini AI to extract structured JSON data (Experience, Education, Skills) and falls back to Tesseract OCR for image-based documents.
+* **WYSIWYG A4 Resume Editor**: A powerful inline visual editor built directly onto physically-scaled A4 pages. Features a smart, React-driven page-break engine that automatically flows sections to new pages without cutting them in half, ensuring the on-screen display perfectly mirrors the generated PDF. Click any section to reveal inline tools to edit, delete, or re-order content directly on the page.
+* **Real-time Auto-Save**: Any changes made in the visual editor are instantly captured in local state and automatically debounced (saved to the database after 1-2 seconds of inactivity), completely eliminating the need for a manual "Save" button.
+* **Multiple Layout Templates**: Switch instantly between aesthetic designs (Classic, Modern, Minimal) without losing any resume data. The JSON structure remains decoupled from the visual presentation layer.
+* **Multi-Resume Management**: Upload, generate, and store multiple distinct versions of a resume for different industries. Select a specific "Primary Resume" that acts as the source-of-truth when generating ATS scores and cover letters.
+* **PDF & DOCX Exports**: Export beautifully formatted PDFs generated via headless browser (Puppeteer) or fully editable DOCX files.
 
 ### 📋 3. Job Tracking Dashboard
-* **Clean Modern Interface**: High-performance tabular dashboard displaying all active job tracking cards.
-* **Circular ATS Score Rings**: Real-time visual comparison of your primary resume against the job description, showing an ATS score percentage directly in the table.
-* **Status Flags**: Track current application status (e.g., *Pending*, *Sent*, *Opened*, *Replied*) dynamically.
-* **Inline Actions**: Hover tools to edit or delete applications on the fly.
-* **Analytics Panel**: Real-time charts showing application counts, status breakdowns, and response rates.
+* **Centralized Job Board**: A high-performance, tabular interface that cleanly organizes all applied jobs, current statuses, and target companies.
+* **Dynamic Status Workflow**: Track job progression through customizable tags (*Pending*, *Sent*, *Opened*, *Replied*, *Interviewing*, *Rejected*).
+* **Circular ATS Score Rings**: Automatically computes an ATS match percentage by analyzing your primary resume against the saved Job Description. Displays a color-coded circular progress ring directly on the dashboard.
+* **Analytics Panel**: Real-time chart visualization showing funnel drop-offs (e.g., Applications Sent vs. Interviews Secured) and overall response rates to help optimize job hunting strategies.
 
 ### 📥 4. Smart Job Import & JD Parsing
-* **JD File Extraction**: Drag and drop a Job Description document (PDF, Word, or images like PNG, JPG). The backend automatically parses the text (with OCR backup) and extracts job details (Title, Company, Recruiter Name, Recruiter Email, description text) so you can review them before saving.
-* **Chrome Extension Importer**: Scrape job postings directly on live LinkedIn and Indeed listings, sending the details instantly to the database via API.
+* **JD File Extraction**: Drag and drop a Job Description document. The backend automatically parses the text and uses AI to extract key metadata: Job Title, Company Name, Recruiter Name, Recruiter Email, and the core responsibilities.
+* **Chrome Extension Importer**: A Manifest V3 Chrome Extension that lives in the browser. While browsing job boards like LinkedIn or Indeed, a single click scrapes the active job posting and beams it directly into the application's database via a secure REST API.
 
 ### ✉️ 5. AI Cover Letter Generator & Outreach
-* **Customizable Letter Generation**: Generate letters customized by **Tone** (Professional, Confident, Passionate, etc.) and **Length** (using an interactive word count slider).
-* **Email Outreach**: Directly draft and email outreach letters to recruiters with your resume attached, powered by SMTP/Nodemailer settings.
-* **DOCX Export**: Download generated cover letters directly as formatted DOCX files.
+* **Context-Aware Letter Generation**: By combining the active Job Description with the user's Primary Resume, the AI drafts highly personalized cover letters that explicitly map the user's past experience to the employer's requirements.
+* **Tone & Length Sliders**: Customize the generated letter's tone (Professional, Confident, Passionate) and strictly control word count using an interactive length slider.
+* **Direct Email Outreach**: Send the generated cover letter and automatically attach the primary PDF resume directly to the recruiter's inbox using the built-in SMTP/Nodemailer engine.
 
 ### 🕵️ 6. Open & Click Tracking
-* **Open Tracking Pixel**: Embeds a hidden 1x1 tracking pixel (`/jobs/tracking/open/:id`) in the outreach email body to log when the recruiter opens the email.
-* **Click Redirection**: Rewrites links (e.g., to your portfolio or LinkedIn) through a redirect endpoint (`/jobs/tracking/click/:id`) to track when recruiters click links in your email.
-* **Automatic Follow-ups**: Sends automated, customized follow-up emails after a specified period if there is no response.
+* **Open Tracking Pixel**: When sending outreach emails, the system injects a hidden 1x1 tracking pixel (`/jobs/tracking/open/:id`). When the recruiter opens the email, the dashboard instantly updates the status to *Opened*.
+* **Click Redirection Engine**: Automatically wraps portfolio and LinkedIn links inside the email with a secure redirect endpoint (`/jobs/tracking/click/:id`). Logs exactly when and which links the recruiter clicked.
+* **Automated Follow-ups**: If an email is sent but receives no reply within a configured timeframe, the system can automatically draft and send a polite follow-up email.
 
 ### 🎙️ 7. Interview Prep Simulator
-* **AI Question Generator**: Generates 8 tailored interview questions (Technical, Behavioral, and Situational) matching the specific job description and your active resume.
-* **Practice Interface**: Write answers directly in a notes scratchpad.
-* **AI Grading & Feedback**: Submit answers to receive a grade (1-10), comprehensive critique, and an improved response suggestion.
+* **AI Question Generator**: Analyzes the specific Job Description and generates 8 highly relevant interview questions categorized into Technical, Behavioral, and Situational buckets.
+* **Interactive Practice Interface**: A built-in scratchpad allows users to type out their answers under simulated pressure.
+* **AI Grading & Feedback Loop**: Upon submitting an answer, the AI grades it on a scale of 1-10, provides a comprehensive critique on what was missing, and offers a polished, "perfect" response suggestion.
 
 ### 📥 8. Recruiter Inbox & Communications
-* **Message Logger**: Log emails, messages, or interview requests received from recruiters.
-* **Interactive Chat UI**: A slide-out drawer presenting a thread-style bubble history to keep recruiter discussions organized.
-* **AI Suggested Replies**: Auto-generate reply drafts matching the context of the conversation.
+* **Message Logger**: A centralized hub to manually log or automatically capture email threads, LinkedIn messages, and interview requests.
+* **Interactive Chat UI**: A slide-out drawer presenting a thread-style, iMessage-like bubble history to keep recruiter discussions historically organized.
+* **AI Suggested Replies**: Context-aware AI reads the latest recruiter message and auto-generates professional reply drafts (e.g., accepting an interview slot, negotiating salary, or asking for feedback).
 
 ---
 

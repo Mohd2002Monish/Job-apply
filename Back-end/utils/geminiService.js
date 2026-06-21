@@ -860,7 +860,186 @@ Return a JSON object with:
   }
 };
 
+/**
+ * Uses Gemini API with Search Grounding to find salary benchmarks
+ * and draft a custom counter-offer email based on the candidate resume.
+ */
+const getSalaryBenchmarksWithGrounding = async ({ jobTitle, location, companyName, resumeData, offeredSalary, targetSalary, currency = 'USD' }) => {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'YOUR_GEMINI_API_KEY_HERE') {
+      throw new Error("GEMINI_API_KEY is not configured.");
+    }
+
+    const candidateContext = formatResumeContext(resumeData);
+    const searchLocation = location || 'United States';
+    const searchQuery = `${jobTitle} salary benchmarks in ${searchLocation} 2025 2026`;
+
+    const systemPrompt = `You are a salary negotiation expert.
+Perform web-grounded research to find salary benchmarks (low, average, high) for the role of "${jobTitle}" in "${searchLocation}".
+Compare the target salary and offered salary to determine negotiation viability.
+Analyze the candidate's resume to identify key value propositions (like years of experience, specific MERN skills, high-impact projects, certifications) that justify a higher counter-offer.
+Generate a professional, persuasive counter-offer email to the HR/Hiring Manager at "${companyName || 'the company'}".
+
+IMPORTANT: You must return ONLY a JSON object. Do not include markdown code block formatting (like \`\`\`json) or any extra conversational text. The response must be a single parseable JSON object following this schema:
+{
+  "benchmarks": {
+    "low": 90000,
+    "average": 115000,
+    "high": 140000,
+    "currency": "USD",
+    "marketInsights": "According to market research..."
+  },
+  "talkingPoints": [
+    "Highlight specific technical proficiency...",
+    "Reference matching project outcomes..."
+  ],
+  "emailDraft": "Dear Hiring Manager,\\n\\nThank you for the offer... I am writing to discuss the compensation..."
+}
+
+Ensure all JSON rules are strictly followed. Avoid trailing commas and ensure string values use escaped double quotes when needed.`;
+
+    const userPrompt = `
+Search Query: ${searchQuery}
+Offered Salary: ${offeredSalary ? `${offeredSalary} ${currency}` : 'Not specified'}
+Target Salary: ${targetSalary ? `${targetSalary} ${currency}` : 'Not specified'}
+Company Name: ${companyName || 'the company'}
+
+Candidate Resume Details:
+${candidateContext.substring(0, 3000)}
+
+Please execute the search and compile the grounding-aware response in the specified JSON structure.
+`;
+
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [{ text: `${systemPrompt}\n\n${userPrompt}` }]
+        }],
+        tools: [{
+          googleSearch: {}
+        }]
+      })
+    });
+
+    if (!response.ok) {
+      const errText = await response.text();
+      throw new Error(`Gemini grounding request failed: ${response.status} - ${errText}`);
+    }
+
+    const data = await response.json();
+    const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) {
+      throw new Error("No response content from Gemini.");
+    }
+
+    const sources = [];
+    const groundingMetadata = data.candidates?.[0]?.groundingMetadata;
+    if (groundingMetadata && groundingMetadata.groundingChunks) {
+      groundingMetadata.groundingChunks.forEach(chunk => {
+        if (chunk.web && chunk.web.uri) {
+          sources.push({
+            title: chunk.web.title || chunk.web.uri,
+            url: chunk.web.uri
+          });
+        }
+      });
+    }
+
+    const uniqueSources = [];
+    const seenUrls = new Set();
+    sources.forEach(s => {
+      if (!seenUrls.has(s.url)) {
+        seenUrls.add(s.url);
+        uniqueSources.push(s);
+      }
+    });
+
+    const parsedJson = extractJson(rawText.trim().replace(/^```json/i, '').replace(/```$/, '').trim());
+    
+    if (!parsedJson.benchmarks) {
+      parsedJson.benchmarks = {
+        low: offeredSalary ? Math.round(offeredSalary * 0.9) : 80000,
+        average: offeredSalary ? Math.round(offeredSalary * 1.1) : 100000,
+        high: offeredSalary ? Math.round(offeredSalary * 1.3) : 120000,
+        currency: currency || 'USD',
+        marketInsights: "Fallback salary guidelines based on general negotiation frameworks."
+      };
+    }
+    
+    parsedJson.sources = uniqueSources.slice(0, 5);
+    return parsedJson;
+  } catch (error) {
+    console.error("Error in getSalaryBenchmarksWithGrounding:", error.message);
+    throw error;
+  }
+};
+
+/**
+ * Evaluates a candidate's spoken interview answer, assessing content, structure, and delivery metrics.
+ */
+const evaluateSpokenInterviewAnswer = async ({ question, transcript, jobDescription, pacingWpm, durationSeconds, fillerCount }) => {
+  const prompt = `
+You are an expert mock interview coach and delivery analyst.
+Evaluate the candidate's spoken response to the interview question below.
+
+Context:
+- Interview Question: "${question}"
+- Job Description Context:
+${jobDescription.substring(0, 1500)}
+
+Spoken Delivery Metrics (provided by client-side analysis):
+- Pacing: ${pacingWpm} Words Per Minute (optimal: 110 - 160 WPM)
+- Duration: ${durationSeconds} seconds
+- Filler Words Detected: ${JSON.stringify(fillerCount)}
+
+Candidate Spoken Transcript:
+"${transcript || '(No speech transcribed)'}"
+
+Based on the transcript and metrics, generate a comprehensive evaluation.
+You MUST return ONLY a parseable JSON object with the following structure:
+{
+  "score": 8,
+  "breakdown": {
+    "content": 8,
+    "structure": 7,
+    "delivery": 9
+  },
+  "aiFeedback": "Your content covers the required MERN components well, but your pacing is slightly fast...",
+  "fillerAnalysis": "You used 'um' 3 times and 'like' 2 times. Try pausing instead of using fillers.",
+  "improvedVersion": "Here is a refined version of your answer that sounds polished..."
+}
+
+Rules:
+- Do not include markdown code block formatting (like \`\`\`json) or extra text.
+- Ensure all double quotes inside string values are properly escaped.
+`;
+
+  try {
+    const openai = getGemini();
+    const completion = await createChatCompletionWithRetry({
+      model: "gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.4,
+      response_format: { type: "json_object" }
+    });
+
+    const cleanContent = completion.choices[0].message.content.trim();
+    const jsonString = cleanContent.replace(/^```json/i, '').replace(/```$/, '').trim();
+    return extractJson(jsonString);
+  } catch (error) {
+    console.error("Error evaluating spoken interview answer:", error.message);
+    throw error;
+  }
+};
+
 module.exports = {
+  extractJson,
   generateEmailContent,
   generateAtsScore,
   analyzeJobDescription,
@@ -874,5 +1053,7 @@ module.exports = {
   tailorResumeData,
   generateInterviewPrepQuestions,
   evaluateInterviewAnswer,
-  suggestRecruiterReply
+  suggestRecruiterReply,
+  getSalaryBenchmarksWithGrounding,
+  evaluateSpokenInterviewAnswer
 };

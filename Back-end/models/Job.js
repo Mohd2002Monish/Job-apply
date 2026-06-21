@@ -1,6 +1,11 @@
 const mongoose = require('mongoose');
 
 const jobSchema = new mongoose.Schema({
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    index: true
+  },
   job: {
     type: String,
     required: true,
@@ -64,6 +69,15 @@ const jobSchema = new mongoose.Schema({
     json: { type: Object, default: null }
   },
   templateId: { type: String, default: 'classic' },
+  status: {
+    type: String,
+    enum: ['saved', 'applied', 'opened', 'interview', 'offer', 'rejected'],
+    default: 'saved'
+  },
+  statusHistory: [{
+    status: { type: String, required: true },
+    changedAt: { type: Date, default: Date.now }
+  }],
   followUpDate: { type: Date, default: null },
   followUpStatus: { type: String, enum: ['none', 'pending', 'sent'], default: 'none' },
   followUpText: { type: String, default: '' },
@@ -97,10 +111,32 @@ const jobSchema = new mongoose.Schema({
     body: { type: String, default: '' },
     receivedAt: { type: Date, default: Date.now },
     isFromRecruiter: { type: Boolean, default: true }
-  }]
+  }],
+  // Salary Negotiation Data
+  salaryNegotiation: {
+    offeredSalary: { type: Number, default: null },
+    targetSalary: { type: Number, default: null },
+    currency: { type: String, default: 'USD' },
+    location: { type: String, default: '' },
+    marketLow: { type: Number, default: null },
+    marketAverage: { type: Number, default: null },
+    marketHigh: { type: Number, default: null },
+    marketInsights: { type: String, default: '' },
+    sources: [{
+      title: { type: String },
+      url: { type: String }
+    }],
+    talkingPoints: [{ type: String }],
+    emailDraft: { type: String, default: '' },
+    generatedAt: { type: Date, default: null }
+  }
 }, {
   timestamps: true
 });
+
+jobSchema.index({ userId: 1, createdAt: -1 });
+jobSchema.index({ userId: 1, status: 1 });
+jobSchema.index({ companyName: 'text', job: 'text', description: 'text' });
 
 const Job = mongoose.model('Job', jobSchema);
 

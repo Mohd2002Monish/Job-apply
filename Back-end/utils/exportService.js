@@ -57,7 +57,7 @@ const buildClassicHTML = (data) => {
   .contact span { display: flex; align-items: center; gap: 3px; }
   .divider { border: none; border-top: 2px solid ${t.primary || '#1a1a1a'}; margin: 16px 0 12px; }
   .section-title { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: ${t.primary || '#1a1a1a'}; margin-bottom: 10px; page-break-after: avoid; break-after: avoid; }
-  .section { margin-bottom: 18px; }
+  .section { margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; }
   .summary { font-size: 9.5pt; color: #374151; line-height: 1.6; }
   .exp-item { margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
   .exp-header { display: flex; justify-content: space-between; align-items: flex-start; }

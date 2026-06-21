@@ -5,20 +5,81 @@ const fs = require('fs');
 
 const getJobs = async (req, res) => {
   try {
-    const jobs = await Job.find({});
-    res.status(200).send(jobs);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const query = {};
+
+    // Scope queries to current user, falling back to legacy jobs without userId
+    if (req.user) {
+      query.$or = [
+        { userId: req.user._id },
+        { userId: { $exists: false } }
+      ];
+    }
+
+    // Status filter
+    if (req.query.status && req.query.status !== 'all') {
+      query.status = req.query.status;
+    }
+
+    // Search filter (text index / regex-safe search matching multiple fields)
+    if (req.query.search) {
+      const searchStr = req.query.search.trim();
+      if (searchStr) {
+        const safeSearch = searchStr.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        query.$and = query.$and || [];
+        query.$and.push({
+          $or: [
+            { job: { $regex: safeSearch, $options: 'i' } },
+            { companyName: { $regex: safeSearch, $options: 'i' } },
+            { hrName: { $regex: safeSearch, $options: 'i' } },
+            { description: { $regex: safeSearch, $options: 'i' } }
+          ]
+        });
+      }
+    }
+
+    // Sorting
+    let sortQuery = { createdAt: -1 };
+    if (req.query.sortBy) {
+      const parts = req.query.sortBy.split(':');
+      sortQuery = { [parts[0]]: parts[1] === 'desc' ? -1 : 1 };
+    }
+
+    const totalJobs = await Job.countDocuments(query);
+    const jobs = await Job.find(query)
+      .sort(sortQuery)
+      .skip(skip)
+      .limit(limit);
+
+    const totalPages = Math.ceil(totalJobs / limit);
+
+    res.status(200).json({
+      jobs,
+      totalJobs,
+      page,
+      totalPages
+    });
   } catch (error) {
-    res.status(500).send(error);
+    res.status(500).json({ error: error.message });
   }
 };
 
 const createJob = async (req, res) => {
   try {
-    const job = new Job(req.body);
+    const status = req.body.status || 'saved';
+    const job = new Job({
+      ...req.body,
+      userId: req.user?._id,
+      status,
+      statusHistory: [{ status, changedAt: new Date() }]
+    });
     await job.save();
-    res.status(201).send(job);
+    res.status(201).json(job);
   } catch (error) {
-    res.status(400).send(error);
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -66,11 +127,27 @@ const getAnalytics = async (req, res) => {
 
 const updateJob = async (req, res) => {
   try {
-    const job = await Job.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
-    res.status(200).send(job);
+
+    // Track status transitions and push to timeline
+    if (req.body.status && req.body.status !== job.status) {
+      job.statusHistory = job.statusHistory || [];
+      if (job.statusHistory.length === 0) {
+        job.statusHistory.push({ status: job.status, changedAt: job.createdAt || new Date() });
+      }
+      job.statusHistory.push({ status: req.body.status, changedAt: new Date() });
+    }
+
+    // Apply all incoming payload updates
+    Object.keys(req.body).forEach(key => {
+      job[key] = req.body[key];
+    });
+
+    await job.save();
+    res.status(200).json(job);
   } catch (error) {
-    res.status(400).send(error);
+    res.status(400).json({ error: error.message });
   }
 };
 
@@ -342,6 +419,7 @@ const importJobFromExtension = async (req, res) => {
 
   try {
     const jobData = {
+      userId: user._id,
       job: jobTitle,
       companyName,
       location: location || '',
@@ -527,12 +605,134 @@ const suggestReply = async (req, res) => {
   }
 };
 
+const getDueFollowups = async (req, res) => {
+  try {
+    const today = new Date();
+    const query = {
+      isEmailSent: true,
+      followUpStatus: 'pending',
+      followUpDate: { $lte: today }
+    };
+    if (req.user) {
+      query.$or = [
+        { userId: req.user._id },
+        { userId: { $exists: false } }
+      ];
+    }
+    const jobs = await Job.find(query).select('job companyName hrName email followUpDate');
+    res.json({ jobs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const negotiateSalary = async (req, res) => {
+  const { id } = req.params;
+  const { offeredSalary, targetSalary, currency, location } = req.body;
+  const user = req.user;
+
+  try {
+    const job = await Job.findById(id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const { getActiveResume } = require('./resumeController');
+    const active = getActiveResume(user);
+    const resumeData = active?.resumeData || user.resumeData;
+
+    if (!resumeData) {
+      return res.status(400).json({ error: 'Please upload/parse a resume first to extract your value propositions.' });
+    }
+
+    const { getSalaryBenchmarksWithGrounding } = require('../utils/geminiService');
+    
+    console.log(`Analyzing salary negotiation benchmarks for ${job.job} at ${job.companyName}...`);
+    
+    const analysis = await getSalaryBenchmarksWithGrounding({
+      jobTitle: job.job,
+      location: location || job.location || user.resumeData?.personalInfo?.location || '',
+      companyName: job.companyName,
+      resumeData,
+      offeredSalary,
+      targetSalary,
+      currency: currency || 'USD'
+    });
+
+    job.salaryNegotiation = {
+      offeredSalary: offeredSalary || null,
+      targetSalary: targetSalary || null,
+      currency: currency || 'USD',
+      location: location || job.location || '',
+      marketLow: analysis.benchmarks?.low || null,
+      marketAverage: analysis.benchmarks?.average || null,
+      marketHigh: analysis.benchmarks?.high || null,
+      marketInsights: analysis.benchmarks?.marketInsights || '',
+      sources: analysis.sources || [],
+      talkingPoints: analysis.talkingPoints || [],
+      emailDraft: analysis.emailDraft || '',
+      generatedAt: new Date()
+    };
+
+    await job.save();
+
+    res.json({
+      success: true,
+      salaryNegotiation: job.salaryNegotiation
+    });
+  } catch (err) {
+    console.error('Salary negotiation generation error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
+const gradeVoiceAnswer = async (req, res) => {
+  const { id } = req.params;
+  const { questionId, transcript, durationSeconds, pacingWpm, fillerCount } = req.body;
+  try {
+    const job = await Job.findById(id);
+    if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    const question = job.interviewQuestions.id(questionId);
+    if (!question) return res.status(404).json({ error: 'Question not found' });
+
+    const { evaluateSpokenInterviewAnswer } = require('../utils/geminiService');
+
+    console.log(`AI Mock Delivery Grading for question: ${question.question.substring(0, 50)}...`);
+    const result = await evaluateSpokenInterviewAnswer({
+      question: question.question,
+      transcript,
+      jobDescription: job.description,
+      pacingWpm: pacingWpm || 120,
+      durationSeconds: durationSeconds || 30,
+      fillerCount: fillerCount || {}
+    });
+
+    // Update database fields
+    question.score = result.score || null;
+    question.aiFeedback = result.aiFeedback || '';
+    question.userNotes = transcript || ''; // Save speech transcript as notes
+    await job.save();
+
+    res.json({
+      success: true,
+      score: result.score,
+      breakdown: result.breakdown || { content: result.score, structure: result.score, delivery: result.score },
+      aiFeedback: result.aiFeedback,
+      fillerAnalysis: result.fillerAnalysis || '',
+      improvedVersion: result.improvedVersion || ''
+    });
+  } catch (err) {
+    console.error('Grade spoken answer error:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   getJobs,
   createJob,
   getAnalytics,
   updateJob,
   extractJdInfo,
+  extractUrlInfo,
   uploadJobDescription,
   generateCoverLetterCustom,
   deleteJob,
@@ -544,5 +744,8 @@ module.exports = {
   gradeInterviewAnswer,
   getRecruiterMessages,
   addRecruiterMessage,
-  suggestReply
+  suggestReply,
+  getDueFollowups,
+  negotiateSalary,
+  gradeVoiceAnswer
 };

@@ -19,6 +19,7 @@ const {
   gapAnalysis
 } = require('../controllers/resumeController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
+const { aiLimiter } = require('../middlewares/rateLimiter');
 
 const router = express.Router();
 
@@ -57,13 +58,30 @@ router.post('/resume/delete', authenticate, requireAuth, deleteResume);
 router.put('/resume/update', authenticate, requireAuth, updateResumeData);
 
 // ATS & Cover Letter routes
-router.post('/resume/ats-score', authenticate, requireAuth, calculateAtsScore);
-router.post('/resume/cover-letter', authenticate, requireAuth, createCoverLetter);
+router.post('/resume/ats-score', authenticate, requireAuth, aiLimiter, calculateAtsScore);
+router.post('/resume/cover-letter', authenticate, requireAuth, aiLimiter, createCoverLetter);
 router.post('/resume/cover-letter/export', authenticate, requireAuth, exportCoverLetterDoc);
-router.post('/resume/tailor', authenticate, requireAuth, tailorResume);
+router.post('/resume/tailor', authenticate, requireAuth, aiLimiter, tailorResume);
 
 // ATS Pipeline routes (Step 1 & Step 2)
-router.post('/resume/analyze-jd', authenticate, requireAuth, analyzeJd);
-router.post('/resume/gap-analysis', authenticate, requireAuth, gapAnalysis);
+router.post('/resume/analyze-jd', authenticate, requireAuth, aiLimiter, analyzeJd);
+router.post('/resume/gap-analysis', authenticate, requireAuth, aiLimiter, gapAnalysis);
+
+// SSE Stream route for resume tailoring progress
+router.get('/resume/stream', authenticate, requireAuth, (req, res) => {
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+
+  const { addClient, removeClient } = require('../utils/sseService');
+  addClient(req.user._id, res);
+
+  res.write(`data: ${JSON.stringify({ message: 'connected' })}\n\n`);
+
+  req.on('close', () => {
+    removeClient(req.user._id, res);
+  });
+});
 
 module.exports = router;

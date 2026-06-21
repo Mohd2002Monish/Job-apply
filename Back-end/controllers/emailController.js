@@ -215,6 +215,59 @@ const checkReplies = async (req, res) => {
   }
 };
 
+const processJobFollowUp = async (job, user) => {
+  // Retrieve active resume details
+  const activeResume = user.resumes.find(r => r.id === user.activeResumeId) || user.resumes[0] || user;
+  const resumeData = activeResume.resumeData || user.resumeData;
+
+  // Generate simulated original email body to provide context to AI
+  const originalEmailBody = await generateEmailContent(job, resumeData);
+  
+  // Generate follow up text
+  const followUpText = await generateFollowUpEmail(job, originalEmailBody, activeResume);
+  if (!followUpText) {
+    throw new Error('Failed to generate follow-up email content.');
+  }
+
+  const provider = job.emailProvider || 'google';
+  let result;
+
+  if (provider === 'microsoft') {
+    if (!user.microsoftTokens) throw new Error('Microsoft credentials missing.');
+    
+    const fakeStore = { tokens: user.microsoftTokens };
+    const fakeAuthStore = {
+      set: async (email, updatedStore) => {
+        user.microsoftTokens = updatedStore.tokens;
+        await user.save();
+      }
+    };
+
+    const token = await getValidMicrosoftToken(user.email, fakeStore, fakeAuthStore);
+    result = await sendOutlookFollowUp(job.gmailThreadId, followUpText, token);
+  } else {
+    if (!user.googleTokens) throw new Error('Google credentials missing.');
+    
+    result = await sendEmailViaGmailAPI(
+      job.email,
+      `Re: Job Application: ${job.job}`,
+      followUpText,
+      null,
+      user.googleTokens,
+      job.gmailThreadId
+    );
+  }
+
+  if (result.success) {
+    job.followUpStatus = 'sent';
+    job.followUpText = followUpText;
+    await job.save();
+    return followUpText;
+  } else {
+    throw new Error('Failed to send follow-up email.');
+  }
+};
+
 const sendFollowUp = async (req, res) => {
   const { jobId } = req.body;
   const user = req.user;
@@ -226,56 +279,8 @@ const sendFollowUp = async (req, res) => {
       return res.status(400).json({ error: 'Cannot send follow-up before applying.' });
     }
 
-    // Retrieve active resume details
-    const activeResume = user.resumes.find(r => r.id === user.activeResumeId) || user.resumes[0] || user;
-    const resumeData = activeResume.resumeData || user.resumeData;
-
-    // Generate simulated original email body to provide context to AI
-    const originalEmailBody = await generateEmailContent(job, resumeData);
-    
-    // Generate follow up text
-    const followUpText = await generateFollowUpEmail(job, originalEmailBody, activeResume);
-    if (!followUpText) {
-      return res.status(500).json({ error: 'Failed to generate follow-up email content.' });
-    }
-
-    const provider = job.emailProvider || 'google';
-    let result;
-
-    if (provider === 'microsoft') {
-      if (!user.microsoftTokens) return res.status(401).json({ error: 'Microsoft credentials missing.' });
-      
-      const fakeStore = { tokens: user.microsoftTokens };
-      const fakeAuthStore = {
-        set: async (email, updatedStore) => {
-          user.microsoftTokens = updatedStore.tokens;
-          await user.save();
-        }
-      };
-
-      const token = await getValidMicrosoftToken(user.email, fakeStore, fakeAuthStore);
-      result = await sendOutlookFollowUp(job.gmailThreadId, followUpText, token);
-    } else {
-      if (!user.googleTokens) return res.status(401).json({ error: 'Google credentials missing.' });
-      
-      result = await sendEmailViaGmailAPI(
-        job.email,
-        `Re: Job Application: ${job.job}`,
-        followUpText,
-        null,
-        user.googleTokens,
-        job.gmailThreadId
-      );
-    }
-
-    if (result.success) {
-      job.followUpStatus = 'sent';
-      job.followUpText = followUpText;
-      await job.save();
-      res.json({ message: 'Follow-up email sent successfully!', followUpText });
-    } else {
-      res.status(500).json({ error: 'Failed to send follow-up email.' });
-    }
+    const followUpText = await processJobFollowUp(job, user);
+    res.json({ message: 'Follow-up email sent successfully!', followUpText });
   } catch (err) {
     console.error('Follow-up dispatch error:', err.message);
     res.status(500).json({ error: err.message });
@@ -285,5 +290,6 @@ const sendFollowUp = async (req, res) => {
 module.exports = {
   apply,
   checkReplies,
-  sendFollowUp
+  sendFollowUp,
+  processJobFollowUp
 };

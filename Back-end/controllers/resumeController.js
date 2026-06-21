@@ -410,59 +410,14 @@ const tailorResume = async (req, res) => {
     const job = await Job.findById(jobId);
     if (!job) return res.status(404).json({ error: 'Job not found' });
 
-    console.log(`Tailoring resume for Job "${job.job}" at ${job.companyName || 'Unknown company'}...`);
+    console.log(`Tailoring resume (Background Queue) for Job "${job.job}" at ${job.companyName || 'Unknown company'}...`);
 
-    // Run 3-step chain (jdAnalysis → gapAnalysis → tailored resume)
-    const tailoredData = await tailorResumeData(job.description, active.resumeData);
+    const { addJob } = require('../utils/queueService');
+    await addJob('tailor-resume', { userId: user._id, jobId: job._id });
 
-    // Extract metadata attached by tailorResumeData (Step 1 & 2 results)
-    const jdAnalysis = tailoredData._jdAnalysis || null;
-    const gapAnalysisResult = tailoredData._gapAnalysis || null;
-    delete tailoredData._jdAnalysis;
-    delete tailoredData._gapAnalysis;
-
-    // Step 4: Deterministic ATS scoring
-    let deterministicResult = { score: null, breakdown: {} };
-    if (jdAnalysis) {
-      deterministicResult = calculateDeterministicAtsScore(tailoredData, jdAnalysis);
-    }
-
-    // AI analysis for keyword lists
-    console.log(`Recalculating ATS score for tailored resume...`);
-    const aiAnalysis = await generateAtsScore(job.description, tailoredData);
-
-    // Combine: deterministic score + AI keyword lists
-    const finalAnalysis = {
-      ...aiAnalysis,
-      score: deterministicResult.score !== null ? deterministicResult.score : aiAnalysis.score,
-      scoreBreakdown: deterministicResult.breakdown
-    };
-
-    // Step 5: Keyword suggestions
-    let keywordSuggestions = null;
-    if (jdAnalysis) {
-      try {
-        keywordSuggestions = await generateKeywordSuggestions(tailoredData, jdAnalysis);
-      } catch (kErr) {
-        console.warn('Keyword suggestions failed (non-critical):', kErr.message);
-      }
-    }
-
-    // ✅ Save tailored resume PER-JOB — does NOT overwrite user's primary resume
-    job.tailoredResume = {
-      score: finalAnalysis.score,
-      generatedAt: new Date(),
-      json: tailoredData
-    };
-    job.atsAnalysis = finalAnalysis;
-    await job.save();
-
-    res.json({
-      message: 'Resume tailored successfully',
-      tailoredResumeData: tailoredData,
-      atsAnalysis: finalAnalysis,
-      gapAnalysis: gapAnalysisResult,
-      keywordSuggestions
+    res.status(202).json({
+      success: true,
+      message: 'Resume tailoring started in the background.'
     });
   } catch (err) {
     console.error('Resume tailoring error:', err.message);

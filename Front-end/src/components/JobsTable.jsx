@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import OutreachModal from './OutreachModal';
 import CoverLetterModal from './CoverLetterModal';
+import KanbanBoard from './KanbanBoard';
+import JobTimeline from './JobTimeline';
+import SalaryNegotiationModal from './SalaryNegotiationModal';
+import VoiceInterviewTab from './VoiceInterviewTab';
 
 const BACKEND = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
@@ -30,7 +34,7 @@ const Spinner = ({ size = 16 }) => (
 
 // ─── Toast system ─────────────────────────────────────────────────────────────
 let _toastId = 0;
-const useToast = () => {
+export const useToast = () => {
   const [toasts, setToasts] = useState([]);
   const show = (msg, type = 'success') => {
     const id = ++_toastId;
@@ -40,7 +44,7 @@ const useToast = () => {
   return { toasts, success: msg => show(msg, 'success'), error: msg => show(msg, 'error'), info: msg => show(msg, 'info') };
 };
 
-const ToastContainer = ({ toasts }) => (
+export const ToastContainer = ({ toasts }) => (
   <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
     {toasts.map(t => (
       <div key={t.id} className={`px-4 py-3 rounded-xl text-sm font-medium shadow-lg border backdrop-blur animate-fade-in pointer-events-auto ${
@@ -104,6 +108,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
     email: job?.email || '',
     hrName: job?.hrName || '',
     description: job?.description || '',
+    status: job?.status || 'saved',
   });
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -170,7 +175,15 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
       onSaved();
       onClose();
     } catch (err) {
-      toast.error(err.response?.data?.error || 'Save failed.');
+      let errMsg = 'Save failed.';
+      if (err.response?.data?.details) {
+        errMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errMsg = err.response.data.error;
+      }
+      toast.error(errMsg);
     } finally {
       setSaving(false);
     }
@@ -264,6 +277,18 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
               <textarea required value={form.description} onChange={setField('description')} rows={5} className="input resize-none" placeholder="Paste or upload a JD file above to auto-fill..." />
             </div>
 
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Application Status</label>
+              <select value={form.status} onChange={setField('status')} className="input cursor-pointer">
+                <option value="saved">Saved</option>
+                <option value="applied">Applied</option>
+                <option value="opened">Opened</option>
+                <option value="interview">Interview</option>
+                <option value="offer">Offer</option>
+                <option value="rejected">Rejected</option>
+              </select>
+            </div>
+
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={onClose} className="btn-ghost flex-1">Cancel</button>
               <button type="submit" disabled={saving || extracting} className="btn-primary flex-1">
@@ -286,6 +311,7 @@ const InterviewPrepTab = ({ job, toast }) => {
   const [grading, setGrading] = useState(false);
   const [gradeFeedback, setGradeFeedback] = useState(null);
   const [savingNotes, setSavingNotes] = useState(false);
+  const [practiceMode, setPracticeMode] = useState('written');
 
   const typeColors = {
     Technical: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
@@ -345,6 +371,12 @@ const InterviewPrepTab = ({ job, toast }) => {
     } finally {
       setGrading(false);
     }
+  };
+
+  const handleVoiceSaved = (qId, score, aiFeedback, transcript) => {
+    setQuestions(qs => qs.map(q => q._id === qId ? { ...q, score, aiFeedback, userNotes: transcript } : q));
+    setSelected(prev => prev?._id === qId ? { ...prev, score, aiFeedback, userNotes: transcript } : prev);
+    setNotes(transcript);
   };
 
   const ScoreStars = ({ score }) => {
@@ -422,40 +454,75 @@ const InterviewPrepTab = ({ job, toast }) => {
                   )}
                 </div>
 
-                <div className="space-y-1">
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Your Answer / Notes</label>
-                  <textarea
-                    value={notes}
-                    onChange={e => setNotes(e.target.value)}
-                    rows={5}
-                    placeholder="Draft your answer here..."
-                    className="input resize-none text-xs"
-                  />
+                {/* Sub-tab selection */}
+                <div className="flex border-b border-slate-200 dark:border-zinc-700 p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg">
+                  <button
+                    onClick={() => setPracticeMode('written')}
+                    className={`flex-1 py-1.5 text-center text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                      practiceMode === 'written'
+                        ? 'bg-white dark:bg-zinc-700 text-indigo-650 dark:text-indigo-400 shadow-sm border-0'
+                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 border-0 bg-transparent'
+                    }`}
+                  >
+                    ✍️ Written Notes
+                  </button>
+                  <button
+                    onClick={() => setPracticeMode('spoken')}
+                    className={`flex-1 py-1.5 text-center text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                      practiceMode === 'spoken'
+                        ? 'bg-white dark:bg-zinc-700 text-indigo-650 dark:text-indigo-400 shadow-sm border-0'
+                        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 border-0 bg-transparent'
+                    }`}
+                  >
+                    🎙️ Spoken Practice
+                  </button>
                 </div>
 
-                <div className="flex gap-2">
-                  <button onClick={handleSaveNotes} disabled={savingNotes} className="btn-ghost text-xs py-1.5 flex-1">
-                    {savingNotes ? <><Spinner size={12} /> Saving...</> : 'Save Notes'}
-                  </button>
-                  <button onClick={handleGrade} disabled={grading || !notes.trim()} className="btn-primary text-xs py-1.5 flex-1">
-                    {grading ? <><Spinner size={12} /> Grading...</> : <><SparkleIcon /> Grade Answer</>}
-                  </button>
-                </div>
-
-                {gradeFeedback && (
-                  <div className="p-3 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400">AI Feedback</p>
-                      <ScoreStars score={gradeFeedback.score} />
+                {practiceMode === 'written' ? (
+                  <>
+                    <div className="space-y-1">
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide">Your Answer / Notes</label>
+                      <textarea
+                        value={notes}
+                        onChange={e => setNotes(e.target.value)}
+                        rows={5}
+                        placeholder="Draft your answer here..."
+                        className="input resize-none text-xs"
+                      />
                     </div>
-                    <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed">{gradeFeedback.aiFeedback}</p>
-                    {gradeFeedback.improvedVersion && (
-                      <>
-                        <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide mt-2">Stronger Version</p>
-                        <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed italic">{gradeFeedback.improvedVersion}</p>
-                      </>
+
+                    <div className="flex gap-2">
+                      <button onClick={handleSaveNotes} disabled={savingNotes} className="btn-ghost text-xs py-1.5 flex-1">
+                        {savingNotes ? <><Spinner size={12} /> Saving...</> : 'Save Notes'}
+                      </button>
+                      <button onClick={handleGrade} disabled={grading || !notes.trim()} className="btn-primary text-xs py-1.5 flex-1">
+                        {grading ? <><Spinner size={12} /> Grading...</> : <><SparkleIcon /> Grade Answer</>}
+                      </button>
+                    </div>
+
+                    {gradeFeedback && (
+                      <div className="p-3 rounded-lg border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400">AI Feedback</p>
+                          <ScoreStars score={gradeFeedback.score} />
+                        </div>
+                        <p className="text-xs text-slate-700 dark:text-zinc-300 leading-relaxed">{gradeFeedback.aiFeedback}</p>
+                        {gradeFeedback.improvedVersion && (
+                          <>
+                            <p className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wide mt-2">Stronger Version</p>
+                            <p className="text-xs text-emerald-700 dark:text-emerald-400 leading-relaxed italic">{gradeFeedback.improvedVersion}</p>
+                          </>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
+                ) : (
+                  <VoiceInterviewTab 
+                    job={job} 
+                    question={selected} 
+                    onSaved={handleVoiceSaved} 
+                    toast={toast} 
+                  />
                 )}
               </>
             ) : (
@@ -627,11 +694,130 @@ const MessagesTab = ({ job, user, toast }) => {
   );
 };
 
+// ─── Follow-up Scheduler Component ───────────────────────────────────────────
+const FollowUpScheduler = ({ job, onRefresh, toast }) => {
+  const [date, setDate] = useState(job.followUpDate ? job.followUpDate.split('T')[0] : '');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async (selectedDate) => {
+    setSaving(true);
+    try {
+      await axios.patch(`${BACKEND}/jobs/${job._id}`, {
+        followUpDate: selectedDate || null,
+        followUpStatus: selectedDate ? 'pending' : 'none'
+      });
+      toast.success(selectedDate ? 'Follow-up scheduled!' : 'Follow-up unscheduled.');
+      onRefresh();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to update follow-up date.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const addDays = (days) => {
+    const d = new Date();
+    d.setDate(d.getDate() + days);
+    const formatted = d.toISOString().split('T')[0];
+    setDate(formatted);
+    handleSave(formatted);
+  };
+
+  // Calculate days remaining
+  let badgeText = '';
+  let badgeColor = '';
+  if (job.followUpDate && job.followUpStatus === 'pending') {
+    const diff = new Date(job.followUpDate) - new Date();
+    const days = Math.ceil(diff / (1000 * 60 * 60 * 24));
+    if (days < 0) {
+      badgeText = `Follow-up overdue by ${Math.abs(days)} day${Math.abs(days) > 1 ? 's' : ''}`;
+      badgeColor = 'bg-rose-500/10 text-rose-600 border border-rose-500/20';
+    } else if (days === 0) {
+      badgeText = 'Follow-up due today!';
+      badgeColor = 'bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/20';
+    } else {
+      badgeText = `Due in ${days} day${days > 1 ? 's' : ''}`;
+      badgeColor = 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20';
+    }
+  }
+
+  return (
+    <div className="p-4 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/10 space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Recruiter Follow-up</p>
+        {badgeText && <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${badgeColor}`}>{badgeText}</span>}
+      </div>
+
+      {job.followUpStatus === 'sent' ? (
+        <div className="space-y-2">
+          <p className="text-xs text-slate-600 dark:text-zinc-400 flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+            Follow-up email dispatched on {new Date(job.updatedAt).toLocaleDateString()}
+          </p>
+          {job.followUpText && (
+            <details className="text-xs bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded p-2.5 cursor-pointer">
+              <summary className="font-semibold text-slate-700 dark:text-slate-350 select-none">View Sent Email Content</summary>
+              <p className="mt-2 text-slate-500 dark:text-zinc-400 leading-relaxed whitespace-pre-line border-t border-slate-100 dark:border-zinc-800/80 pt-2">{job.followUpText}</p>
+            </details>
+          )}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => { setDate(e.target.value); handleSave(e.target.value); }}
+              className="bg-white dark:bg-zinc-900 border border-slate-250 dark:border-zinc-700 text-xs font-semibold px-2 py-1.5 rounded outline-none focus:border-indigo-500 cursor-pointer text-slate-800 dark:text-slate-250"
+              disabled={saving}
+            />
+            <button
+              type="button"
+              onClick={() => addDays(3)}
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-750 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              disabled={saving}
+            >
+              +3 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => addDays(7)}
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-750 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              disabled={saving}
+            >
+              +7 Days
+            </button>
+            <button
+              type="button"
+              onClick={() => addDays(14)}
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-750 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              disabled={saving}
+            >
+              +14 Days
+            </button>
+            {date && (
+              <button
+                type="button"
+                onClick={() => { setDate(''); handleSave(''); }}
+                className="text-[11px] text-red-500 hover:text-red-600 font-bold ml-auto cursor-pointer"
+                disabled={saving}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Detail Drawer ────────────────────────────────────────────────────────────
 const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
+  const [negotiationOpen, setNegotiationOpen] = useState(false);
   const drawerRef = useRef(null);
 
   useEffect(() => {
@@ -730,6 +916,15 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
                 </div>
               )}
 
+              {/* Status Timeline */}
+              <div className="p-4 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/20 space-y-3">
+                <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Status History & Timeline</p>
+                <JobTimeline statusHistory={job.statusHistory} />
+              </div>
+
+              {/* Follow-up Scheduler */}
+              <FollowUpScheduler job={job} onRefresh={onRefresh} toast={toast} />
+
               {/* Description */}
               <div className="space-y-1">
                 <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Job Description</p>
@@ -737,9 +932,19 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 pt-1">
-                <button onClick={() => setCoverOpen(true)} className="btn-ghost text-xs flex-1">Cover Letter</button>
-                <button onClick={() => setOutreachOpen(true)} className="btn-primary text-xs flex-1"><SparkleIcon /> Optimize & Outreach</button>
+              <div className="flex flex-col gap-2 pt-1">
+                {job.status === 'offer' && (
+                  <button 
+                    onClick={() => setNegotiationOpen(true)} 
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] transition-all text-white font-bold text-xs shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer border-0"
+                  >
+                    <SparkleIcon /> Negotiate Offer (AI Benchmark)
+                  </button>
+                )}
+                <div className="flex gap-2">
+                  <button onClick={() => setCoverOpen(true)} className="btn-ghost text-xs flex-1">Cover Letter</button>
+                  <button onClick={() => setOutreachOpen(true)} className="btn-primary text-xs flex-1"><SparkleIcon /> Optimize & Outreach</button>
+                </div>
               </div>
             </div>
           )}
@@ -776,6 +981,16 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
           onSaved={() => { setCoverOpen(false); onRefresh(); }}
         />
       )}
+
+      {/* Salary Negotiation Modal */}
+      <SalaryNegotiationModal
+        job={job}
+        user={user}
+        isOpen={negotiationOpen}
+        onClose={() => setNegotiationOpen(false)}
+        onRefresh={onRefresh}
+        toast={toast}
+      />
     </>
   );
 };
@@ -787,19 +1002,38 @@ const JobsTable = ({ user }) => {
 
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filterText, setFilterText] = useState('');
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', dir: 'desc' });
   const [drawerJob, setDrawerJob] = useState(null);
   const [formJob, setFormJob] = useState(null); // null = closed, {} = new, job = edit
   const [formOpen, setFormOpen] = useState(false);
 
-  useEffect(() => { fetchJobs(); }, []);
+  // Pagination, Search, and Status filter states
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(10);
+  const [totalJobs, setTotalJobs] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [searchInput, setSearchInput] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [viewMode, setViewMode] = useState('table'); // 'table' or 'kanban'
 
-  const fetchJobs = async () => {
+  const fetchJobs = async (currentPage = page, searchVal = search, statusVal = status, sortVal = sortConfig) => {
     setLoading(true);
     try {
-      const res = await axios.get(`${BACKEND}/jobs`);
-      setJobs(res.data || []);
+      const sortBy = `${sortVal.key}:${sortVal.dir}`;
+      const res = await axios.get(`${BACKEND}/jobs`, {
+        params: {
+          page: currentPage,
+          limit,
+          search: searchVal,
+          status: statusVal,
+          sortBy
+        }
+      });
+      setJobs(res.data.jobs || []);
+      setTotalJobs(res.data.totalJobs || 0);
+      setTotalPages(res.data.totalPages || 1);
+      setPage(res.data.page || currentPage);
     } catch (err) {
       error('Failed to load jobs.');
     } finally {
@@ -807,14 +1041,66 @@ const JobsTable = ({ user }) => {
     }
   };
 
+  const checkDueFollowups = async () => {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    try {
+      const res = await axios.get(`${BACKEND}/jobs/due-followups`);
+      const dueJobs = res.data.jobs || [];
+      dueJobs.forEach(j => {
+        const title = `Follow-up Due: ${j.job}`;
+        const options = {
+          body: `It's time to follow up with ${j.hrName || 'the recruiter'} at ${j.companyName || 'their company'}.`,
+          icon: '/app_favicon_1781991748218.png',
+        };
+        new Notification(title, options);
+      });
+    } catch (err) {
+      console.error('Failed to check due follow-ups:', err.message);
+    }
+  };
+
+  useEffect(() => {
+    if ('Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission().then(permission => {
+          if (permission === 'granted') checkDueFollowups();
+        });
+      } else if (Notification.permission === 'granted') {
+        checkDueFollowups();
+      }
+    }
+  }, [user]);
+
+  // Debounce search input (350ms delay)
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Reset page to 1 when search query or status filter is modified
+  useEffect(() => {
+    if (page !== 1) {
+      setPage(1);
+    } else {
+      fetchJobs(1, search, status, sortConfig);
+    }
+  }, [search, status]);
+
+  // Re-run search query on page limit or sorting edits
+  useEffect(() => {
+    fetchJobs(page, search, status, sortConfig);
+  }, [page, limit, sortConfig]);
+
   const handleDelete = async (jobId, e) => {
     e.stopPropagation();
     if (!window.confirm('Delete this job?')) return;
     try {
       await axios.delete(`${BACKEND}/jobs/${jobId}`);
-      setJobs(j => j.filter(x => x._id !== jobId));
       if (drawerJob?._id === jobId) setDrawerJob(null);
       success('Job deleted.');
+      fetchJobs(page, search, status, sortConfig);
     } catch (err) {
       error('Failed to delete job.');
     }
@@ -828,16 +1114,7 @@ const JobsTable = ({ user }) => {
 
   const handleSort = key => setSortConfig(s => ({ key, dir: s.key === key && s.dir === 'asc' ? 'desc' : 'asc' }));
 
-  const sortedFiltered = [...jobs]
-    .filter(j => {
-      const q = filterText.toLowerCase();
-      return !q || [j.job, j.companyName, j.email, j.hrName].some(v => (v || '').toLowerCase().includes(q));
-    })
-    .sort((a, b) => {
-      const av = a[sortConfig.key] || '', bv = b[sortConfig.key] || '';
-      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-      return sortConfig.dir === 'asc' ? cmp : -cmp;
-    });
+  const sortedFiltered = jobs;
 
   const SortIcon = ({ col }) => sortConfig.key !== col ? null : <ChevronIcon up={sortConfig.dir === 'asc'} />;
 
@@ -851,24 +1128,84 @@ const JobsTable = ({ user }) => {
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none"><SearchIcon /></span>
           <input
             type="search"
-            placeholder="Search jobs, companies, emails..."
-            value={filterText}
-            onChange={e => setFilterText(e.target.value)}
+            placeholder="Search jobs, companies, description..."
+            value={searchInput}
+            onChange={e => setSearchInput(e.target.value)}
             className="input pl-9"
             id="jobs-search-input"
           />
         </div>
+
+        {/* Status Filter */}
+        <select
+          value={status}
+          onChange={e => setStatus(e.target.value)}
+          className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-semibold px-3 py-2 h-9 rounded-lg text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
+          id="jobs-status-filter"
+        >
+          <option value="all">All Statuses</option>
+          <option value="saved">Saved</option>
+          <option value="applied">Applied</option>
+          <option value="opened">Opened</option>
+          <option value="interview">Interview</option>
+          <option value="offer">Offer</option>
+          <option value="rejected">Rejected</option>
+        </select>
+
+        {/* View Mode Toggle */}
+        <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200/40 dark:border-zinc-700/40 shrink-0">
+          <button
+            onClick={() => setViewMode('table')}
+            className={`p-1.5 rounded-md transition-all cursor-pointer ${
+              viewMode === 'table'
+                ? 'bg-white dark:bg-zinc-750 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
+                : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+            title="List View"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+            </svg>
+          </button>
+          <button
+            onClick={() => setViewMode('kanban')}
+            className={`p-1.5 rounded-md transition-all cursor-pointer ${
+              viewMode === 'kanban'
+                ? 'bg-white dark:bg-zinc-750 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
+                : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
+            }`}
+            title="Kanban Board"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/>
+              <rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+            </svg>
+          </button>
+        </div>
+
         <button
           onClick={() => { setFormJob({}); setFormOpen(true); }}
-          className="btn-primary shrink-0 gap-1.5"
+          className="btn-primary shrink-0 gap-1.5 h-9 flex items-center justify-center"
           id="add-job-btn"
         >
           <PlusIcon /> Add Job
         </button>
       </div>
 
-      {/* Table */}
-      <div className="card overflow-hidden">
+      {/* Table / Kanban Board conditional container */}
+      {viewMode === 'kanban' ? (
+        <KanbanBoard
+          jobs={jobs}
+          setJobs={setJobs}
+          onRefresh={fetchJobs}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
+          onSelectJob={setDrawerJob}
+          toast={toast}
+        />
+      ) : (
+        <div className="card overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
@@ -892,7 +1229,7 @@ const JobsTable = ({ user }) => {
               {loading ? (
                 <tr><td colSpan="7" className="px-4 py-12 text-center"><div className="flex items-center justify-center gap-2 text-slate-400"><Spinner /> Loading jobs...</div></td></tr>
               ) : sortedFiltered.length === 0 ? (
-                <tr><td colSpan="7" className="px-4 py-12 text-center text-sm text-slate-400 dark:text-zinc-500">{filterText ? 'No jobs match your search.' : 'No jobs yet. Click "Add Job" to get started!'}</td></tr>
+                <tr><td colSpan="7" className="px-4 py-12 text-center text-sm text-slate-400 dark:text-zinc-500">{(searchInput || status !== 'all') ? 'No jobs match your filters.' : 'No jobs yet. Click "Add Job" to get started!'}</td></tr>
               ) : (
                 sortedFiltered.map(job => (
                   <tr key={job._id} onClick={() => setDrawerJob(job)} className="border-b border-slate-50 dark:border-zinc-800/50 hover:bg-slate-50 dark:hover:bg-zinc-800/30 cursor-pointer transition-colors group">
@@ -936,14 +1273,74 @@ const JobsTable = ({ user }) => {
           </table>
         </div>
 
-        {/* Footer */}
-        {jobs.length > 0 && (
-          <div className="px-4 py-2 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-400 dark:text-zinc-500 flex items-center justify-between">
-            <span>{sortedFiltered.length} of {jobs.length} jobs</span>
-            <span>{jobs.filter(j => j.isEmailSent).length} applications sent · {jobs.filter(j => j.hasReply).length} replied</span>
+        {/* Footer with Pagination Controls */}
+        <div className="px-4 py-3 border-t border-slate-100 dark:border-zinc-800 text-xs text-slate-500 dark:text-zinc-400 flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-50/50 dark:bg-zinc-900/50">
+          <div className="flex flex-wrap items-center gap-4">
+            <span>
+              Showing <span className="font-semibold text-slate-700 dark:text-slate-200">{jobs.length}</span> of{' '}
+              <span className="font-semibold text-slate-700 dark:text-slate-200">{totalJobs}</span> jobs
+            </span>
+            <div className="flex items-center gap-1.5">
+              <span>Per page:</span>
+              <select
+                value={limit}
+                onChange={e => { setLimit(parseInt(e.target.value)); setPage(1); }}
+                className="bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold px-2 py-0.5 rounded outline-none focus:border-indigo-500 cursor-pointer"
+              >
+                {[5, 10, 20, 50].map(size => (
+                  <option key={size} value={size}>{size}</option>
+                ))}
+              </select>
+            </div>
           </div>
-        )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1">
+              <button
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                className="px-2 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
+              >
+                Previous
+              </button>
+
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => {
+                const isCurrent = pageNum === page;
+                const isNearCurrent = Math.abs(pageNum - page) <= 1;
+                const isFirstOrLast = pageNum === 1 || pageNum === totalPages;
+
+                if (isFirstOrLast || isNearCurrent) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setPage(pageNum)}
+                      className={`w-7 h-7 rounded flex items-center justify-center font-semibold transition-all ${
+                        isCurrent
+                          ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
+                          : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-700/50'
+                      }`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                } else if (pageNum === 2 || pageNum === totalPages - 1) {
+                  return <span key={pageNum} className="text-slate-400 dark:text-zinc-600">...</span>;
+                }
+                return null;
+              })}
+
+              <button
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                className="px-2 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </div>
       </div>
+    )}
 
       {/* Detail Drawer */}
       {drawerJob && (

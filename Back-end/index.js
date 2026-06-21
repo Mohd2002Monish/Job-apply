@@ -8,11 +8,21 @@ const authRoutes = require("./routes/authRoutes");
 const jobRoutes = require("./routes/jobRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const resumeRoutes = require("./routes/resumeRoutes");
+const scrapedJobRoutes = require("./routes/scrapedJobRoutes");
 
 const { startCronJob } = require("./utils/cronService");
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+const { globalLimiter } = require("./middlewares/rateLimiter");
+
+// Enable trust proxy for accurate IP rate-limiting behind reverse proxies
+app.set("trust proxy", 1);
+
+// Apply global rate limiting to all requests
+app.use(globalLimiter);
+
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
@@ -61,6 +71,7 @@ app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
 app.use("/", emailRoutes); // Mounts /apply and /emails/replies
 app.use("/", resumeRoutes); // Mounts /upload-resume, /resume-data, /export-resume, /preview-template
+app.use("/scraped-jobs", scrapedJobRoutes);
 
 // ─── Legacy cron route ─────────────────────────────────────────────────────────
 app.get("/start-cron", (req, res) => {

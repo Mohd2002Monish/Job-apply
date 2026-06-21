@@ -12,6 +12,8 @@ const {
   updateProfile
 } = require('../controllers/authController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
+const { validate, profileUpdateSchema } = require('../middlewares/validate');
+
 
 const router = express.Router();
 
@@ -43,6 +45,6 @@ router.get('/microsoft', microsoftAuth);
 router.get('/microsoft/callback', microsoftCallback);
 router.get('/status', authenticate, status);
 router.post('/logout', logout);
-router.post('/profile/update', authenticate, requireAuth, profilePicUpload.single('picture'), updateProfile);
+router.post('/profile/update', authenticate, requireAuth, profilePicUpload.single('picture'), validate(profileUpdateSchema), updateProfile);
 
 module.exports = router;

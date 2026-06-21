@@ -2,11 +2,12 @@ import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import LoginPage from './components/LoginPage';
-import JobsTable from './components/JobsTable';
+import JobsTable, { useToast, ToastContainer } from './components/JobsTable';
 import ResumeUpload from './components/ResumeUpload';
 import ResumeBuilder from './components/ResumeBuilder';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import InteractiveBackground from './components/InteractiveBackground';
+import JobDiscoverer from './components/JobDiscoverer';
 import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon } from './components/Icons';
 import { setAuth, setResumeInfo, setResumesInfo, toggleTheme, setActiveTab, logoutUser } from './store/authSlice';
 import './index.css';
@@ -18,6 +19,12 @@ const TrendingUpIcon = ({ size = 15 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
     <polyline points="17 6 23 6 23 12" />
+  </svg>
+);
+
+const SearchIcon = ({ size = 15 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
   </svg>
 );
 
@@ -46,6 +53,31 @@ const Dashboard = () => {
   const [uploadModalOpen, setUploadModalOpen] = React.useState(false);
   const [profileModalOpen, setProfileModalOpen] = React.useState(false);
   const [profileName, setProfileName] = React.useState(user?.name || '');
+
+  const { toasts, success, error, info } = useToast();
+  const toast = { success, error, info };
+
+  // Intercept 1-click import from email digests
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const importScrapedJobId = params.get('importScrapedJobId');
+    if (importScrapedJobId) {
+      console.log(`Email digest redirect detected: importing job ID ${importScrapedJobId}`);
+      axios.post(`${BACKEND}/scraped-jobs/import/${importScrapedJobId}`)
+        .then(res => {
+          if (res.data.success) {
+            toast.success(res.data.message || 'Job successfully tracked!');
+            dispatch(setActiveTab('jobs'));
+          }
+          window.history.replaceState({}, '', '/');
+        })
+        .catch(err => {
+          console.error('Email digest import error:', err);
+          toast.error(err.response?.data?.error || 'Failed to import job.');
+          window.history.replaceState({}, '', '/');
+        });
+    }
+  }, [user, dispatch]);
   const [profileEmail, setProfileEmail] = React.useState(user?.email || '');
   const [profilePicFile, setProfilePicFile] = React.useState(null);
   const [previewUrl, setPreviewUrl] = React.useState('');
@@ -109,7 +141,15 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error(err);
-      setProfileError(err.response?.data?.error || 'Failed to update profile.');
+      let errorMsg = 'Failed to update profile.';
+      if (err.response?.data?.details) {
+        errorMsg = Object.entries(err.response.data.details)
+          .map(([field, msg]) => `${field}: ${msg}`)
+          .join(', ');
+      } else if (err.response?.data?.error) {
+        errorMsg = err.response.data.error;
+      }
+      setProfileError(errorMsg);
     } finally {
       setSavingProfile(false);
     }
@@ -173,6 +213,7 @@ const Dashboard = () => {
           {/* Center: Tabs */}
           <nav className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800/60 rounded-xl p-1">
             <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={(id) => dispatch(setActiveTab(id))} />
+            <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => dispatch(setActiveTab(id))} />
             <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => dispatch(setActiveTab(id))} />
             <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => dispatch(setActiveTab(id))} />
           </nav>
@@ -269,6 +310,7 @@ const Dashboard = () => {
         )}
 
         {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
+        {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
         {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
         {activeTab === 'analytics' && <AnalyticsDashboard />}
       </main>
@@ -438,6 +480,7 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+      <ToastContainer toasts={toasts} />
     </div>
   );
 };

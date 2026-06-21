@@ -92,6 +92,13 @@ const userSchema = new mongoose.Schema({
   resumePath: { type: String, default: '' },
   resumes: { type: [resumeSchema], default: [] },
   activeResumeId: { type: String, default: '' },
+  targetProfile: {
+    targetRole: { type: String, default: '' },
+    targetLocation: { type: String, default: '' },
+    salaryExpectation: { type: Number, default: 0 },
+    digestEnabled: { type: Boolean, default: false },
+    digestFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' }
+  }
 }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);
