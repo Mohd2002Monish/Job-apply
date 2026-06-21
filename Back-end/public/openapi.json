@@ -1,0 +1,1015 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "RecoCareer.ai REST API Documentation",
+    "description": "Complete interactive documentation for the entire RecoCareer.ai full-stack backend. Includes authentication, multi-resume builder, AI tailoring, tracking dashboards, scraper engines, form auto-fillers, SMTP outreach, click-tracking links, and Stripe payment systems.",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000",
+      "description": "Local Backend API Port"
+    }
+  ],
+  "paths": {
+    "/auth/google": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Initiate Google OAuth 2.0 Flow",
+        "description": "Redirects the client browser to Google's authentication server to login via SSO.",
+        "responses": {
+          "302": { "description": "Redirect target to Google Sign-In portal" }
+        }
+      }
+    },
+    "/auth/microsoft": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Initiate Microsoft OAuth 2.0 Flow",
+        "description": "Redirects the client browser to Microsoft's Entra ID server to login via SSO.",
+        "responses": {
+          "302": { "description": "Redirect target to Microsoft Sign-In portal" }
+        }
+      }
+    },
+    "/auth/status": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Retrieve Authenticated Profile Status",
+        "description": "Decodes session cookie credentials and returns user details alongside limits metrics.",
+        "responses": {
+          "200": {
+            "description": "Active session data",
+            "content": {
+              "application/json": {
+                "example": {
+                  "authenticated": true,
+                  "email": "candidate@example.com",
+                  "name": "Mohd Monish",
+                  "picture": "/uploads/profile_pics/default.png",
+                  "provider": "google",
+                  "hasGoogleTokens": true,
+                  "hasMicrosoftTokens": false,
+                  "subscriptionTier": "pro",
+                  "stripeSubscriptionId": "sub_1234abcd",
+                  "aiRequestCount": 0,
+                  "jobCount": 4
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not logged in status",
+            "content": {
+              "application/json": { "example": { "authenticated": false, "user": null } }
+            }
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Destroy Client Session Cookies",
+        "description": "Clears active session cookie context from client browser registry.",
+        "responses": {
+          "200": {
+            "description": "Signout feedback",
+            "content": {
+              "application/json": { "example": { "success": true, "message": "Logged out successfully" } }
+            }
+          }
+        }
+      }
+    },
+    "/auth/profile/update": {
+      "post": {
+        "tags": ["Authentication"],
+        "summary": "Update Profile Details & Picture",
+        "description": "Saves changes to user's display parameters and uploads local profile image.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "email": { "type": "string" },
+                  "picture": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Save success result",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "user": {
+                    "name": "Mohd Monish",
+                    "email": "candidate@example.com",
+                    "picture": "/uploads/profile_pics/profile_1782058528549.png"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "List Tracked Jobs (Paginated + Filtered)",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["saved", "applied", "opened", "interview", "offer", "rejected"] } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "default": "createdAt:desc" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Jobs catalog response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "jobs": [
+                    {
+                      "_id": "60d01f2f3f4f5a6b7c8d9e01",
+                      "job": "Software Engineer",
+                      "companyName": "Google",
+                      "email": "hr@google.com",
+                      "description": "We are seeking a developer...",
+                      "status": "saved",
+                      "statusHistory": [{ "status": "saved", "changedAt": "2026-06-21T15:00:00Z" }]
+                    }
+                  ],
+                  "totalJobs": 1,
+                  "page": 1,
+                  "totalPages": 1
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "Manually Track New Job Listing",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["job", "email", "description"],
+                "properties": {
+                  "job": { "type": "string" },
+                  "companyName": { "type": "string" },
+                  "email": { "type": "string" },
+                  "description": { "type": "string" },
+                  "hrName": { "type": "string" },
+                  "templateId": { "type": "string", "default": "classic" }
+                }
+              },
+              "example": {
+                "job": "Full Stack Developer",
+                "companyName": "Microsoft",
+                "email": "recruiting@microsoft.com",
+                "description": "Must have React, Node, and Mongoose experience.",
+                "hrName": "Satya Nadella",
+                "templateId": "minimal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Job created",
+            "content": {
+              "application/json": {
+                "example": {
+                  "_id": "60d01f2f3f4f5a6b7c8d9e02",
+                  "job": "Full Stack Developer",
+                  "companyName": "Microsoft",
+                  "email": "recruiting@microsoft.com",
+                  "description": "Must have React, Node, and Mongoose experience.",
+                  "status": "saved",
+                  "statusHistory": [{ "status": "saved", "changedAt": "2026-06-21T15:10:00Z" }]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "patch": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "Modify Tracked Job Details",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "status": "applied",
+                "hrName": "New HR Contact"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update success response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "_id": "60d01f2f3f4f5a6b7c8d9e01",
+                  "job": "Software Engineer",
+                  "status": "applied",
+                  "statusHistory": [
+                    { "status": "saved", "changedAt": "2026-06-21T15:00:00Z" },
+                    { "status": "applied", "changedAt": "2026-06-21T15:30:00Z" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "Remove Job Application Tracker",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Deleted success status",
+            "content": {
+              "application/json": { "example": { "success": true, "message": "Job deleted successfully" } }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/analytics": {
+      "get": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "Fetch Conversion Funnel Metrics",
+        "responses": {
+          "200": {
+            "description": "Funnel analytics numbers",
+            "content": {
+              "application/json": {
+                "example": {
+                  "total": 12,
+                  "applied": 8,
+                  "replied": 3,
+                  "responseRate": 38,
+                  "avgReplyTimeHours": 48
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/due-followups": {
+      "get": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "Get Jobs Due for Follow-up Reminders",
+        "responses": {
+          "200": {
+            "description": "List of due jobs",
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "_id": "60d01f2f3f4f5a6b7c8d9e01",
+                    "job": "Software Engineer",
+                    "companyName": "Google",
+                    "followUpDate": "2026-06-21T12:00:00Z",
+                    "followUpStatus": "pending"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/import": {
+      "post": {
+        "tags": ["Job Tracking Dashboard"],
+        "summary": "Import Scraped Job from Chrome Extension",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "jobTitle": "Front End Developer",
+                "companyName": "Netflix",
+                "location": "Los Gatos, CA",
+                "description": "Hiring a web UI engineer...",
+                "url": "https://linkedin.com/jobs/view/123",
+                "source": "LinkedIn",
+                "email": "hr@netflix.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Import success feedback",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Job imported successfully from extension.",
+                  "jobId": "60d01f2f3f4f5a6b7c8d9e03"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/extract-jd": {
+      "post": {
+        "tags": ["AI Parsing & Outreach Utilities"],
+        "summary": "Extract Metadata from JD File (PDF/Image)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["jdFile"],
+                "properties": {
+                  "jdFile": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extracted details output",
+            "content": {
+              "application/json": {
+                "example": {
+                  "jobTitle": "Node.js Architect",
+                  "companyName": "Amazon",
+                  "hrName": "Jeff Bezos",
+                  "hrEmail": "jobs@amazon.com",
+                  "description": "Full Job description text..."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/extract-url": {
+      "post": {
+        "tags": ["AI Parsing & Outreach Utilities"],
+        "summary": "Extract Metadata from Job Post URL",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "url": "https://indeed.com/viewjob?jk=123"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Extracted details output",
+            "content": {
+              "application/json": {
+                "example": {
+                  "jobTitle": "React Developer",
+                  "companyName": "Meta",
+                  "description": "Frontend UI developer description..."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/upload-jd": {
+      "post": {
+        "tags": ["AI Parsing & Outreach Utilities"],
+        "summary": "Associate & Parse JD File to Tracked Job",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["jdFile"],
+                "properties": {
+                  "jdFile": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "File parsed and linked",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "jdFileContent": "Job details raw text...",
+                  "atsAnalysis": { "score": 75, "matchSummary": "Good alignment" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/generate-cover-letter": {
+      "post": {
+        "tags": ["AI Parsing & Outreach Utilities"],
+        "summary": "Generate Tailored Cover Letter",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "wordCount": 300,
+                "tone": "Confident",
+                "customInstructions": "Emphasize my cloud devops skills."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Generated cover letter body",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "coverLetter": "Dear Hiring Manager,\n\nI am writing to express my interest..."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/interview-prep": {
+      "post": {
+        "tags": ["AI Question Prep Simulator"],
+        "summary": "Generate AI Tailored Practice Questions",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of 8 questions generated",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "questions": [
+                    {
+                      "_id": "60d01f2f3f4f5a6b7c8d9e99",
+                      "question": "How do you optimize React render cycles?",
+                      "type": "Technical",
+                      "suggestedPoints": "- Mention useMemo & useCallback\n- Discuss React.memo profiling"
+                    }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/interview-notes": {
+      "patch": {
+        "tags": ["AI Question Prep Simulator"],
+        "summary": "Save Practice Notes / Answer Drafts",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "questionId": "60d01f2f3f4f5a6b7c8d9e99",
+                "userNotes": "I use virtualization and state debouncers..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Draft saved success feedback",
+            "content": {
+              "application/json": { "example": { "success": true, "message": "Draft saved." } }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/grade-answer": {
+      "post": {
+        "tags": ["AI Question Prep Simulator"],
+        "summary": "Evaluate Written Practice Answer",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "questionId": "60d01f2f3f4f5a6b7c8d9e99",
+                "userNotes": "I optimize renders using useMemo and memoized contexts."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Grading feedback result",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "grade": {
+                    "score": 8,
+                    "aiFeedback": "Excellent mention of memoized contexts. Expand on virtualization for large lists.",
+                    "improvedVersion": "A strong answer would be: In addition to useMemo..."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/messages": {
+      "get": {
+        "tags": ["Interactive Recruiter Inbox"],
+        "summary": "Get Recruiter Thread Message Log",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Message thread array",
+            "content": {
+              "application/json": {
+                "example": [
+                  {
+                    "from": "recruiter@google.com",
+                    "subject": "Interview Request",
+                    "body": "Let's schedule a Zoom call...",
+                    "receivedAt": "2026-06-21T10:00:00Z",
+                    "isFromRecruiter": true
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Interactive Recruiter Inbox"],
+        "summary": "Log New Message into Thread",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "from": "recruiter@google.com",
+                "subject": "Interview details",
+                "body": "Confirming time...",
+                "isFromRecruiter": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message logged successfully",
+            "content": {
+              "application/json": { "example": { "success": true, "message": "Message logged." } }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/suggest-reply": {
+      "post": {
+        "tags": ["Interactive Recruiter Inbox"],
+        "summary": "Draft AI Suggested Reply",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "AI response proposal draft",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "reply": "Hi recruiter,\n\nThank you for reaching out. I would be available..."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/form-fields": {
+      "get": {
+        "tags": ["Auto Form-Fill Agent"],
+        "summary": "Scan Site Career Page Input Selectors",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Interactive selectors map returned",
+            "content": {
+              "application/json": {
+                "example": {
+                  "fields": [
+                    { "name": "fullname", "type": "text", "selector": "#name" },
+                    { "name": "resume", "type": "file", "selector": "input[type=file]" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/form-fill": {
+      "post": {
+        "tags": ["Auto Form-Fill Agent"],
+        "summary": "Auto-populate Form Inputs via Puppeteer",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "customValues": {
+                  "fullname": "Mohd Monish",
+                  "expectedSalary": "120000"
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "autofill confirmation payload",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "autofillScreenshot": "/uploads/screenshots/confirm_60d01f2.png",
+                  "message": "Form successfully filled."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/upload-resume": {
+      "post": {
+        "tags": ["Resume Parser & Multi-Resume Manager"],
+        "summary": "Upload and Parse Resume File",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": ["resume"],
+                "properties": {
+                  "resume": { "type": "string", "format": "binary" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Resume parse success",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "resumeFileName": "my_resume.pdf",
+                  "resumeData": {
+                    "personalInfo": { "name": "Mohd Monish", "email": "candidate@example.com" },
+                    "summary": "Experienced full stack software engineer...",
+                    "skills": { "technical": ["React", "Node.js"], "tools": ["Git", "Docker"] }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resume-data": {
+      "get": {
+        "tags": ["Resume Parser & Multi-Resume Manager"],
+        "summary": "Get Structured Primary Resume JSON Data",
+        "parameters": [
+          { "name": "email", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Structured profile information",
+            "content": {
+              "application/json": {
+                "example": {
+                  "hasData": true,
+                  "resumeFileName": "my_resume.pdf",
+                  "resumeData": {
+                    "personalInfo": { "name": "Mohd Monish" },
+                    "summary": "Professional summary details..."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resume/list": {
+      "get": {
+        "tags": ["Resume Parser & Multi-Resume Manager"],
+        "summary": "List User's Multi-Resumes Profile Versions",
+        "responses": {
+          "200": {
+            "description": "Resumes array catalog",
+            "content": {
+              "application/json": {
+                "example": {
+                  "activeResumeId": "res_1a2b",
+                  "resumes": [
+                    { "id": "res_1a2b", "title": "Technology Resume", "resumeFileName": "tech_cv.pdf" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resume/update": {
+      "put": {
+        "tags": ["Resume Parser & Multi-Resume Manager"],
+        "summary": "Debounced Auto-Save Update Resume JSON",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "resumeData": {
+                  "personalInfo": { "name": "Mohd Monish Updated" },
+                  "summary": "New summary text..."
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Update success feedback",
+            "content": {
+              "application/json": { "example": { "success": true, "message": "Resume updated." } }
+            }
+          }
+        }
+      }
+    },
+    "/resume/ats-score": {
+      "post": {
+        "tags": ["Resume Parser & Multi-Resume Manager"],
+        "summary": "Calculate Deterministic & AI ATS Score",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "jobDescription": "Seeking a developer skilled in React, Node, and Docker."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ATS score details",
+            "content": {
+              "application/json": {
+                "example": {
+                  "score": 85,
+                  "breakdown": { "skills": 35, "experience": 25, "keywords": 15, "education": 10 },
+                  "matchSummary": "High alignment matches details.",
+                  "matchingKeywords": ["React", "Node"],
+                  "missingKeywords": ["Docker"]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/resume/tailor": {
+      "post": {
+        "tags": ["Resume Parser & Multi-Resume Manager"],
+        "summary": "Enqueue AI Resume Tailoring (Queue Task)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "jobDescription": "Looking for Node.js backend developer..."
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Task enqueued response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Resume tailoring enqueued."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scraped-jobs": {
+      "get": {
+        "tags": ["Scraper Engine & Search digests"],
+        "summary": "Get Saved Scraped Job Digest Listings",
+        "responses": {
+          "200": {
+            "description": "Scraped jobs list",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "scrapedJobs": [
+                    { "_id": "sc_60d0", "jobTitle": "AI Dev", "companyName": "Indeed Scraper Match" }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scraped-jobs/profile": {
+      "patch": {
+        "tags": ["Scraper Engine & Search digests"],
+        "summary": "Update Scraping Target Preferences",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "targetRole": "Software Engineer",
+                "targetLocation": "Remote",
+                "salaryExpectation": 120000,
+                "digestEnabled": true,
+                "digestFrequency": "daily"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile saved status",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "targetProfile": {
+                    "targetRole": "Software Engineer",
+                    "targetLocation": "Remote"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scraped-jobs/trigger": {
+      "post": {
+        "tags": ["Scraper Engine & Search digests"],
+        "summary": "Manually Enqueue Background Crawl Task",
+        "responses": {
+          "202": {
+            "description": "Crawl task enqueued success",
+            "content": {
+              "application/json": {
+                "example": { "success": true, "message": "Scraping task enqueued in background." }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/scraped-jobs/import/{id}": {
+      "post": {
+        "tags": ["Scraper Engine & Search digests"],
+        "summary": "Import Scraped Job into Board (Checked limits)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Board import success payload",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Successfully tracking \"AI Dev\"!"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/apply": {
+      "post": {
+        "tags": ["SMTP Recruiter outreach"],
+        "summary": "Send outreach email with Primary Resume PDF",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "example": {
+                "jobId": "60d01f2f3f4f5a6b7c8d9e01",
+                "subject": "Application for Software Engineer role",
+                "body": "Dear Hiring Manager, please find my resume attached...",
+                "emailProvider": "google"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Mail dispatched success feedback",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "Email outreach dispatched successfully."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

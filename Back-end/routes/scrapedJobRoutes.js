@@ -7,6 +7,7 @@ const { crawlAllJobs } = require('../utils/scraperService');
 
 // Middleware to authenticate user
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
+const { checkLimits } = require('../middlewares/subscriptionMiddleware');
 
 // Get all scraped jobs matching user's profile
 router.get('/', authenticate, requireAuth, async (req, res) => {
@@ -90,7 +91,7 @@ router.post('/trigger', authenticate, requireAuth, async (req, res) => {
 });
 
 // Import a scraped job into the user's primary tracker
-router.post('/import/:id', authenticate, requireAuth, async (req, res) => {
+router.post('/import/:id', authenticate, requireAuth, checkLimits('job'), async (req, res) => {
   try {
     const scrapedJob = await ScrapedJob.findOne({ _id: req.params.id, userId: req.user._id });
     if (!scrapedJob) {
@@ -175,7 +176,7 @@ router.get('/search', authenticate, requireAuth, async (req, res) => {
 });
 
 // Import an external search job directly
-router.post('/import-external', authenticate, requireAuth, async (req, res) => {
+router.post('/import-external', authenticate, requireAuth, checkLimits('job'), async (req, res) => {
   try {
     const { jobTitle, companyName, location, salary, description, url, source } = req.body;
     if (!jobTitle || !companyName) {

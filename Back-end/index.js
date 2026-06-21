@@ -68,6 +68,10 @@ app.get("/", (req, res) => {
   res.json({ status: "ok", db: dbConnected ? "connected" : "disconnected" });
 });
 
+app.get("/api-docs", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "api-docs.html"));
+});
+
 app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
 app.use("/", emailRoutes); // Mounts /apply and /emails/replies
@@ -86,4 +90,8 @@ app.get("/start-cron", (req, res) => {
 });
 
 // ─── Start server ──────────────────────────────────────────────────────────────
-app.listen(port, () => console.log(`Server running on port ${port}`));
+if (require.main === module) {
+  app.listen(port, () => console.log(`Server running on port ${port}`));
+}
+
+module.exports = app;

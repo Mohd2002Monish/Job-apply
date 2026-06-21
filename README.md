@@ -218,6 +218,11 @@ TRACKING_BASE_URL=http://localhost:3000
 | `GET` | `/jobs/tracking/open/:id` | Public | 1x1 image tracker to log email opens |
 | `GET` | `/jobs/tracking/click/:id` | Public | Logs link click redirection activity |
 
+### 📖 Swagger API Documentation
+An interactive Swagger UI is built into the backend to view detailed API paths, parameters, schemas, and live test payload examples.
+* **Swagger Documentation URL**: `http://localhost:3000/api-docs`
+* **Raw OpenAPI Specification JSON**: `http://localhost:3000/openapi.json`
+
 ---
 
 ## 🚀 Installation & Setup
@@ -275,6 +280,19 @@ npm run dev
 3. Click on the **Load unpacked** button in the upper-left corner.
 4. Select the `chrome-extension/` directory of this repository.
 5. Pins the extension to your browser toolbar. Refresh active LinkedIn or Indeed pages to allow the scraper script to load.
+
+---
+
+### 🧪 Running Tests
+The suite includes isolated unit and integration tests for both frontend and backend to check schema validation, regex escaping, and helper logic.
+* **Backend Tests**: Run the following from the `Back-end` directory:
+  ```bash
+  node --test tests/*.test.js
+  ```
+* **Frontend Tests**: Run the following from the `Front-end` directory:
+  ```bash
+  node --test src/tests/*.test.js
+  ```
 
 ---
 
