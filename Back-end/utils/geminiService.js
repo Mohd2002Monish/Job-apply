@@ -1038,6 +1038,80 @@ Rules:
   }
 };
 
+/**
+ * Map scraped form fields to candidate resume details using Gemini.
+ */
+const mapFieldsForFormFill = async (scrapedFields, resumeData) => {
+  const resumeContext = formatResumeContext(resumeData);
+  const prompt = `You are an AI assistant that maps form fields from a job application to a candidate's resume details.
+
+Candidate Resume Data:
+${resumeContext}
+
+Job Application Fields:
+${JSON.stringify(scrapedFields, null, 2)}
+
+For each job application field, determine the most appropriate value from the candidate's resume details to populate this field.
+Guidelines:
+1. If the field is a select dropdown (type: select), choose the exact option value (or option text if value is empty) from the provided 'options' list that matches the candidate's background. If none match, choose the best matching option or empty string "".
+2. If the field is a file input (type: file) and is looking for a resume, set mappedValue to "[RESUME_FILE]".
+3. If the field is a file input (type: file) and is looking for a cover letter, set mappedValue to "[COVER_LETTER_FILE]".
+4. If the field is about work authorization, gender, race, or veteran status, select the best fitting option if present in resume, or leave empty if sensitive/not specified.
+5. If no mapping can be found in the resume, set mappedValue to "".
+6. Assign a confidence score from 0 to 100 for this mapping decision.
+7. Provide a short reason explaining your decision.
+
+You MUST return ONLY a parseable JSON array of objects. Each object MUST have this exact structure:
+[
+  {
+    "id": "field id or unique string",
+    "name": "field name attribute",
+    "label": "field label or placeholder text",
+    "type": "field type (e.g., text, select, email, tel, file, textarea)",
+    "selector": "CSS selector to locate the element",
+    "frameIndex": 0,
+    "mappedValue": "the value to fill",
+    "confidence": 95,
+    "reason": "explanation of mapping"
+  }
+]
+
+Rules:
+- Do not include markdown code block formatting (like \`\`\`json) or extra text.
+- Ensure all double quotes inside string values are properly escaped.
+`;
+
+  try {
+    const completion = await createChatCompletionWithRetry({
+      model: "gemini-2.5-flash",
+      messages: [{ role: "user", content: prompt }],
+      temperature: 0.2,
+      response_format: { type: "json_object" }
+    });
+
+    const cleanContent = completion.choices[0].message.content.trim();
+    const jsonString = cleanContent.replace(/^```json/i, '').replace(/```$/, '').trim();
+    const result = extractJson(jsonString);
+    // If result is wrapped inside a key, extract the array
+    if (result && !Array.isArray(result) && typeof result === 'object') {
+      const keys = Object.keys(result);
+      if (keys.length === 1 && Array.isArray(result[keys[0]])) {
+        return result[keys[0]];
+      }
+    }
+    return result;
+  } catch (error) {
+    console.error("Error mapping fields for form fill:", error.message);
+    // Return empty fallback array
+    return scrapedFields.map(f => ({
+      ...f,
+      mappedValue: "",
+      confidence: 0,
+      reason: "Failed to map using Gemini: " + error.message
+    }));
+  }
+};
+
 module.exports = {
   extractJson,
   generateEmailContent,
@@ -1055,5 +1129,6 @@ module.exports = {
   evaluateInterviewAnswer,
   suggestRecruiterReply,
   getSalaryBenchmarksWithGrounding,
-  evaluateSpokenInterviewAnswer
+  evaluateSpokenInterviewAnswer,
+  mapFieldsForFormFill
 };

@@ -2,6 +2,8 @@ const Job = require('../models/Job');
 const { parseResume } = require('../utils/resumeParser');
 const { generateCustomCoverLetter, extractJobInfoFromText, generateInterviewPrepQuestions, evaluateInterviewAnswer, suggestRecruiterReply } = require('../utils/geminiService');
 const fs = require('fs');
+const puppeteer = require('puppeteer');
+const path = require('path');
 
 const getJobs = async (req, res) => {
   try {
@@ -726,6 +728,296 @@ const gradeVoiceAnswer = async (req, res) => {
   }
 };
 
+const getJobFormFields = async (req, res) => {
+  let browser;
+  try {
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    // Determine target URL: fallback to local mock page if not a valid URL or contains 'mock'
+    const localUrl = `${req.protocol}://${req.get('host')}/mock-application-form.html`;
+    const urlToScrape = job.sourceUrl && (job.sourceUrl.startsWith('http://') || job.sourceUrl.startsWith('https://')) && !job.sourceUrl.includes('mock') ? job.sourceUrl : localUrl;
+
+    console.log(`[Autofill] Launching Puppeteer to scrape fields from: ${urlToScrape}`);
+    
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1280, height: 1000 });
+
+    // Navigate with a timeout
+    await page.goto(urlToScrape, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    const frames = page.frames();
+    const scrapedFields = [];
+
+    for (let i = 0; i < frames.length; i++) {
+      const frame = frames[i];
+      try {
+        const frameFields = await frame.evaluate((frameIdx) => {
+          const inputs = Array.from(document.querySelectorAll('input, textarea, select'));
+          const fields = [];
+          
+          inputs.forEach((el, index) => {
+            const tagName = el.tagName.toLowerCase();
+            const type = el.getAttribute('type') ? el.getAttribute('type').toLowerCase() : 'text';
+            
+            // Skip buttons, hidden, submit inputs
+            if (tagName === 'input' && ['hidden', 'submit', 'button', 'image', 'reset'].includes(type)) {
+              return;
+            }
+            
+            let labelText = '';
+            if (el.id) {
+              const lbl = document.querySelector(`label[for="${el.id}"]`);
+              if (lbl) labelText = lbl.innerText.trim();
+            }
+            if (!labelText) {
+              const parentLbl = el.closest('label');
+              if (parentLbl) labelText = parentLbl.innerText.trim();
+            }
+            if (!labelText) {
+              labelText = el.getAttribute('aria-label') || '';
+            }
+            if (!labelText) {
+              labelText = el.getAttribute('placeholder') || '';
+            }
+            if (!labelText) {
+              labelText = el.getAttribute('name') || '';
+            }
+            
+            labelText = labelText.replace(/[*:]/g, '').trim();
+            
+            let selector = '';
+            if (el.id) {
+              selector = `#${el.id}`;
+            } else if (el.getAttribute('name')) {
+              selector = `${tagName}[name="${el.getAttribute('name')}"]`;
+            } else {
+              const sameTag = Array.from(document.querySelectorAll(tagName));
+              const idx = sameTag.indexOf(el);
+              selector = `${tagName}:nth-of-type(${idx + 1})`;
+            }
+            
+            let options = [];
+            if (tagName === 'select') {
+              options = Array.from(el.options).map(opt => ({
+                value: opt.value,
+                text: opt.text.trim()
+              }));
+            }
+            
+            fields.push({
+              id: el.id || `field_${frameIdx}_${index}`,
+              name: el.getAttribute('name') || '',
+              type: tagName === 'textarea' ? 'textarea' : (tagName === 'select' ? 'select' : type),
+              label: labelText || el.getAttribute('name') || `Field ${frameIdx}_${index + 1}`,
+              placeholder: el.getAttribute('placeholder') || '',
+              selector: selector,
+              options: options,
+              frameIndex: frameIdx
+            });
+          });
+          return fields;
+        }, i);
+        
+        scrapedFields.push(...frameFields);
+      } catch (err) {
+        console.warn(`Could not access iframe ${i}:`, err.message);
+      }
+    }
+
+    await browser.close();
+    browser = null;
+
+    // Get user resume details
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id);
+    let resumeData = user.resumeData;
+    if (!resumeData && user.resumes && user.resumes.length > 0) {
+      const active = user.resumes.find(r => r.id === user.activeResumeId) || user.resumes[0];
+      resumeData = active.resumeData;
+    }
+
+    if (!resumeData) {
+      resumeData = {
+        personalInfo: {
+          name: user.name || 'Candidate Name',
+          email: user.email || 'candidate@example.com',
+          phone: '',
+          location: ''
+        }
+      };
+    }
+
+    // Call Gemini to map fields
+    const { mapFieldsForFormFill } = require('../utils/geminiService');
+    const mapped = await mapFieldsForFormFill(scrapedFields, resumeData);
+
+    job.autofillStatus = 'previewed';
+    await job.save();
+
+    res.status(200).json({
+      fields: mapped,
+      urlUsed: urlToScrape
+    });
+
+  } catch (err) {
+    if (browser) await browser.close();
+    console.error('Scrape form fields error:', err.message);
+    res.status(500).json({ error: 'Failed to scan page fields. ' + err.message });
+  }
+};
+
+const fillJobForm = async (req, res) => {
+  let browser;
+  try {
+    const { mappings } = req.body;
+    if (!mappings || !Array.isArray(mappings)) {
+      return res.status(400).json({ error: 'Mappings array is required' });
+    }
+
+    const job = await Job.findById(req.params.id);
+    if (!job) {
+      return res.status(404).json({ error: 'Job not found' });
+    }
+
+    job.autofillStatus = 'started';
+    await job.save();
+
+    const localUrl = `${req.protocol}://${req.get('host')}/mock-application-form.html`;
+    const urlToScrape = job.sourceUrl && (job.sourceUrl.startsWith('http://') || job.sourceUrl.startsWith('https://')) && !job.sourceUrl.includes('mock') ? job.sourceUrl : localUrl;
+
+    console.log(`[Autofill] Launching Puppeteer to fill form at: ${urlToScrape}`);
+
+    browser = await puppeteer.launch({
+      headless: 'new',
+      args: ['--no-sandbox', '--disable-setuid-sandbox']
+    });
+
+    const page = await browser.newPage();
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    await page.setViewport({ width: 1280, height: 1000 });
+
+    await page.goto(urlToScrape, { waitUntil: 'domcontentloaded', timeout: 15000 });
+
+    const User = require('../models/User');
+    const user = await User.findById(req.user._id);
+
+    const frames = page.frames();
+
+    for (const mapping of mappings) {
+      const frame = frames[mapping.frameIndex] || page;
+      const selector = mapping.selector;
+      
+      try {
+        const el = await frame.$(selector);
+        if (!el) {
+          console.warn(`[Autofill] Element not found: ${selector}`);
+          continue;
+        }
+
+        if (mapping.type === 'file') {
+          let uploadPath = '';
+          if (mapping.mappedValue === '[RESUME_FILE]') {
+            uploadPath = user.resumePath ? path.resolve(__dirname, '..', 'public', user.resumePath.replace(/^public\//, '')) : '';
+            if (!uploadPath || !fs.existsSync(uploadPath)) {
+              const fallbackDoc = path.resolve(__dirname, '..', 'public', 'Mohd_Monish.docx');
+              if (fs.existsSync(fallbackDoc)) {
+                uploadPath = fallbackDoc;
+              } else {
+                uploadPath = path.resolve(__dirname, '..', 'public', 'uploads', `temp_resume_${user._id}.txt`);
+                fs.writeFileSync(uploadPath, user.rawText || "Mohd Monish - Resume Profile Details");
+              }
+            }
+          } else if (mapping.mappedValue === '[COVER_LETTER_FILE]') {
+            uploadPath = path.resolve(__dirname, '..', 'public', 'uploads', `temp_cl_${job._id}.txt`);
+            fs.writeFileSync(uploadPath, job.coverLetter || "Dear Hiring Manager, Please find my job application...");
+          }
+
+          if (uploadPath && fs.existsSync(uploadPath)) {
+            console.log(`[Autofill] Uploading file to ${selector}: ${uploadPath}`);
+            await el.uploadFile(uploadPath);
+          }
+        } else if (mapping.type === 'select') {
+          console.log(`[Autofill] Selecting ${mapping.mappedValue} in ${selector}`);
+          await frame.select(selector, mapping.mappedValue);
+        } else if (mapping.type === 'checkbox' || mapping.type === 'radio') {
+          const valLower = String(mapping.mappedValue).toLowerCase();
+          if (valLower === 'true' || valLower === 'on' || valLower === '1' || valLower === 'yes') {
+            console.log(`[Autofill] Checking ${selector}`);
+            const checked = await frame.evaluate((sel) => {
+              const input = document.querySelector(sel);
+              return input ? input.checked : false;
+            }, selector);
+            if (!checked) {
+              await el.click();
+            }
+          }
+        } else {
+          console.log(`[Autofill] Typing value into ${selector}`);
+          await frame.evaluate((sel) => {
+            const input = document.querySelector(sel);
+            if (input) input.value = '';
+          }, selector);
+          await el.type(String(mapping.mappedValue));
+        }
+      } catch (elErr) {
+        console.error(`[Autofill] Failed to fill field ${mapping.label} (${selector}):`, elErr.message);
+      }
+    }
+
+    // Let any dynamic validation script finish
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Capture screenshot
+    const screenshotsDir = path.join(__dirname, '..', 'public', 'uploads', 'screenshots');
+    if (!fs.existsSync(screenshotsDir)) {
+      fs.mkdirSync(screenshotsDir, { recursive: true });
+    }
+
+    const screenshotFilename = `screenshot_${job._id}_${Date.now()}.png`;
+    const fullScreenshotPath = path.join(screenshotsDir, screenshotFilename);
+    const screenshotUrl = `/uploads/screenshots/${screenshotFilename}`;
+
+    console.log(`[Autofill] Saving screenshot to: ${fullScreenshotPath}`);
+    await page.screenshot({ path: fullScreenshotPath, fullPage: false });
+
+    await browser.close();
+    browser = null;
+
+    job.autofillScreenshot = screenshotUrl;
+    job.autofillStatus = 'completed';
+    job.autofillLastAttempt = new Date();
+    await job.save();
+
+    res.status(200).json({
+      success: true,
+      screenshotUrl,
+      message: 'Application form filled out successfully!'
+    });
+
+  } catch (err) {
+    if (browser) await browser.close();
+    console.error('Fill form error:', err.message);
+    
+    const job = await Job.findById(req.params.id);
+    if (job) {
+      job.autofillStatus = 'failed';
+      job.autofillLastAttempt = new Date();
+      await job.save();
+    }
+    
+    res.status(500).json({ error: 'Failed to fill application form. ' + err.message });
+  }
+};
+
 module.exports = {
   getJobs,
   createJob,
@@ -747,5 +1039,7 @@ module.exports = {
   suggestReply,
   getDueFollowups,
   negotiateSalary,
-  gradeVoiceAnswer
+  gradeVoiceAnswer,
+  getJobFormFields,
+  fillJobForm
 };

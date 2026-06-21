@@ -23,11 +23,14 @@ const {
   suggestReply,
   getDueFollowups,
   negotiateSalary,
-  gradeVoiceAnswer
+  gradeVoiceAnswer,
+  getJobFormFields,
+  fillJobForm
 } = require('../controllers/jobController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
 const { validate, createJobSchema, updateJobSchema, salaryNegotiationSchema } = require('../middlewares/validate');
 const { aiLimiter } = require('../middlewares/rateLimiter');
+const { checkLimits, incrementAiUsage } = require('../middlewares/subscriptionMiddleware');
 
 
 const router = express.Router();
@@ -60,17 +63,17 @@ const jdUpload = multer({
 
 // ─── Routes ───────────────────────────────────────────────────────────────────
 router.get('/', authenticate, requireAuth, getJobs);
-router.post('/', authenticate, requireAuth, validate(createJobSchema), createJob);
+router.post('/', authenticate, requireAuth, checkLimits('job'), validate(createJobSchema), createJob);
 router.get('/analytics', authenticate, requireAuth, getAnalytics);
 router.get('/due-followups', authenticate, requireAuth, getDueFollowups);
 
 // Import a job via the Chrome Extension
-router.post('/import', authenticate, requireAuth, importJobFromExtension);
+router.post('/import', authenticate, requireAuth, checkLimits('job'), importJobFromExtension);
 
 // Extract info from a JD file (PDF/DOCX/image) BEFORE saving a job
 // Must be defined before /:id routes so Express doesn't treat 'extract-jd' as an ID
-router.post('/extract-jd', authenticate, requireAuth, aiLimiter, jdUpload.single('jdFile'), extractJdInfo);
-router.post('/extract-url', authenticate, requireAuth, aiLimiter, extractUrlInfo);
+router.post('/extract-jd', authenticate, requireAuth, checkLimits('ai'), aiLimiter, jdUpload.single('jdFile'), extractJdInfo, incrementAiUsage);
+router.post('/extract-url', authenticate, requireAuth, checkLimits('ai'), aiLimiter, extractUrlInfo, incrementAiUsage);
 
 router.patch('/:id', authenticate, requireAuth, validate(updateJobSchema), updateJob);
 router.delete('/:id', authenticate, requireAuth, deleteJob);
@@ -79,22 +82,26 @@ router.delete('/:id', authenticate, requireAuth, deleteJob);
 router.post('/:id/upload-jd', authenticate, requireAuth, jdUpload.single('jdFile'), uploadJobDescription);
 
 // Custom cover letter generation with user options
-router.post('/:id/generate-cover-letter', authenticate, requireAuth, aiLimiter, generateCoverLetterCustom);
+router.post('/:id/generate-cover-letter', authenticate, requireAuth, checkLimits('ai'), aiLimiter, generateCoverLetterCustom, incrementAiUsage);
 
 // ─── Phase 4: Interview Prep ──────────────────────────────────────────────────
-router.post('/:id/interview-prep', authenticate, requireAuth, aiLimiter, generateInterviewPrep);
+router.post('/:id/interview-prep', authenticate, requireAuth, checkLimits('ai'), aiLimiter, generateInterviewPrep, incrementAiUsage);
 router.patch('/:id/interview-notes', authenticate, requireAuth, saveInterviewNotes);
-router.post('/:id/grade-answer', authenticate, requireAuth, aiLimiter, gradeInterviewAnswer);
+router.post('/:id/grade-answer', authenticate, requireAuth, checkLimits('ai'), aiLimiter, gradeInterviewAnswer, incrementAiUsage);
 
 // ─── Phase 5: Recruiter Inbox ─────────────────────────────────────────────────
 router.get('/:id/messages', authenticate, requireAuth, getRecruiterMessages);
 router.post('/:id/messages', authenticate, requireAuth, addRecruiterMessage);
-router.post('/:id/suggest-reply', authenticate, requireAuth, aiLimiter, suggestReply);
+router.post('/:id/suggest-reply', authenticate, requireAuth, checkLimits('ai'), aiLimiter, suggestReply, incrementAiUsage);
 
 // ─── Phase 5 (Salary Negotiation): AI Negotiation Agent ───────────────────────
-router.post('/:id/salary-negotiation', authenticate, requireAuth, validate(salaryNegotiationSchema), aiLimiter, negotiateSalary);
+router.post('/:id/salary-negotiation', authenticate, requireAuth, validate(salaryNegotiationSchema), checkLimits('ai'), aiLimiter, negotiateSalary, incrementAiUsage);
 
 // ─── Phase 6: Voice Interview Prep ────────────────────────────────────────────
-router.post('/:id/grade-voice-answer', authenticate, requireAuth, aiLimiter, gradeVoiceAnswer);
+router.post('/:id/grade-voice-answer', authenticate, requireAuth, checkLimits('ai'), aiLimiter, gradeVoiceAnswer, incrementAiUsage);
+
+// ─── Phase 10: Auto Form-Fill ────────────────────────────────────────────────
+router.get('/:id/form-fields', authenticate, requireAuth, getJobFormFields);
+router.post('/:id/form-fill', authenticate, requireAuth, fillJobForm);
 
 module.exports = router;

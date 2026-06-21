@@ -20,6 +20,7 @@ const {
 } = require('../controllers/resumeController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
 const { aiLimiter } = require('../middlewares/rateLimiter');
+const { checkLimits, incrementAiUsage } = require('../middlewares/subscriptionMiddleware');
 
 const router = express.Router();
 
@@ -58,14 +59,14 @@ router.post('/resume/delete', authenticate, requireAuth, deleteResume);
 router.put('/resume/update', authenticate, requireAuth, updateResumeData);
 
 // ATS & Cover Letter routes
-router.post('/resume/ats-score', authenticate, requireAuth, aiLimiter, calculateAtsScore);
-router.post('/resume/cover-letter', authenticate, requireAuth, aiLimiter, createCoverLetter);
+router.post('/resume/ats-score', authenticate, requireAuth, checkLimits('ai'), aiLimiter, calculateAtsScore, incrementAiUsage);
+router.post('/resume/cover-letter', authenticate, requireAuth, checkLimits('ai'), aiLimiter, createCoverLetter, incrementAiUsage);
 router.post('/resume/cover-letter/export', authenticate, requireAuth, exportCoverLetterDoc);
-router.post('/resume/tailor', authenticate, requireAuth, aiLimiter, tailorResume);
+router.post('/resume/tailor', authenticate, requireAuth, checkLimits('ai'), aiLimiter, tailorResume, incrementAiUsage);
 
 // ATS Pipeline routes (Step 1 & Step 2)
-router.post('/resume/analyze-jd', authenticate, requireAuth, aiLimiter, analyzeJd);
-router.post('/resume/gap-analysis', authenticate, requireAuth, aiLimiter, gapAnalysis);
+router.post('/resume/analyze-jd', authenticate, requireAuth, checkLimits('ai'), aiLimiter, analyzeJd, incrementAiUsage);
+router.post('/resume/gap-analysis', authenticate, requireAuth, checkLimits('ai'), aiLimiter, gapAnalysis, incrementAiUsage);
 
 // SSE Stream route for resume tailoring progress
 router.get('/resume/stream', authenticate, requireAuth, (req, res) => {

@@ -2,6 +2,7 @@ const jwt = require('jsonwebtoken');
 const fs = require('fs');
 const path = require('path');
 const User = require('../models/User');
+const Job = require('../models/Job');
 const { getAuthUrl, getTokensFromCode, getAuthenticatedClient, getUserInfo } = require('../utils/oauthService');
 const {
   getMicrosoftAuthUrl,
@@ -178,6 +179,10 @@ const status = async (req, res) => {
       resumeData: req.user.resumeData || null,
       hasGoogleTokens: !!req.user.googleTokens,
       hasMicrosoftTokens: !!req.user.microsoftTokens,
+      subscriptionTier: req.user.subscriptionTier || 'free',
+      stripeSubscriptionId: req.user.stripeSubscriptionId || '',
+      aiRequestCount: req.user.aiRequestCount || 0,
+      jobCount: await Job.countDocuments({ userId: req.user._id })
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -241,6 +246,9 @@ const updateProfile = async (req, res) => {
         email: req.user.email,
         picture: req.user.picture,
         provider: req.user.activeProvider || 'google',
+        subscriptionTier: req.user.subscriptionTier || 'free',
+        stripeSubscriptionId: req.user.stripeSubscriptionId || '',
+        aiRequestCount: req.user.aiRequestCount || 0,
       }
     });
   } catch (err) {

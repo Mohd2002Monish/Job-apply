@@ -141,4 +141,87 @@ router.post('/import/:id', authenticate, requireAuth, async (req, res) => {
   }
 });
 
+// Live external search portal
+router.get('/search', authenticate, requireAuth, async (req, res) => {
+  try {
+    const { role, location } = req.query;
+    if (!role) {
+      return res.status(400).json({ error: 'Search role is required' });
+    }
+
+    console.log(`Live external search for role: "${role}", location: "${location || 'any'}"`);
+    
+    // Call the scraper dynamically
+    const results = await crawlAllJobs(role, location || '');
+    
+    // Check user's tracked jobs to flag already imported ones
+    const existingJobs = await Job.find({ userId: req.user._id });
+    const formattedResults = results.map(j => {
+      const isAlreadyTracked = existingJobs.some(ej => 
+        (ej.sourceUrl === j.url) || 
+        (ej.job.toLowerCase() === j.jobTitle.toLowerCase() && ej.companyName.toLowerCase() === j.companyName.toLowerCase())
+      );
+      return {
+        ...j,
+        imported: isAlreadyTracked
+      };
+    });
+
+    res.json({ success: true, results: formattedResults });
+  } catch (err) {
+    console.error('Error during live external search:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Import an external search job directly
+router.post('/import-external', authenticate, requireAuth, async (req, res) => {
+  try {
+    const { jobTitle, companyName, location, salary, description, url, source } = req.body;
+    if (!jobTitle || !companyName) {
+      return res.status(400).json({ error: 'Job title and company name are required.' });
+    }
+
+    // Check for duplicates
+    const existingTrackerJob = await Job.findOne({
+      userId: req.user._id,
+      $or: [
+        { sourceUrl: url },
+        { job: jobTitle, companyName: companyName }
+      ]
+    });
+
+    if (existingTrackerJob) {
+      return res.status(400).json({ error: `You are already tracking "${jobTitle}" at "${companyName}"!` });
+    }
+
+    // Clean company name for default email address
+    const cleanedCompany = companyName.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const defaultEmail = `hr@${cleanedCompany || 'company'}.com`;
+
+    const newJob = new Job({
+      userId: req.user._id,
+      job: jobTitle,
+      companyName: companyName,
+      email: defaultEmail,
+      description: description || `Scraped from ${source}. View listing at: ${url}`,
+      sourceUrl: url,
+      status: 'saved',
+      statusHistory: [{ status: 'saved', changedAt: new Date() }],
+      followUpStatus: 'none'
+    });
+
+    await newJob.save();
+
+    res.json({
+      success: true,
+      message: `Successfully tracking "${jobTitle}" at "${companyName}"!`,
+      job: newJob
+    });
+  } catch (err) {
+    console.error('Error importing external job:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 module.exports = router;

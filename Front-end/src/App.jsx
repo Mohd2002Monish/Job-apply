@@ -53,11 +53,12 @@ const Dashboard = () => {
   const [uploadModalOpen, setUploadModalOpen] = React.useState(false);
   const [profileModalOpen, setProfileModalOpen] = React.useState(false);
   const [profileName, setProfileName] = React.useState(user?.name || '');
+  const [billingLoading, setBillingLoading] = React.useState(false);
 
   const { toasts, success, error, info } = useToast();
   const toast = { success, error, info };
 
-  // Intercept 1-click import from email digests
+  // Intercept 1-click import from email digests & Stripe upgrades
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const importScrapedJobId = params.get('importScrapedJobId');
@@ -77,13 +78,93 @@ const Dashboard = () => {
           window.history.replaceState({}, '', '/');
         });
     }
+
+    const upgradeResult = params.get('upgrade');
+    if (upgradeResult === 'success') {
+      toast.success('Congratulations! You upgraded to Pro tier successfully.');
+      window.history.replaceState({}, '', '/');
+      axios.get(`${BACKEND}/auth/status`).then(statusRes => {
+        if (statusRes.data.authenticated) {
+          dispatch(setAuth({
+            authenticated: true,
+            user: {
+              email: statusRes.data.email,
+              name: statusRes.data.name,
+              picture: statusRes.data.picture,
+              provider: statusRes.data.provider || 'google',
+              hasGoogleTokens: statusRes.data.hasGoogleTokens,
+              hasMicrosoftTokens: statusRes.data.hasMicrosoftTokens,
+              subscriptionTier: statusRes.data.subscriptionTier,
+              stripeSubscriptionId: statusRes.data.stripeSubscriptionId,
+              aiRequestCount: statusRes.data.aiRequestCount,
+              jobCount: statusRes.data.jobCount
+            },
+            resumeName: statusRes.data.resumeName,
+            resumeData: statusRes.data.resumeData
+          }));
+        }
+      });
+    } else if (upgradeResult === 'cancel') {
+      toast.info('Checkout cancelled.');
+      window.history.replaceState({}, '', '/');
+    }
   }, [user, dispatch]);
+
   const [profileEmail, setProfileEmail] = React.useState(user?.email || '');
   const [profilePicFile, setProfilePicFile] = React.useState(null);
   const [previewUrl, setPreviewUrl] = React.useState('');
   const [savingProfile, setSavingProfile] = React.useState(false);
   const [profileError, setProfileError] = React.useState('');
   const [profileSuccess, setProfileSuccess] = React.useState(false);
+
+  const handleUpgrade = async () => {
+    setBillingLoading(true);
+    setProfileError('');
+    try {
+      const res = await axios.post(`${BACKEND}/stripe/checkout`, {}, { withCredentials: true });
+      if (res.data.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (err) {
+      setProfileError(err.response?.data?.error || 'Failed to redirect to billing portal.');
+      setBillingLoading(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    setBillingLoading(true);
+    setProfileError('');
+    try {
+      const res = await axios.post(`${BACKEND}/stripe/cancel-subscription`, {}, { withCredentials: true });
+      if (res.data.success) {
+        const statusRes = await axios.get(`${BACKEND}/auth/status`);
+        if (statusRes.data.authenticated) {
+          dispatch(setAuth({
+            authenticated: true,
+            user: {
+              email: statusRes.data.email,
+              name: statusRes.data.name,
+              picture: statusRes.data.picture,
+              provider: statusRes.data.provider || 'google',
+              hasGoogleTokens: statusRes.data.hasGoogleTokens,
+              hasMicrosoftTokens: statusRes.data.hasMicrosoftTokens,
+              subscriptionTier: statusRes.data.subscriptionTier,
+              stripeSubscriptionId: statusRes.data.stripeSubscriptionId,
+              aiRequestCount: statusRes.data.aiRequestCount,
+              jobCount: statusRes.data.jobCount
+            },
+            resumeName: statusRes.data.resumeName,
+            resumeData: statusRes.data.resumeData
+          }));
+        }
+        toast.success('Subscription cancelled. Reverted to Free tier.');
+      }
+    } catch (err) {
+      setProfileError(err.response?.data?.error || 'Failed to cancel subscription.');
+    } finally {
+      setBillingLoading(false);
+    }
+  };
 
   const fileInputRef = React.useRef(null);
 
@@ -93,6 +174,34 @@ const Dashboard = () => {
       setProfileEmail(user.email || '');
     }
   }, [user]);
+
+  React.useEffect(() => {
+    if (profileModalOpen) {
+      axios.get(`${BACKEND}/auth/status`)
+        .then(res => {
+          if (res.data.authenticated) {
+            dispatch(setAuth({
+              authenticated: true,
+              user: {
+                email: res.data.email,
+                name: res.data.name,
+                picture: res.data.picture,
+                provider: res.data.provider || 'google',
+                hasGoogleTokens: res.data.hasGoogleTokens,
+                hasMicrosoftTokens: res.data.hasMicrosoftTokens,
+                subscriptionTier: res.data.subscriptionTier || 'free',
+                stripeSubscriptionId: res.data.stripeSubscriptionId || '',
+                aiRequestCount: res.data.aiRequestCount || 0,
+                jobCount: res.data.jobCount || 0
+              },
+              resumeName: res.data.resumeName || null,
+              resumeData: res.data.resumeData || null,
+            }));
+          }
+        })
+        .catch(() => {});
+    }
+  }, [profileModalOpen, dispatch]);
 
   const handleProfilePicChange = (e) => {
     const file = e.target.files[0];
@@ -436,6 +545,100 @@ const Dashboard = () => {
                 />
               </div>
 
+              {/* Billing & Subscriptions */}
+              <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Subscription & Usage
+                  </h3>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    user?.subscriptionTier === 'pro'
+                      ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/30'
+                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
+                  }`}>
+                    {user?.subscriptionTier === 'pro' ? 'Pro Tier' : 'Free Tier'}
+                  </span>
+                </div>
+
+                {/* Usage Metrics */}
+                <div className="space-y-2.5 bg-slate-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-slate-100 dark:border-zinc-800/50">
+                  {/* Tracked Jobs Limit */}
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-600 dark:text-zinc-400">Jobs Tracked</span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                        {user?.jobCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '5'}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.jobCount || 0) / 5) * 100, 100)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* AI Features Limit */}
+                  <div>
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-slate-600 dark:text-zinc-400">AI Features Usage</span>
+                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                        {user?.aiRequestCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '3'}
+                      </span>
+                    </div>
+                    <div className="w-full bg-slate-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                      <div
+                        className="bg-violet-600 dark:bg-violet-500 h-full rounded-full transition-all duration-300"
+                        style={{
+                          width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.aiRequestCount || 0) / 3) * 100, 100)}%`
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Subscription Action Trigger */}
+                <div className="pt-1 flex items-center justify-between">
+                  {user?.subscriptionTier === 'pro' ? (
+                    <>
+                      <p className="text-[11px] text-slate-400 dark:text-zinc-500 max-w-[200px]">
+                        You have unlimited access to all features. Need to downgrade?
+                      </p>
+                      <button
+                        type="button"
+                        disabled={billingLoading}
+                        onClick={handleCancelSubscription}
+                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {billingLoading ? (
+                          <div className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
+                        ) : null}
+                        Cancel Pro
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-[11px] text-slate-400 dark:text-zinc-500 max-w-[200px]">
+                        Get unlimited jobs, resumes, search imports, and AI tailoring.
+                      </p>
+                      <button
+                        type="button"
+                        disabled={billingLoading}
+                        onClick={handleUpgrade}
+                        className="text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-3.5 py-1.5 rounded-lg shadow-sm shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                      >
+                        {billingLoading ? (
+                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        ) : null}
+                        Upgrade to Pro
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
               {/* Error Box */}
               {profileError && (
                 <div className="p-3 text-xs bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg text-red-600 dark:text-red-400 animate-fade-in">
@@ -539,7 +742,10 @@ function App() {
               picture, 
               provider: res.data.provider || 'google',
               hasGoogleTokens: res.data.hasGoogleTokens,
-              hasMicrosoftTokens: res.data.hasMicrosoftTokens 
+              hasMicrosoftTokens: res.data.hasMicrosoftTokens,
+              subscriptionTier: res.data.subscriptionTier || 'free',
+              stripeSubscriptionId: res.data.stripeSubscriptionId || '',
+              aiRequestCount: res.data.aiRequestCount || 0
             },
             resumeName: res.data.resumeName || null,
             resumeData: res.data.resumeData || null,

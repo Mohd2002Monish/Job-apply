@@ -85,6 +85,10 @@ const jobSchema = new mongoose.Schema({
   jdFileName: { type: String, default: '' },
   jdFilePath: { type: String, default: '' },
   jdFileContent: { type: String, default: '' },
+  sourceUrl: { type: String, default: '' },
+  autofillScreenshot: { type: String, default: '' },
+  autofillStatus: { type: String, enum: ['none', 'started', 'previewed', 'completed', 'failed'], default: 'none' },
+  autofillLastAttempt: { type: Date, default: null },
   // Email Tracking
   isOpened: { type: Boolean, default: false },
   openedAt: { type: Date, default: null },

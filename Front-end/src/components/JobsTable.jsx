@@ -6,6 +6,7 @@ import KanbanBoard from './KanbanBoard';
 import JobTimeline from './JobTimeline';
 import SalaryNegotiationModal from './SalaryNegotiationModal';
 import VoiceInterviewTab from './VoiceInterviewTab';
+import AutoFormFillPreview from './AutoFormFillPreview';
 
 const BACKEND = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
@@ -818,6 +819,7 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
   const [outreachOpen, setOutreachOpen] = useState(false);
   const [coverOpen, setCoverOpen] = useState(false);
   const [negotiationOpen, setNegotiationOpen] = useState(false);
+  const [autofillOpen, setAutofillOpen] = useState(false);
   const drawerRef = useRef(null);
 
   useEffect(() => {
@@ -941,6 +943,14 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
                     <SparkleIcon /> Negotiate Offer (AI Benchmark)
                   </button>
                 )}
+
+                <button 
+                  onClick={() => setAutofillOpen(true)} 
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-650 to-violet-650 hover:from-indigo-700 hover:to-violet-750 active:scale-[0.99] transition-all text-white font-bold text-xs shadow-md shadow-indigo-500/10 hover:shadow-lg hover:shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer border-0"
+                >
+                  <SparkleIcon /> Autofill Application Form (AI Agent)
+                </button>
+
                 <div className="flex gap-2">
                   <button onClick={() => setCoverOpen(true)} className="btn-ghost text-xs flex-1">Cover Letter</button>
                   <button onClick={() => setOutreachOpen(true)} className="btn-primary text-xs flex-1"><SparkleIcon /> Optimize & Outreach</button>
@@ -988,6 +998,16 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
         user={user}
         isOpen={negotiationOpen}
         onClose={() => setNegotiationOpen(false)}
+        onRefresh={onRefresh}
+        toast={toast}
+      />
+
+      {/* Auto Form-Fill Modal */}
+      <AutoFormFillPreview
+        job={job}
+        user={user}
+        isOpen={autofillOpen}
+        onClose={() => setAutofillOpen(false)}
         onRefresh={onRefresh}
         toast={toast}
       />
