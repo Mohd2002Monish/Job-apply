@@ -257,6 +257,14 @@ const updateProfile = async (req, res) => {
   }
 };
 
+const getProfile = async (req, res) => {
+  try {
+    res.json({ success: true, user: req.user });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 module.exports = {
   googleAuth,
   googleCallback,
@@ -264,5 +272,6 @@ module.exports = {
   microsoftCallback,
   status,
   logout,
-  updateProfile
+  updateProfile,
+  getProfile
 };

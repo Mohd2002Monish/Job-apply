@@ -67,6 +67,37 @@
         }
       }
     },
+    "/auth/profile": {
+      "get": {
+        "tags": ["Authentication"],
+        "summary": "Retrieve User Profile Details",
+        "description": "Fetches target profile configurations and displays user metrics.",
+        "responses": {
+          "200": {
+            "description": "User profile config data",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "user": {
+                    "email": "candidate@example.com",
+                    "name": "Mohd Monish",
+                    "picture": "/uploads/profile_pics/default.png",
+                    "targetProfile": {
+                      "targetRole": "Software Engineer",
+                      "targetLocation": "Remote",
+                      "salaryExpectation": 120000,
+                      "digestEnabled": true,
+                      "digestFrequency": "daily"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/logout": {
       "post": {
         "tags": ["Authentication"],
