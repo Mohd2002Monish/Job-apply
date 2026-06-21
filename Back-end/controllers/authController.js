@@ -59,13 +59,17 @@ const googleCallback = async (req, res) => {
     const userInfo = await getUserInfo(oAuth2Client);
 
     // Save tokens and user in MongoDB, set active provider
+    const ownerEmail = process.env.OWNER_EMAIL ? process.env.OWNER_EMAIL.toLowerCase().trim() : '';
+    const isOwner = ownerEmail && userInfo.email.toLowerCase().trim() === ownerEmail;
+
     await User.findOneAndUpdate(
       { email: userInfo.email.toLowerCase() },
       {
         name: userInfo.name || '',
         picture: userInfo.picture || '',
         googleTokens: tokens,
-        activeProvider: 'google'
+        activeProvider: 'google',
+        ...(isOwner ? { role: 'owner' } : {})
       },
       { upsert: true, new: true }
     );
@@ -124,13 +128,17 @@ const microsoftCallback = async (req, res) => {
     const userInfo = await getMicrosoftUserInfo(tokens.access_token);
 
     // Save tokens and user in MongoDB, set active provider
+    const ownerEmail = process.env.OWNER_EMAIL ? process.env.OWNER_EMAIL.toLowerCase().trim() : '';
+    const isOwner = ownerEmail && userInfo.email.toLowerCase().trim() === ownerEmail;
+
     await User.findOneAndUpdate(
       { email: userInfo.email.toLowerCase() },
       {
         name: userInfo.name || '',
         picture: '',
         microsoftTokens: tokens,
-        activeProvider: 'microsoft'
+        activeProvider: 'microsoft',
+        ...(isOwner ? { role: 'owner' } : {})
       },
       { upsert: true, new: true }
     );
@@ -182,6 +190,8 @@ const status = async (req, res) => {
       subscriptionTier: req.user.subscriptionTier || 'free',
       stripeSubscriptionId: req.user.stripeSubscriptionId || '',
       aiRequestCount: req.user.aiRequestCount || 0,
+      role: req.user.role || 'user',
+      tokenUsage: req.user.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
       jobCount: await Job.countDocuments({ userId: req.user._id })
     });
   } catch (err) {
@@ -249,6 +259,8 @@ const updateProfile = async (req, res) => {
         subscriptionTier: req.user.subscriptionTier || 'free',
         stripeSubscriptionId: req.user.stripeSubscriptionId || '',
         aiRequestCount: req.user.aiRequestCount || 0,
+        role: req.user.role || 'user',
+        tokenUsage: req.user.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
       }
     });
   } catch (err) {

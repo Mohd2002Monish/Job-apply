@@ -49,16 +49,54 @@ const checkLimits = (type) => async (req, res, next) => {
  * Middleware to increment user AI request counts on successful endpoint executions
  */
 const incrementAiUsage = async (req, res, next) => {
-  try {
-    if (req.user && req.user.subscriptionTier !== 'pro') {
-      await User.findByIdAndUpdate(req.user._id, { $inc: { aiRequestCount: 1 } });
-      console.log(`[Subscription] Incremented AI usage count for user ${req.user.email}`);
+  const originalJson = res.json;
+  const originalSend = res.send;
+  let incremented = false;
+
+  const performIncrement = () => {
+    if (incremented) return;
+    incremented = true;
+
+    if (req.user && res.statusCode >= 200 && res.statusCode < 300) {
+      const updateObj = {};
+      if (req.user.subscriptionTier !== 'pro') {
+        updateObj.aiRequestCount = 1;
+      }
+
+      if (req.tokenUsage) {
+        const pt = req.tokenUsage.prompt_tokens || 0;
+        const ct = req.tokenUsage.completion_tokens || 0;
+        const tt = req.tokenUsage.total_tokens || 0;
+        if (pt > 0 || ct > 0 || tt > 0) {
+          updateObj['tokenUsage.promptTokens'] = pt;
+          updateObj['tokenUsage.completionTokens'] = ct;
+          updateObj['tokenUsage.totalTokens'] = tt;
+        }
+      }
+
+      if (Object.keys(updateObj).length > 0) {
+        User.findByIdAndUpdate(req.user._id, { $inc: updateObj })
+          .then(() => {
+            console.log(`[Subscription] Incremented AI/token usage for ${req.user.email}:`, updateObj);
+          })
+          .catch(err => {
+            console.error('Failed to increment AI/token usage:', err.message);
+          });
+      }
     }
-    next();
-  } catch (err) {
-    console.error('Failed to increment AI usage count:', err.message);
-    next(err);
-  }
+  };
+
+  res.json = function (body) {
+    performIncrement();
+    return originalJson.call(this, body);
+  };
+
+  res.send = function (body) {
+    performIncrement();
+    return originalSend.call(this, body);
+  };
+
+  next();
 };
 
 module.exports = {

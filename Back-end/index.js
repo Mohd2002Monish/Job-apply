@@ -10,11 +10,17 @@ const emailRoutes = require("./routes/emailRoutes");
 const resumeRoutes = require("./routes/resumeRoutes");
 const scrapedJobRoutes = require("./routes/scrapedJobRoutes");
 const stripeRoutes = require("./routes/stripeRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 const { startCronJob } = require("./utils/cronService");
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+const contextStore = require("./utils/contextStore");
+app.use((req, res, next) => {
+  contextStore.run(req, next);
+});
 
 const { globalLimiter } = require("./middlewares/rateLimiter");
 
@@ -78,6 +84,7 @@ app.use("/", emailRoutes); // Mounts /apply and /emails/replies
 app.use("/", resumeRoutes); // Mounts /upload-resume, /resume-data, /export-resume, /preview-template
 app.use("/scraped-jobs", scrapedJobRoutes);
 app.use("/", stripeRoutes);
+app.use("/admin", adminRoutes);
 
 // ─── Legacy cron route ─────────────────────────────────────────────────────────
 app.get("/start-cron", (req, res) => {

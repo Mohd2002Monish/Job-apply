@@ -49,10 +49,23 @@ const extractJson = (text) => {
  * Automatically retries OpenAI completions on 429 status code with exponential backoff.
  */
 const createChatCompletionWithRetry = async (params, retries = 3, delay = 2000) => {
+  const contextStore = require('./contextStore');
+  const contextReq = contextStore.getStore();
+  const req = params.req || contextReq;
+  delete params.req;
   const openai = getGemini();
   for (let i = 0; i <= retries; i++) {
     try {
-      return await openai.chat.completions.create(params);
+      const completion = await openai.chat.completions.create(params);
+      if (req && completion.usage) {
+        if (!req.tokenUsage) {
+          req.tokenUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+        }
+        req.tokenUsage.prompt_tokens = (req.tokenUsage.prompt_tokens || 0) + (completion.usage.prompt_tokens || 0);
+        req.tokenUsage.completion_tokens = (req.tokenUsage.completion_tokens || 0) + (completion.usage.completion_tokens || 0);
+        req.tokenUsage.total_tokens = (req.tokenUsage.total_tokens || 0) + (completion.usage.total_tokens || 0);
+      }
+      return completion;
     } catch (error) {
       const isRateLimit = error.status === 429 || 
                           (error.message && error.message.includes('429')) || 

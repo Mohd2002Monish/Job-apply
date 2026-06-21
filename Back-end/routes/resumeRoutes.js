@@ -59,14 +59,14 @@ router.post('/resume/delete', authenticate, requireAuth, deleteResume);
 router.put('/resume/update', authenticate, requireAuth, updateResumeData);
 
 // ATS & Cover Letter routes
-router.post('/resume/ats-score', authenticate, requireAuth, checkLimits('ai'), aiLimiter, calculateAtsScore, incrementAiUsage);
-router.post('/resume/cover-letter', authenticate, requireAuth, checkLimits('ai'), aiLimiter, createCoverLetter, incrementAiUsage);
+router.post('/resume/ats-score', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, calculateAtsScore);
+router.post('/resume/cover-letter', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, createCoverLetter);
 router.post('/resume/cover-letter/export', authenticate, requireAuth, exportCoverLetterDoc);
-router.post('/resume/tailor', authenticate, requireAuth, checkLimits('ai'), aiLimiter, tailorResume, incrementAiUsage);
+router.post('/resume/tailor', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, tailorResume);
 
 // ATS Pipeline routes (Step 1 & Step 2)
-router.post('/resume/analyze-jd', authenticate, requireAuth, checkLimits('ai'), aiLimiter, analyzeJd, incrementAiUsage);
-router.post('/resume/gap-analysis', authenticate, requireAuth, checkLimits('ai'), aiLimiter, gapAnalysis, incrementAiUsage);
+router.post('/resume/analyze-jd', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, analyzeJd);
+router.post('/resume/gap-analysis', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, gapAnalysis);
 
 // SSE Stream route for resume tailoring progress
 router.get('/resume/stream', authenticate, requireAuth, (req, res) => {

@@ -38,10 +38,6 @@ const authenticate = async (req, res, next) => {
   next();
 };
 
-/**
- * Strict authentication middleware.
- * Guarantees that req.user is populated, otherwise aborts with 401 Unauthorized.
- */
 const requireAuth = (req, res, next) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated. Please sign in.' });
@@ -49,7 +45,15 @@ const requireAuth = (req, res, next) => {
   next();
 };
 
+const requireOwner = (req, res, next) => {
+  if (!req.user || req.user.role !== 'owner') {
+    return res.status(403).json({ error: 'Access denied. Owner privileges required.' });
+  }
+  next();
+};
+
 module.exports = {
   authenticate,
-  requireAuth
+  requireAuth,
+  requireOwner
 };

@@ -102,7 +102,13 @@ const userSchema = new mongoose.Schema({
     subscriptionTier: { type: String, enum: ['free', 'pro'], default: 'free' },
     stripeCustomerId: { type: String, default: '' },
     stripeSubscriptionId: { type: String, default: '' },
-    aiRequestCount: { type: Number, default: 0 }
+    aiRequestCount: { type: Number, default: 0 },
+    role: { type: String, enum: ['user', 'owner'], default: 'user' },
+    tokenUsage: {
+      promptTokens: { type: Number, default: 0 },
+      completionTokens: { type: Number, default: 0 },
+      totalTokens: { type: Number, default: 0 }
+    }
   }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

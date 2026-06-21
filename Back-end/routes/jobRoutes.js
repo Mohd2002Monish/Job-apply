@@ -72,8 +72,8 @@ router.post('/import', authenticate, requireAuth, checkLimits('job'), importJobF
 
 // Extract info from a JD file (PDF/DOCX/image) BEFORE saving a job
 // Must be defined before /:id routes so Express doesn't treat 'extract-jd' as an ID
-router.post('/extract-jd', authenticate, requireAuth, checkLimits('ai'), aiLimiter, jdUpload.single('jdFile'), extractJdInfo, incrementAiUsage);
-router.post('/extract-url', authenticate, requireAuth, checkLimits('ai'), aiLimiter, extractUrlInfo, incrementAiUsage);
+router.post('/extract-jd', authenticate, requireAuth, checkLimits('ai'), aiLimiter, jdUpload.single('jdFile'), incrementAiUsage, extractJdInfo);
+router.post('/extract-url', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, extractUrlInfo);
 
 router.patch('/:id', authenticate, requireAuth, validate(updateJobSchema), updateJob);
 router.delete('/:id', authenticate, requireAuth, deleteJob);
@@ -82,23 +82,23 @@ router.delete('/:id', authenticate, requireAuth, deleteJob);
 router.post('/:id/upload-jd', authenticate, requireAuth, jdUpload.single('jdFile'), uploadJobDescription);
 
 // Custom cover letter generation with user options
-router.post('/:id/generate-cover-letter', authenticate, requireAuth, checkLimits('ai'), aiLimiter, generateCoverLetterCustom, incrementAiUsage);
+router.post('/:id/generate-cover-letter', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, generateCoverLetterCustom);
 
 // ─── Phase 4: Interview Prep ──────────────────────────────────────────────────
-router.post('/:id/interview-prep', authenticate, requireAuth, checkLimits('ai'), aiLimiter, generateInterviewPrep, incrementAiUsage);
+router.post('/:id/interview-prep', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, generateInterviewPrep);
 router.patch('/:id/interview-notes', authenticate, requireAuth, saveInterviewNotes);
-router.post('/:id/grade-answer', authenticate, requireAuth, checkLimits('ai'), aiLimiter, gradeInterviewAnswer, incrementAiUsage);
+router.post('/:id/grade-answer', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, gradeInterviewAnswer);
 
 // ─── Phase 5: Recruiter Inbox ─────────────────────────────────────────────────
 router.get('/:id/messages', authenticate, requireAuth, getRecruiterMessages);
 router.post('/:id/messages', authenticate, requireAuth, addRecruiterMessage);
-router.post('/:id/suggest-reply', authenticate, requireAuth, checkLimits('ai'), aiLimiter, suggestReply, incrementAiUsage);
+router.post('/:id/suggest-reply', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, suggestReply);
 
 // ─── Phase 5 (Salary Negotiation): AI Negotiation Agent ───────────────────────
-router.post('/:id/salary-negotiation', authenticate, requireAuth, validate(salaryNegotiationSchema), checkLimits('ai'), aiLimiter, negotiateSalary, incrementAiUsage);
+router.post('/:id/salary-negotiation', authenticate, requireAuth, validate(salaryNegotiationSchema), checkLimits('ai'), aiLimiter, incrementAiUsage, negotiateSalary);
 
 // ─── Phase 6: Voice Interview Prep ────────────────────────────────────────────
-router.post('/:id/grade-voice-answer', authenticate, requireAuth, checkLimits('ai'), aiLimiter, gradeVoiceAnswer, incrementAiUsage);
+router.post('/:id/grade-voice-answer', authenticate, requireAuth, checkLimits('ai'), aiLimiter, incrementAiUsage, gradeVoiceAnswer);
 
 // ─── Phase 10: Auto Form-Fill ────────────────────────────────────────────────
 router.get('/:id/form-fields', authenticate, requireAuth, getJobFormFields);

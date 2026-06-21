@@ -8,9 +8,16 @@ import ResumeBuilder from './components/ResumeBuilder';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import InteractiveBackground from './components/InteractiveBackground';
 import JobDiscoverer from './components/JobDiscoverer';
+import AdminPanel from './components/AdminPanel';
 import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon } from './components/Icons';
 import { setAuth, setResumeInfo, setResumesInfo, toggleTheme, setActiveTab, logoutUser } from './store/authSlice';
 import './index.css';
+
+const ShieldAlertIcon = ({ size = 15 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+  </svg>
+);
 
 const BACKEND = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
@@ -97,7 +104,9 @@ const Dashboard = () => {
               subscriptionTier: statusRes.data.subscriptionTier,
               stripeSubscriptionId: statusRes.data.stripeSubscriptionId,
               aiRequestCount: statusRes.data.aiRequestCount,
-              jobCount: statusRes.data.jobCount
+              jobCount: statusRes.data.jobCount,
+              role: statusRes.data.role || 'user',
+              tokenUsage: statusRes.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
             },
             resumeName: statusRes.data.resumeName,
             resumeData: statusRes.data.resumeData
@@ -192,7 +201,9 @@ const Dashboard = () => {
                 subscriptionTier: res.data.subscriptionTier || 'free',
                 stripeSubscriptionId: res.data.stripeSubscriptionId || '',
                 aiRequestCount: res.data.aiRequestCount || 0,
-                jobCount: res.data.jobCount || 0
+                jobCount: res.data.jobCount || 0,
+                role: res.data.role || 'user',
+                tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
               },
               resumeName: res.data.resumeName || null,
               resumeData: res.data.resumeData || null,
@@ -325,6 +336,9 @@ const Dashboard = () => {
             <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => dispatch(setActiveTab(id))} />
             <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => dispatch(setActiveTab(id))} />
             <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => dispatch(setActiveTab(id))} />
+            {user?.role === 'owner' && (
+              <NavTab id="admin" label="Admin" Icon={ShieldAlertIcon} active={activeTab === 'admin'} onClick={(id) => dispatch(setActiveTab(id))} />
+            )}
           </nav>
 
           {/* Right: User + Controls */}
@@ -409,7 +423,7 @@ const Dashboard = () => {
 
       {/* Main content */}
       <main className="max-w-5xl mx-auto px-5 py-6">
-        {!resumeName && (
+        {!resumeName && activeTab !== 'admin' && (
           <ResumeUpload
             user={user}
             resumeName={resumeName}
@@ -422,6 +436,7 @@ const Dashboard = () => {
         {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
         {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
         {activeTab === 'analytics' && <AnalyticsDashboard />}
+        {activeTab === 'admin' && user?.role === 'owner' && <AdminPanel />}
       </main>
 
       {/* Resume Upload Modal */}
@@ -745,7 +760,9 @@ function App() {
               hasMicrosoftTokens: res.data.hasMicrosoftTokens,
               subscriptionTier: res.data.subscriptionTier || 'free',
               stripeSubscriptionId: res.data.stripeSubscriptionId || '',
-              aiRequestCount: res.data.aiRequestCount || 0
+              aiRequestCount: res.data.aiRequestCount || 0,
+              role: res.data.role || 'user',
+              tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
             },
             resumeName: res.data.resumeName || null,
             resumeData: res.data.resumeData || null,

@@ -1041,6 +1041,157 @@
           }
         }
       }
+    },
+    "/admin/stats": {
+      "get": {
+        "tags": ["Admin Portal"],
+        "summary": "Retrieve System Statistics (Owner Only)",
+        "description": "Aggregates total system users, active Pro subscriptions, tracked jobs count, and global Gemini API token usage.",
+        "responses": {
+          "200": {
+            "description": "Aggregate statistics metrics payload",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "stats": {
+                    "totalUsers": 24,
+                    "proUsers": 5,
+                    "totalJobs": 138,
+                    "promptTokens": 450200,
+                    "completionTokens": 210800,
+                    "totalTokens": 661000
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - requires owner role"
+          }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["Admin Portal"],
+        "summary": "Retrieve Users Directory (Owner Only)",
+        "description": "Returns a detailed catalog of all registered users with their provider type, membership tier, tracked jobs, and token usage.",
+        "responses": {
+          "200": {
+            "description": "Users listing",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "users": [
+                    {
+                      "_id": "60d01f2f3f4f5a6b7c8d9e01",
+                      "name": "Jane Doe",
+                      "email": "jane@example.com",
+                      "picture": "/uploads/profile_pics/jane.jpg",
+                      "activeProvider": "google",
+                      "subscriptionTier": "pro",
+                      "aiRequestCount": 12,
+                      "role": "user",
+                      "tokenUsage": {
+                        "promptTokens": 12500,
+                        "completionTokens": 6200,
+                        "totalTokens": 18700
+                      },
+                      "jobCount": 18,
+                      "createdAt": "2026-06-01T12:00:00.000Z"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - requires owner role"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/role": {
+      "patch": {
+        "tags": ["Admin Portal"],
+        "summary": "Update User Role (Owner Only)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": { "type": "string", "enum": ["user", "owner"] }
+                },
+                "required": ["role"]
+              },
+              "example": { "role": "owner" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Role update confirmation response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "User role updated successfully"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - requires owner role"
+          }
+        }
+      }
+    },
+    "/admin/users/{id}/tier": {
+      "patch": {
+        "tags": ["Admin Portal"],
+        "summary": "Update User Subscription Tier (Owner Only)",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "subscriptionTier": { "type": "string", "enum": ["free", "pro"] }
+                },
+                "required": ["subscriptionTier"]
+              },
+              "example": { "subscriptionTier": "pro" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Subscription update confirmation response",
+            "content": {
+              "application/json": {
+                "example": {
+                  "success": true,
+                  "message": "User subscription tier updated successfully"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - requires owner role"
+          }
+        }
+      }
     }
   }
 }
