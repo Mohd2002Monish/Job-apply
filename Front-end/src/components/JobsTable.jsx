@@ -775,7 +775,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
             <button
               type="button"
               onClick={() => addDays(3)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-750 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               disabled={saving}
             >
               +3 Days
@@ -783,7 +783,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
             <button
               type="button"
               onClick={() => addDays(7)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-750 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               disabled={saving}
             >
               +7 Days
@@ -791,7 +791,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
             <button
               type="button"
               onClick={() => addDays(14)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-750 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               disabled={saving}
             >
               +14 Days
@@ -1143,7 +1143,7 @@ const JobsTable = ({ user }) => {
       <ToastContainer toasts={toasts} />
 
       {/* Toolbar */}
-      <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-zinc-500 pointer-events-none"><SearchIcon /></span>
           <input
@@ -1151,66 +1151,68 @@ const JobsTable = ({ user }) => {
             placeholder="Search jobs, companies, description..."
             value={searchInput}
             onChange={e => setSearchInput(e.target.value)}
-            className="input pl-9"
+            className="input pl-9 w-full"
             id="jobs-search-input"
           />
         </div>
 
-        {/* Status Filter */}
-        <select
-          value={status}
-          onChange={e => setStatus(e.target.value)}
-          className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-semibold px-3 py-2 h-9 rounded-lg text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer transition-colors"
-          id="jobs-status-filter"
-        >
-          <option value="all">All Statuses</option>
-          <option value="saved">Saved</option>
-          <option value="applied">Applied</option>
-          <option value="opened">Opened</option>
-          <option value="interview">Interview</option>
-          <option value="offer">Offer</option>
-          <option value="rejected">Rejected</option>
-        </select>
+        <div className="flex items-center gap-2.5 w-full sm:w-auto">
+          {/* Status Filter */}
+          <select
+            value={status}
+            onChange={e => setStatus(e.target.value)}
+            className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-semibold px-3 py-2 h-9 rounded-lg text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500 cursor-pointer transition-colors flex-1 sm:flex-none"
+            id="jobs-status-filter"
+          >
+            <option value="all">All Statuses</option>
+            <option value="saved">Saved</option>
+            <option value="applied">Applied</option>
+            <option value="opened">Opened</option>
+            <option value="interview">Interview</option>
+            <option value="offer">Offer</option>
+            <option value="rejected">Rejected</option>
+          </select>
 
-        {/* View Mode Toggle */}
-        <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200/40 dark:border-zinc-700/40 shrink-0">
+          {/* View Mode Toggle */}
+          <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200/40 dark:border-zinc-700/40 shrink-0">
+            <button
+              onClick={() => setViewMode('table')}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                viewMode === 'table'
+                  ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
+                  : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+              title="List View"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+                <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+              </svg>
+            </button>
+            <button
+              onClick={() => setViewMode('kanban')}
+              className={`p-1.5 rounded-md transition-all cursor-pointer ${
+                viewMode === 'kanban'
+                  ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
+                  : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
+              }`}
+              title="Kanban Board"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/>
+                <rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
+              </svg>
+            </button>
+          </div>
+
           <button
-            onClick={() => setViewMode('table')}
-            className={`p-1.5 rounded-md transition-all cursor-pointer ${
-              viewMode === 'table'
-                ? 'bg-white dark:bg-zinc-750 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
-                : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-            title="List View"
+            onClick={() => { setFormJob({}); setFormOpen(true); }}
+            className="btn-primary shrink-0 gap-1.5 h-9 flex items-center justify-center flex-1 sm:flex-none"
+            id="add-job-btn"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
-              <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
-            </svg>
-          </button>
-          <button
-            onClick={() => setViewMode('kanban')}
-            className={`p-1.5 rounded-md transition-all cursor-pointer ${
-              viewMode === 'kanban'
-                ? 'bg-white dark:bg-zinc-750 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
-                : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
-            }`}
-            title="Kanban Board"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/>
-              <rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>
-            </svg>
+            <PlusIcon /> Add Job
           </button>
         </div>
-
-        <button
-          onClick={() => { setFormJob({}); setFormOpen(true); }}
-          className="btn-primary shrink-0 gap-1.5 h-9 flex items-center justify-center"
-          id="add-job-btn"
-        >
-          <PlusIcon /> Add Job
-        </button>
       </div>
 
       {/* Table / Kanban Board conditional container */}

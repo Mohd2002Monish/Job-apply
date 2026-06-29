@@ -41,6 +41,90 @@ const googleAuth = (req, res) => {
   }
 };
 
+const handleUserSignIn = async (email, userInfo, tokens, provider, isOwner, req, res) => {
+  let user = await User.findOne({ email });
+  const isNewUser = !user;
+
+  if (isNewUser) {
+    let referralCode;
+    let attempts = 0;
+    while (attempts < 5) {
+      const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+      const existing = await User.findOne({ referralCode: code });
+      if (!existing) {
+        referralCode = code;
+        break;
+      }
+      attempts++;
+    }
+    if (!referralCode) {
+      referralCode = `${email.split('@')[0].toUpperCase().substring(0, 4)}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    }
+
+    user = new User({
+      email,
+      name: userInfo.name || '',
+      picture: userInfo.picture || '',
+      activeProvider: provider,
+      role: isOwner ? 'owner' : 'user',
+      referralCode
+    });
+
+    if (provider === 'google') {
+      user.googleTokens = tokens;
+    } else {
+      user.microsoftTokens = tokens;
+    }
+
+    if (req.cookies && req.cookies.jaa_referred_by) {
+      const referrer = await User.findOne({ referralCode: req.cookies.jaa_referred_by });
+      if (referrer) {
+        user.referredBy = referrer._id;
+      }
+    }
+    await user.save();
+    console.log(`🆕 New ${provider} user registered: ${email}`);
+  } else {
+    user.name = userInfo.name || user.name || '';
+    if (userInfo.picture) user.picture = userInfo.picture;
+    user.activeProvider = provider;
+    if (isOwner) user.role = 'owner';
+
+    if (provider === 'google') {
+      user.googleTokens = tokens;
+    } else {
+      user.microsoftTokens = tokens;
+    }
+
+    if (!user.referralCode) {
+      let referralCode;
+      let attempts = 0;
+      while (attempts < 5) {
+        const code = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const existing = await User.findOne({ referralCode: code });
+        if (!existing) {
+          referralCode = code;
+          break;
+        }
+        attempts++;
+      }
+      user.referralCode = referralCode || `${email.split('@')[0].toUpperCase().substring(0, 4)}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+    }
+    await user.save();
+    console.log(`✅ Existing ${provider} user logged in: ${email}`);
+  }
+
+  if (req.cookies && req.cookies.jaa_referred_by) {
+    res.clearCookie('jaa_referred_by', {
+      httpOnly: true,
+      secure: false,
+      path: '/'
+    });
+  }
+
+  return user;
+};
+
 const googleCallback = async (req, res) => {
   const { code, error, state } = req.query;
 
@@ -58,20 +142,17 @@ const googleCallback = async (req, res) => {
     const oAuth2Client = getAuthenticatedClient(tokens);
     const userInfo = await getUserInfo(oAuth2Client);
 
-    // Save tokens and user in MongoDB, set active provider
     const ownerEmail = process.env.OWNER_EMAIL ? process.env.OWNER_EMAIL.toLowerCase().trim() : '';
     const isOwner = ownerEmail && userInfo.email.toLowerCase().trim() === ownerEmail;
 
-    await User.findOneAndUpdate(
-      { email: userInfo.email.toLowerCase() },
-      {
-        name: userInfo.name || '',
-        picture: userInfo.picture || '',
-        googleTokens: tokens,
-        activeProvider: 'google',
-        ...(isOwner ? { role: 'owner' } : {})
-      },
-      { upsert: true, new: true }
+    const user = await handleUserSignIn(
+      userInfo.email.toLowerCase(),
+      userInfo,
+      tokens,
+      'google',
+      isOwner,
+      req,
+      res
     );
 
     console.log(`✅ Google user signed in: ${userInfo.email}`);
@@ -127,20 +208,17 @@ const microsoftCallback = async (req, res) => {
 
     const userInfo = await getMicrosoftUserInfo(tokens.access_token);
 
-    // Save tokens and user in MongoDB, set active provider
     const ownerEmail = process.env.OWNER_EMAIL ? process.env.OWNER_EMAIL.toLowerCase().trim() : '';
     const isOwner = ownerEmail && userInfo.email.toLowerCase().trim() === ownerEmail;
 
-    await User.findOneAndUpdate(
-      { email: userInfo.email.toLowerCase() },
-      {
-        name: userInfo.name || '',
-        picture: '',
-        microsoftTokens: tokens,
-        activeProvider: 'microsoft',
-        ...(isOwner ? { role: 'owner' } : {})
-      },
-      { upsert: true, new: true }
+    const user = await handleUserSignIn(
+      userInfo.email.toLowerCase(),
+      userInfo,
+      tokens,
+      'microsoft',
+      isOwner,
+      req,
+      res
     );
 
     console.log(`✅ Microsoft user signed in: ${userInfo.email}`);
@@ -175,6 +253,11 @@ const status = async (req, res) => {
       return res.json({ authenticated: false });
     }
 
+    const referralConversions = await User.countDocuments({
+      referredBy: req.user._id,
+      subscriptionTier: 'pro'
+    });
+
     res.json({
       authenticated: true,
       name: req.user.name || '',
@@ -192,7 +275,10 @@ const status = async (req, res) => {
       aiRequestCount: req.user.aiRequestCount || 0,
       role: req.user.role || 'user',
       tokenUsage: req.user.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-      jobCount: await Job.countDocuments({ userId: req.user._id })
+      jobCount: await Job.countDocuments({ userId: req.user._id }),
+      referralCode: req.user.referralCode || '',
+      referralClicks: req.user.referralClicks || 0,
+      referralConversions
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -249,6 +335,11 @@ const updateProfile = async (req, res) => {
       await req.user.save();
     }
 
+    const referralConversions = await User.countDocuments({
+      referredBy: req.user._id,
+      subscriptionTier: 'pro'
+    });
+
     res.json({
       success: true,
       user: {
@@ -261,6 +352,9 @@ const updateProfile = async (req, res) => {
         aiRequestCount: req.user.aiRequestCount || 0,
         role: req.user.role || 'user',
         tokenUsage: req.user.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        referralCode: req.user.referralCode || '',
+        referralClicks: req.user.referralClicks || 0,
+        referralConversions
       }
     });
   } catch (err) {

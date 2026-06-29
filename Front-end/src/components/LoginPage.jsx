@@ -52,20 +52,10 @@ const LoginPage = ({ isDark, onToggleTheme }) => {
 
       <div className="w-full max-w-sm relative">
         {/* Logo mark */}
-        <div className="flex justify-center mb-8">
-          <div className="w-12 h-12 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/25">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />
-            </svg>
-          </div>
-        </div>
-
-        <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
-            RecoCareer.ai
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-            Upload your resume, let AI craft personalised<br/>
+        <div className="flex flex-col items-center justify-center mb-8 gap-4">
+          <img src={isDark ? '/logo_desktop_dark.png' : '/logo_desktop.png'} alt="RecoCareer.ai" className="h-12 w-auto object-contain" />
+          <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed text-center">
+            Upload your resume, let AI craft personalised<br />
             application emails sent from your own Gmail.
           </p>
         </div>

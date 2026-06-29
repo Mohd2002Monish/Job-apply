@@ -46,7 +46,7 @@ const AnalyticsDashboard = () => {
         </div>
         <button
           onClick={fetchAnalytics}
-          className="btn-ghost p-2 rounded-lg text-slate-500 hover:text-indigo-600 transition-colors"
+          className="btn-ghost p-2 rounded-lg text-text-muted hover:text-brand-primary transition-colors"
           aria-label="Refresh analytics"
         >
           <RefreshIcon size={16} />
@@ -60,14 +60,14 @@ const AnalyticsDashboard = () => {
           value={analytics.total}
           subtext="Added to database"
           Icon={BriefcaseIcon}
-          colorClass="bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400"
+          colorClass="bg-brand-primary/10 text-brand-primary"
         />
         <MetricCard
           title="Applied"
           value={analytics.applied}
           subtext={`${analytics.pending} contacts pending`}
           Icon={CheckCircleIcon}
-          colorClass="bg-indigo-50 dark:bg-indigo-500/10 text-indigo-600 dark:text-indigo-400"
+          colorClass="bg-brand-accent/10 text-brand-accent"
         />
         <MetricCard
           title="HR Replies"
@@ -89,7 +89,7 @@ const AnalyticsDashboard = () => {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* Response Rate Gauge */}
         <div className="card p-6 shadow-sm flex flex-col items-center justify-center text-center space-y-4 md:col-span-1">
-          <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Outreach Conversion Rate</p>
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Outreach Conversion Rate</p>
           
           <div className="relative w-36 h-36 flex items-center justify-center">
             {/* SVG circle meter */}
@@ -98,7 +98,7 @@ const AnalyticsDashboard = () => {
                 cx="72"
                 cy="72"
                 r="64"
-                className="stroke-slate-100 dark:stroke-zinc-800"
+                className="stroke-bg-app dark:stroke-zinc-800"
                 strokeWidth="10"
                 fill="transparent"
               />
@@ -106,7 +106,7 @@ const AnalyticsDashboard = () => {
                 cx="72"
                 cy="72"
                 r="64"
-                className="stroke-indigo-600 dark:stroke-indigo-500 transition-all duration-1000 ease-out"
+                className="stroke-brand-primary transition-all duration-1000 ease-out"
                 strokeWidth="10"
                 fill="transparent"
                 strokeDasharray={402}
@@ -115,40 +115,40 @@ const AnalyticsDashboard = () => {
               />
             </svg>
             <div className="absolute flex flex-col items-center">
-              <span className="text-3xl font-extrabold text-slate-800 dark:text-slate-100">{analytics.responseRate}%</span>
-              <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Replies</span>
+              <span className="text-3xl font-extrabold text-text-main">{analytics.responseRate}%</span>
+              <span className="text-[10px] font-semibold text-text-muted uppercase tracking-wider">Replies</span>
             </div>
           </div>
-          <p className="text-xs text-slate-500 dark:text-zinc-500 leading-relaxed px-4">
+          <p className="text-xs text-text-muted leading-relaxed px-4">
             Percentage of applications sent that have received a direct reply from a recruiter.
           </p>
         </div>
 
         {/* Funnel Pipeline */}
         <div className="card p-6 shadow-sm md:col-span-2 space-y-4">
-          <p className="text-xs font-semibold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Application Funnel Pipeline</p>
+          <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Application Funnel Pipeline</p>
 
           <div className="space-y-4 pt-2">
             {/* Stage 1: Added */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              <div className="flex justify-between text-xs font-semibold text-text-muted mb-1">
                 <span>1. Added Contacts</span>
                 <span>{analytics.total} ({analytics.total > 0 ? '100' : '0'}%)</span>
               </div>
-              <div className="h-4 w-full bg-slate-100 dark:bg-zinc-800 rounded-lg overflow-hidden">
-                <div className="h-full bg-blue-500 rounded-lg" style={{ width: analytics.total > 0 ? '100%' : '0%' }} />
+              <div className="h-4 w-full bg-bg-app rounded-lg overflow-hidden border border-border-card/30">
+                <div className="h-full bg-brand-primary rounded-lg animate-pulse" style={{ width: analytics.total > 0 ? '100%' : '0%' }} />
               </div>
             </div>
 
             {/* Stage 2: Applied */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              <div className="flex justify-between text-xs font-semibold text-text-muted mb-1">
                 <span>2. Applied Emails Dispatched</span>
                 <span>{analytics.applied} ({analytics.total > 0 ? Math.round((analytics.applied / analytics.total) * 100) : 0}%)</span>
               </div>
-              <div className="h-4 w-full bg-slate-100 dark:bg-zinc-800 rounded-lg overflow-hidden">
+              <div className="h-4 w-full bg-bg-app rounded-lg overflow-hidden border border-border-card/30">
                 <div
-                  className="h-full bg-indigo-500 rounded-lg transition-all duration-500"
+                  className="h-full bg-brand-accent rounded-lg transition-all duration-500"
                   style={{ width: analytics.total > 0 ? `${(analytics.applied / analytics.total) * 100}%` : '0%' }}
                 />
               </div>
@@ -156,11 +156,11 @@ const AnalyticsDashboard = () => {
 
             {/* Stage 3: Replied */}
             <div>
-              <div className="flex justify-between text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">
+              <div className="flex justify-between text-xs font-semibold text-text-muted mb-1">
                 <span>3. Direct Replies Received</span>
                 <span>{analytics.replied} ({analytics.applied > 0 ? Math.round((analytics.replied / analytics.applied) * 100) : 0}% of applied)</span>
               </div>
-              <div className="h-4 w-full bg-slate-100 dark:bg-zinc-800 rounded-lg overflow-hidden">
+              <div className="h-4 w-full bg-bg-app rounded-lg overflow-hidden border border-border-card/30">
                 <div
                   className="h-full bg-emerald-500 rounded-lg transition-all duration-500"
                   style={{ width: analytics.applied > 0 ? `${(analytics.replied / analytics.applied) * 100}%` : '0%' }}
@@ -168,7 +168,7 @@ const AnalyticsDashboard = () => {
               </div>
             </div>
           </div>
-          <div className="pt-2 text-xs text-slate-400 dark:text-zinc-500 flex justify-between leading-relaxed">
+          <div className="pt-2 text-xs text-text-muted flex justify-between leading-relaxed">
             <span>Keep adding contacts and applying to push more leads down the conversion funnel!</span>
           </div>
         </div>

@@ -47,6 +47,10 @@ const getAdminUsers = async (req, res) => {
     const usersWithJobCount = await Promise.all(
       users.map(async (u) => {
         const jobCount = await Job.countDocuments({ userId: u._id });
+        const referralConversions = await User.countDocuments({
+          referredBy: u._id,
+          subscriptionTier: 'pro'
+        });
         return {
           _id: u._id,
           name: u.name || '',
@@ -58,7 +62,10 @@ const getAdminUsers = async (req, res) => {
           role: u.role || 'user',
           tokenUsage: u.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
           createdAt: u.createdAt,
-          jobCount
+          jobCount,
+          referralCode: u.referralCode || '',
+          referralClicks: u.referralClicks || 0,
+          referralConversions
         };
       })
     );

@@ -54,11 +54,13 @@ graph TD
 * **Multi-Resume Management**: Upload, generate, and store multiple distinct versions of a resume for different industries. Select a specific "Primary Resume" that acts as the source-of-truth when generating ATS scores and cover letters.
 * **PDF & DOCX Exports**: Export beautifully formatted PDFs generated via headless browser (Puppeteer) or fully editable DOCX files.
 
-### 📋 3. Job Tracking Dashboard
-* **Centralized Job Board**: A high-performance, tabular interface that cleanly organizes all applied jobs, current statuses, and target companies.
+### 📋 3. Job Tracking Dashboard & Kanban
+* **Centralized Job Board & Kanban**: A high-performance interactive interface that organizes all applied jobs, current statuses, and target companies, supporting responsive drag-and-drop workflow updates.
 * **Dynamic Status Workflow**: Track job progression through customizable tags (*Pending*, *Sent*, *Opened*, *Replied*, *Interviewing*, *Rejected*).
 * **Circular ATS Score Rings**: Automatically computes an ATS match percentage by analyzing your primary resume against the saved Job Description. Displays a color-coded circular progress ring directly on the dashboard.
 * **Analytics Panel**: Real-time chart visualization showing funnel drop-offs (e.g., Applications Sent vs. Interviews Secured) and overall response rates to help optimize job hunting strategies.
+
+![Interactive Kanban Outreach Board](./screenshots/outreach_dashboard.png)
 
 ### 📥 4. Smart Job Import & JD Parsing
 * **JD File Extraction**: Drag and drop a Job Description document. The backend automatically parses the text and uses AI to extract key metadata: Job Title, Company Name, Recruiter Name, Recruiter Email, and the core responsibilities.
@@ -83,6 +85,24 @@ graph TD
 * **Message Logger**: A centralized hub to manually log or automatically capture email threads, LinkedIn messages, and interview requests.
 * **Interactive Chat UI**: A slide-out drawer presenting a thread-style, iMessage-like bubble history to keep recruiter discussions historically organized.
 * **AI Suggested Replies**: Context-aware AI reads the latest recruiter message and auto-generates professional reply drafts (e.g., accepting an interview slot, negotiating salary, or asking for feedback).
+
+### 🔗 9. User Referral & Subscription Tracking
+* **Personalized Referral URLs**: Every user receives a unique referral code and link (`http://localhost:3000/r/CODE`) directly in their settings panel.
+* **Real-time Analytics**: Displays referral link clicks and tracks referred users who upgrade to paid Pro subscriptions.
+* **Easy Sharing**: Features a single-click copy utility for sharing links instantly.
+
+![Outreach Analytics Panel](./screenshots/analytics_dashboard.png)
+
+### 👑 10. Owner Admin Console & System Metrics
+* **Administrative Intelligence**: Owner accounts gain access to a secure, premium admin dashboard tracking global stats (Total Users, conversion percentages, cumulative LLM Prompt & Completion token consumption).
+* **Member Controls**: Search and filter members, upgrade/downgrade subscription tiers, and edit user roles directly from the directory table.
+* **Responsive Visual Table**: Designed with the premium, theme-adaptive Slate Ocean design layout.
+
+#### 💡 Light Theme Dashboard Console
+![Owner Admin Console - Light Theme](./screenshots/admin_console_light.png)
+
+#### 🌙 Dark Theme Dashboard Console
+![Owner Admin Console - Dark Theme](./screenshots/admin_console_dark.png)
 
 ---
 

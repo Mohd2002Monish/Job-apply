@@ -108,7 +108,10 @@ const userSchema = new mongoose.Schema({
       promptTokens: { type: Number, default: 0 },
       completionTokens: { type: Number, default: 0 },
       totalTokens: { type: Number, default: 0 }
-    }
+    },
+    referralCode: { type: String, unique: true, sparse: true },
+    referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
+    referralClicks: { type: Number, default: 0 }
   }, { timestamps: true });
 
 const User = mongoose.model('User', userSchema);

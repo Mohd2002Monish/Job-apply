@@ -263,7 +263,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-850 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
           >
             <XIcon size={16} />
           </button>
@@ -405,7 +405,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                           href={src.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-zinc-850 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-150 dark:border-zinc-750 text-slate-700 dark:text-zinc-300 transition-colors shadow-sm"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-150 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors shadow-sm"
                         >
                           <LinkIcon size={9} />
                           {src.title.length > 25 ? src.title.slice(0, 22) + '…' : src.title}
@@ -442,7 +442,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                       <button
                         type="button"
                         onClick={handleCopy}
-                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-zinc-750 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                        className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                       >
                         {copied ? '✅ Copied!' : <><CopyIcon size={12} /> Copy Draft</>}
                       </button>

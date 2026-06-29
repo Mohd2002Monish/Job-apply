@@ -11,6 +11,7 @@ const resumeRoutes = require("./routes/resumeRoutes");
 const scrapedJobRoutes = require("./routes/scrapedJobRoutes");
 const stripeRoutes = require("./routes/stripeRoutes");
 const adminRoutes = require("./routes/adminRoutes");
+const referralRoutes = require("./routes/referralRoutes");
 
 const { startCronJob } = require("./utils/cronService");
 
@@ -85,6 +86,7 @@ app.use("/", resumeRoutes); // Mounts /upload-resume, /resume-data, /export-resu
 app.use("/scraped-jobs", scrapedJobRoutes);
 app.use("/", stripeRoutes);
 app.use("/admin", adminRoutes);
+app.use("/", referralRoutes);
 
 // ─── Legacy cron route ─────────────────────────────────────────────────────────
 app.get("/start-cron", (req, res) => {

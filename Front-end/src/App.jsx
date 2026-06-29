@@ -35,20 +35,35 @@ const SearchIcon = ({ size = 15 }) => (
   </svg>
 );
 
+const MenuIcon = ({ size = 20, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="3" y1="12" x2="21" y2="12" />
+    <line x1="3" y1="6" x2="21" y2="6" />
+    <line x1="3" y1="18" x2="21" y2="18" />
+  </svg>
+);
+
+const XIcon = ({ size = 20, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
 // ─── Nav Tab ──────────────────────────────────────────────────────────────────
 const NavTab = ({ id, label, Icon, active, badge, onClick }) => (
   <button
     onClick={() => onClick(id)}
-    className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150 ${
+    className={`relative w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
       active
-        ? 'bg-white dark:bg-zinc-800 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-zinc-700'
-        : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800/50'
+        ? 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20 font-semibold'
+        : 'text-text-muted hover:text-text-main hover:bg-bg-card-hover'
     }`}
   >
-    <Icon size={15} />
-    {label}
+    <Icon size={18} className={`${active ? 'text-brand-primary' : 'text-text-muted'}`} />
+    <span className="flex-1 text-left">{label}</span>
     {badge && (
-      <span className="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full" />
+      <span className="w-2.5 h-2.5 bg-brand-accent rounded-full shrink-0 animate-pulse" />
     )}
   </button>
 );
@@ -61,6 +76,7 @@ const Dashboard = () => {
   const [profileModalOpen, setProfileModalOpen] = React.useState(false);
   const [profileName, setProfileName] = React.useState(user?.name || '');
   const [billingLoading, setBillingLoading] = React.useState(false);
+  const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
   const { toasts, success, error, info } = useToast();
   const toast = { success, error, info };
@@ -106,7 +122,10 @@ const Dashboard = () => {
               aiRequestCount: statusRes.data.aiRequestCount,
               jobCount: statusRes.data.jobCount,
               role: statusRes.data.role || 'user',
-              tokenUsage: statusRes.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+              tokenUsage: statusRes.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              referralCode: statusRes.data.referralCode || '',
+              referralClicks: statusRes.data.referralClicks || 0,
+              referralConversions: statusRes.data.referralConversions || 0
             },
             resumeName: statusRes.data.resumeName,
             resumeData: statusRes.data.resumeData
@@ -160,7 +179,12 @@ const Dashboard = () => {
               subscriptionTier: statusRes.data.subscriptionTier,
               stripeSubscriptionId: statusRes.data.stripeSubscriptionId,
               aiRequestCount: statusRes.data.aiRequestCount,
-              jobCount: statusRes.data.jobCount
+              jobCount: statusRes.data.jobCount,
+              role: statusRes.data.role || 'user',
+              tokenUsage: statusRes.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              referralCode: statusRes.data.referralCode || '',
+              referralClicks: statusRes.data.referralClicks || 0,
+              referralConversions: statusRes.data.referralConversions || 0
             },
             resumeName: statusRes.data.resumeName,
             resumeData: statusRes.data.resumeData
@@ -203,7 +227,10 @@ const Dashboard = () => {
                 aiRequestCount: res.data.aiRequestCount || 0,
                 jobCount: res.data.jobCount || 0,
                 role: res.data.role || 'user',
-                tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+                tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                referralCode: res.data.referralCode || '',
+                referralClicks: res.data.referralClicks || 0,
+                referralConversions: res.data.referralConversions || 0
               },
               resumeName: res.data.resumeName || null,
               resumeData: res.data.resumeData || null,
@@ -314,41 +341,87 @@ const Dashboard = () => {
   };
 
   return (
-    <div className="min-h-screen transition-colors duration-200">
-      {/* Topbar */}
-      <header className="sticky top-0 z-30 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-md border-b border-slate-200 dark:border-zinc-800">
-        <div className="max-w-5xl mx-auto px-5 h-14 flex items-center justify-between gap-4">
-          {/* Brand */}
-          <div className="flex items-center gap-3">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center shadow-sm shadow-indigo-600/30">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" />
-              </svg>
+    <div className="min-h-screen flex flex-col lg:flex-row bg-bg-app text-text-main transition-colors duration-200">
+      {/* Backdrop for Mobile Sidebar */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-[2px] z-40 lg:hidden transition-opacity duration-300"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar Container */}
+      <aside
+        className={`w-64 fixed inset-y-0 left-0 bg-bg-card border-r border-border-card flex flex-col justify-between z-50 transition-all duration-300 ease-out transform ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="flex flex-col flex-1 overflow-y-auto">
+          {/* Sidebar Brand Header */}
+          <div className="h-16 px-6 border-b border-border-card flex items-center justify-between">
+            <div className="flex items-center">
+              <img src={isDark ? '/logo_desktop_dark.png' : '/logo_desktop.png'} alt="RecoCareer.ai" className="h-7 w-auto object-contain" />
             </div>
-            <span className="text-sm font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-              RecoCareer.ai
-            </span>
+            {/* Mobile close button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="lg:hidden p-1.5 rounded-lg text-text-muted hover:bg-bg-card-hover hover:text-text-main transition-colors"
+            >
+              <XIcon size={18} />
+            </button>
           </div>
 
-          {/* Center: Tabs */}
-          <nav className="flex items-center gap-1 bg-slate-100 dark:bg-zinc-800/60 rounded-xl p-1">
-            <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={(id) => dispatch(setActiveTab(id))} />
-            <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => dispatch(setActiveTab(id))} />
-            <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => dispatch(setActiveTab(id))} />
-            <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => dispatch(setActiveTab(id))} />
+          {/* Navigation Links Stack */}
+          <nav className="p-4 space-y-1">
+            <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+            <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+            <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+            <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             {user?.role === 'owner' && (
-              <NavTab id="admin" label="Admin" Icon={ShieldAlertIcon} active={activeTab === 'admin'} onClick={(id) => dispatch(setActiveTab(id))} />
+              <NavTab id="admin" label="Admin" Icon={ShieldAlertIcon} active={activeTab === 'admin'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             )}
           </nav>
+        </div>
 
-          {/* Right: User + Controls */}
-          <div className="flex items-center gap-2">
+        {/* Sidebar Footer: Unified settings & profile card */}
+        <div className="p-4 border-t border-border-card bg-bg-app/20">
+          <div className="bg-bg-card-hover/40 border border-border-card/85 rounded-2xl p-4.5 space-y-4 backdrop-blur-md">
+            {/* User Info Header */}
+            <div className="flex items-center gap-3">
+              {user?.picture ? (
+                <img
+                  src={user.picture.startsWith('http') ? user.picture : `${BACKEND}${user.picture}`}
+                  alt={user.name}
+                  className="w-10 h-10 rounded-full border border-border-card object-cover shrink-0"
+                />
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-brand-primary to-brand-accent flex items-center justify-center text-sm font-bold text-white shrink-0 shadow-md shadow-brand-primary/10">
+                  {user?.name?.charAt(0) || 'U'}
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-text-main truncate leading-none mb-1">{user?.name || 'User Account'}</p>
+                <p className="text-[10.5px] text-text-muted truncate leading-none">{user?.email}</p>
+              </div>
+            </div>
+
+            {/* Active Resume Dropdown Selector */}
             {resumes && resumes.length > 0 && (
-              <div className="relative mr-1.5 flex items-center gap-1.5">
+              <div className="space-y-1.5 pt-2.5 border-t border-border-card">
+                <div className="flex items-center justify-between">
+                  <span className="text-[9.5px] font-bold text-text-muted uppercase tracking-widest">Active Resume</span>
+                  <button
+                    onClick={() => { setUploadModalOpen(true); setSidebarOpen(false); }}
+                    className="text-[10px] font-bold text-brand-primary hover:opacity-80 transition-colors flex items-center gap-0.5"
+                    id="sidebar-resume-manage-btn"
+                  >
+                    Manage
+                  </button>
+                </div>
                 <select
                   value={activeResumeId}
                   onChange={handleSelectResume}
-                  className="bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-[11px] font-semibold px-2 py-1.5 rounded-lg text-slate-700 dark:text-slate-200 outline-none focus:border-indigo-500"
+                  className="w-full bg-bg-card border border-border-card text-[11px] font-medium px-2.5 py-2 rounded-lg text-text-main outline-none focus:border-brand-primary transition-all cursor-pointer"
                   id="resume-selector-dropdown"
                 >
                   {resumes.map(r => (
@@ -357,87 +430,104 @@ const Dashboard = () => {
                     </option>
                   ))}
                 </select>
-
-                <button
-                  onClick={() => setUploadModalOpen(true)}
-                  className="bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200/60 dark:border-indigo-500/20 text-[11px] font-semibold px-2 py-1.5 rounded-lg text-indigo-700 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 flex items-center gap-1 transition-all"
-                  title="Upload or manage resumes"
-                  id="header-resume-manage-btn"
-                >
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
-                  </svg>
-                  Manage
-                </button>
               </div>
             )}
 
+            {/* Bottom Actions Row */}
+            <div className="flex items-center gap-2 pt-2.5 border-t border-border-card">
+              {/* Profile Settings Gear Button */}
+              <button
+                onClick={() => { setProfileModalOpen(true); setSidebarOpen(false); }}
+                className="flex-1 py-2 px-2.5 rounded-lg border border-border-card bg-bg-card text-text-muted hover:text-text-main hover:bg-bg-card-hover/80 transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                title="Profile Settings"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                </svg>
+                <span className="text-[10px] font-bold">Profile</span>
+              </button>
+
+              {/* Theme Toggle Button */}
+              <button
+                onClick={() => dispatch(toggleTheme())}
+                className="py-2 px-2.5 rounded-lg border border-border-card bg-bg-card text-text-muted hover:text-text-main hover:bg-bg-card-hover/80 transition-all flex items-center justify-center shadow-sm"
+                aria-label="Toggle theme"
+                title="Toggle Theme"
+              >
+                {isDark ? <SunIcon size={14} /> : <MoonIcon size={14} />}
+              </button>
+
+              {/* Exit Button */}
+              <button
+                onClick={handleLogout}
+                id="logout-btn"
+                className="py-2 px-2.5 rounded-lg border border-red-500/20 bg-red-500/10 text-red-600 dark:text-red-400 hover:bg-red-500/20 transition-all flex items-center justify-center shadow-sm"
+                aria-label="Sign out"
+                title="Sign Out"
+              >
+                <LogOutIcon size={14} />
+              </button>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Layout area */}
+      <div className="flex-1 lg:pl-64 min-h-screen flex flex-col">
+        {/* Mobile Top Bar */}
+        <header className="lg:hidden h-14 border-b border-border-card bg-bg-card/95 backdrop-blur-md flex items-center justify-between px-4 sticky top-0 z-20">
+          <div className="flex items-center gap-2">
+            <img src="/logo_mobile.png" alt="RecoCareer.ai" className="h-7 w-auto object-contain" />
+            <span className="text-sm font-extrabold tracking-tight text-text-main">
+              RecoCareer.ai
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
             <button
               onClick={() => setProfileModalOpen(true)}
-              className="relative rounded-full hover:ring-2 hover:ring-indigo-500 focus:outline-none transition-all cursor-pointer shrink-0"
-              title="Profile settings"
-              id="header-profile-btn"
+              className="rounded-full overflow-hidden shrink-0 border border-border-card"
             >
               {user?.picture ? (
                 <img
                   src={user.picture.startsWith('http') ? user.picture : `${BACKEND}${user.picture}`}
                   alt={user.name}
-                  className="w-7 h-7 rounded-full border border-slate-200 dark:border-zinc-700 shrink-0 object-cover"
+                  className="w-7 h-7 object-cover"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-500/20 flex items-center justify-center text-xs font-semibold text-indigo-700 dark:text-indigo-400 shrink-0">
+                <div className="w-7 h-7 bg-brand-primary/10 flex items-center justify-center text-[11px] font-bold text-brand-primary">
                   {user?.name?.charAt(0) || 'U'}
                 </div>
               )}
             </button>
-            <div className="hidden sm:block">
-              <div className="flex items-center gap-1.5">
-                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200 leading-none">{user?.name}</p>
-                <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
-                  {user?.provider || 'google'}
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-none mt-1">{user?.email}</p>
-            </div>
-
-            <div className="flex items-center gap-1 ml-1">
-              <button
-                onClick={() => dispatch(toggleTheme())}
-                className="p-1.5 rounded-lg text-slate-400 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-                aria-label="Toggle theme"
-              >
-                {isDark ? <SunIcon size={15} /> : <MoonIcon size={15} />}
-              </button>
-              <button
-                onClick={handleLogout}
-                id="logout-btn"
-                className="p-1.5 rounded-lg text-slate-400 dark:text-zinc-400 hover:text-red-500 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
-                aria-label="Sign out"
-              >
-                <LogOutIcon size={15} />
-              </button>
-            </div>
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1.5 rounded-lg text-text-muted hover:bg-bg-card-hover hover:text-text-main transition-colors"
+            >
+              <MenuIcon size={20} />
+            </button>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main content */}
-      <main className="max-w-5xl mx-auto px-5 py-6">
-        {!resumeName && activeTab !== 'admin' && (
-          <ResumeUpload
-            user={user}
-            resumeName={resumeName}
-            resumeData={resumeData}
-            onUploadSuccess={handleUploadSuccess}
-          />
-        )}
+        {/* Page Content area */}
+        <main className="flex-1 p-5 lg:p-8 max-w-5xl w-full mx-auto">
+          {!resumeName && activeTab !== 'admin' && (
+            <ResumeUpload
+              user={user}
+              resumeName={resumeName}
+              resumeData={resumeData}
+              onUploadSuccess={handleUploadSuccess}
+            />
+          )}
 
-        {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
-        {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
-        {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
-        {activeTab === 'analytics' && <AnalyticsDashboard />}
-        {activeTab === 'admin' && user?.role === 'owner' && <AdminPanel />}
-      </main>
+          {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
+          {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
+          {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
+          {activeTab === 'analytics' && <AnalyticsDashboard />}
+          {activeTab === 'admin' && user?.role === 'owner' && <AdminPanel />}
+        </main>
+      </div>
 
       {/* Resume Upload Modal */}
       {uploadModalOpen && (
@@ -558,6 +648,47 @@ const Dashboard = () => {
                   placeholder="your.email@example.com"
                   id="profile-email-input"
                 />
+              </div>
+
+              {/* Referral Program */}
+              <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
+                    Referral Program
+                  </h3>
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-normal">
+                  Invite your friends to RecoCareer.ai! When they sign up using your link, we will track your clicks and their subscription upgrades below.
+                </p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${BACKEND}/r/${user?.referralCode || ''}`}
+                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-mono rounded-lg px-2.5 py-1.5 focus:outline-none dark:text-slate-200"
+                    id="referral-url-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`${BACKEND}/r/${user?.referralCode || ''}`);
+                      toast.success('Referral link copied to clipboard!');
+                    }}
+                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200/50 dark:border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-all shrink-0"
+                  >
+                    Copy
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 gap-3 bg-slate-50/50 dark:bg-zinc-800/20 p-3 rounded-xl border border-slate-200/30 dark:border-zinc-800/40">
+                  <div className="text-center">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Link Clicks</span>
+                    <span className="text-lg font-bold text-slate-800 dark:text-slate-200 leading-none">{user?.referralClicks || 0}</span>
+                  </div>
+                  <div className="text-center border-l border-slate-200/60 dark:border-zinc-800/50">
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Pro Converts</span>
+                    <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-none">{user?.referralConversions || 0}</span>
+                  </div>
+                </div>
               </div>
 
               {/* Billing & Subscriptions */}
@@ -762,7 +893,10 @@ function App() {
               stripeSubscriptionId: res.data.stripeSubscriptionId || '',
               aiRequestCount: res.data.aiRequestCount || 0,
               role: res.data.role || 'user',
-              tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+              tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              referralCode: res.data.referralCode || '',
+              referralClicks: res.data.referralClicks || 0,
+              referralConversions: res.data.referralConversions || 0
             },
             resumeName: res.data.resumeName || null,
             resumeData: res.data.resumeData || null,

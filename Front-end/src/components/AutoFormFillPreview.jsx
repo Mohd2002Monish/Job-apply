@@ -243,7 +243,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
               <span className="font-bold text-slate-350 text-xs uppercase tracking-wider mb-2 animate-pulse">
                 Pre-Filling Application Forms
               </span>
-              <div className="px-4 py-1.5 rounded-full bg-slate-850/80 border border-slate-800 text-[11px] text-indigo-400 font-semibold font-mono tracking-wide">
+              <div className="px-4 py-1.5 rounded-full bg-slate-800/80 border border-slate-800 text-[11px] text-indigo-400 font-semibold font-mono tracking-wide">
                 {loadingMessage}
               </div>
               <p className="text-[10px] text-slate-500 max-w-xs text-center mt-3">
@@ -254,7 +254,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
             <div className="space-y-6">
               
               {/* Sandbox URL Indicator */}
-              <div className="p-3.5 rounded-2xl bg-slate-850/40 border border-slate-800/80 flex items-center justify-between gap-4 text-xs font-semibold">
+              <div className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-800/80 flex items-center justify-between gap-4 text-xs font-semibold">
                 <div className="flex items-center gap-2 text-slate-450 min-w-0">
                   <span className="flex-shrink-0">🌐</span>
                   <span className="text-[11px] font-mono truncate">{urlUsed}</span>
@@ -284,7 +284,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
                     </div>
                   ) : (
                     fields.map((field) => (
-                      <div key={field.id} className="p-4 flex flex-col md:flex-row md:items-center gap-4 transition-colors hover:bg-slate-850/10">
+                      <div key={field.id} className="p-4 flex flex-col md:flex-row md:items-center gap-4 transition-colors hover:bg-slate-800/10">
                         {/* Label & Details */}
                         <div className="md:w-1/3 space-y-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -385,7 +385,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
 
                 <div className="border border-slate-800 rounded-2xl overflow-hidden shadow-lg bg-slate-950/40">
                   {/* Browser top-bar */}
-                  <div className="flex items-center px-4 py-2.5 bg-slate-850 border-b border-slate-800/80 gap-3">
+                  <div className="flex items-center px-4 py-2.5 bg-slate-800 border-b border-slate-800/80 gap-3">
                     <div className="flex gap-1.5">
                       <span className="w-2.5 h-2.5 rounded-full bg-rose-500/50" />
                       <span className="w-2.5 h-2.5 rounded-full bg-amber-500/50" />

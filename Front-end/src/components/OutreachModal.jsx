@@ -323,7 +323,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
           </div>
           <button 
             onClick={onClose} 
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-850 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
           >
             <XIcon size={16} />
           </button>
@@ -347,7 +347,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                   onClick={handleRegenerateCoverLetter}
                   disabled={regeneratingCL}
                   title="Regenerate Cover Letter using AI"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-750 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                 >
                   <WandIcon size={12} className={regeneratingCL ? "animate-spin" : ""} />
                   {regeneratingCL ? 'Generating...' : 'Regenerate'}
@@ -356,7 +356,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                   type="button"
                   onClick={handleSaveCoverLetter}
                   disabled={savingCL || regeneratingCL}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-750 text-slate-700 dark:text-slate-300 transition-all border border-slate-200 dark:border-zinc-750 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-300 transition-all border border-slate-200 dark:border-zinc-800 cursor-pointer"
                 >
                   {savingCL ? 'Saving...' : 'Save Draft'}
                 </button>
@@ -712,7 +712,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-850 border border-slate-200/80 dark:border-zinc-750 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-center shadow-sm shrink-0">
                     {provider === 'microsoft' ? <MicrosoftIcon /> : <GoogleIcon />}
                   </div>
                   <div>

@@ -263,7 +263,7 @@ const JobDiscoverer = ({ toast, onImported }) => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* Profile configuration Form */}
-            <div className="md:col-span-1 bg-white dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-850 p-5 rounded-2xl shadow-sm space-y-4">
+            <div className="md:col-span-1 bg-white dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-800 p-5 rounded-2xl shadow-sm space-y-4">
               <div>
                 <h3 className="text-sm font-bold text-slate-800 dark:text-slate-250">Target Role Profile</h3>
                 <p className="text-[11px] text-slate-400 dark:text-zinc-500 mt-0.5">Customize crawling keywords & digest filters.</p>
@@ -537,7 +537,7 @@ const JobDiscoverer = ({ toast, onImported }) => {
         <div className="space-y-6 animate-fade-in">
           
           {/* Live Search Inputs Bar */}
-          <div className="bg-white dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-850 p-5 rounded-2xl shadow-sm">
+          <div className="bg-white dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-800 p-5 rounded-2xl shadow-sm">
             <form onSubmit={handleLiveSearch} className="flex flex-col md:flex-row gap-4 items-end">
               <div className="flex-1 space-y-1 w-full">
                 <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Job Title / Keywords *</label>

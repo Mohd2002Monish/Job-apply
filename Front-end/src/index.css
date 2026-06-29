@@ -1,6 +1,46 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
+@theme {
+  --color-bg-app: var(--bg-app);
+  --color-bg-card: var(--bg-card);
+  --color-bg-card-hover: var(--bg-card-hover);
+  --color-border-card: var(--border-card);
+  --color-text-main: var(--text-main);
+  --color-text-muted: var(--text-muted);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-accent-hover: var(--brand-accent-hover);
+}
+
+:root {
+  --bg-app: #f8fafc; /* Slate 50 */
+  --bg-card: #ffffff; /* White */
+  --bg-card-hover: #f1f5f9; /* Slate 100 */
+  --border-card: #e2e8f0; /* Slate 200 */
+  --text-main: #020617; /* Slate 950 */
+  --text-muted: #64748b; /* Slate 500 */
+  
+  --brand-primary: #2563eb; /* Blue 600 */
+  --brand-primary-hover: #1d4ed8;
+  --brand-accent: #06b6d4; /* Cyan 500 */
+  --brand-accent-hover: #0891b2;
+}
+
+.dark {
+  --bg-app: #020617; /* Slate 950 */
+  --bg-card: #0f172a; /* Slate 900 */
+  --bg-card-hover: #1e293b; /* Slate 800 */
+  --border-card: #1e293b; /* Slate 800 */
+  --text-main: #f1f5f9; /* Slate 100 */
+  --text-muted: #94a3b8; /* Slate 400 */
+  
+  --brand-primary: #3b82f6; /* Blue 500 */
+  --brand-primary-hover: #60a5fa;
+  --brand-accent: #22d3ee; /* Cyan 400 */
+  --brand-accent-hover: #67e8f9;
+}
 
 /* Dark mode via .dark class on <html> */
 @custom-variant dark (&:where(.dark, .dark *));
@@ -14,11 +54,15 @@
     font-family: 'Inter', system-ui, -apple-system, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 dark:bg-zinc-950 dark:text-slate-100;
+    @apply bg-bg-app text-text-main;
     transition: background-color 0.2s ease, color 0.2s ease;
+    max-width: 100vw;
+    overflow-x: hidden;
   }
 
   /* Custom scrollbar */
@@ -30,11 +74,11 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-slate-300 dark:bg-zinc-700;
+    @apply bg-slate-300 dark:bg-slate-700;
     border-radius: 99px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-slate-400 dark:bg-zinc-600;
+    @apply bg-slate-400 dark:bg-slate-600;
   }
 
   /* Input focus ring */
@@ -46,7 +90,7 @@
 
   /* Checkbox accent */
   input[type="checkbox"] {
-    accent-color: #6366f1;
+    accent-color: var(--brand-primary);
     cursor: pointer;
   }
 }
@@ -54,23 +98,23 @@
 @layer components {
   /* Card */
   .card {
-    @apply bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl;
+    @apply bg-bg-card border border-border-card rounded-xl;
   }
 
   /* Input */
   .input {
-    @apply w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700
-           text-slate-900 dark:text-slate-100 rounded-lg px-3 py-2 text-sm
-           placeholder:text-slate-400 dark:placeholder:text-zinc-500
-           focus:border-indigo-500 dark:focus:border-indigo-500
-           focus:ring-2 focus:ring-indigo-500/20
+    @apply w-full bg-bg-app border border-border-card
+           text-text-main rounded-lg px-3 py-2 text-sm
+           placeholder:text-text-muted
+           focus:border-brand-primary
+           focus:ring-2 focus:ring-brand-primary/20
            transition-colors duration-150;
   }
 
   /* Primary button */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
-           bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800
+           bg-brand-primary hover:bg-brand-primary-hover
            text-white text-sm font-semibold
            transition-colors duration-150
            disabled:opacity-40 disabled:cursor-not-allowed;
@@ -79,8 +123,8 @@
   /* Secondary/ghost button */
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg
-           bg-slate-100 hover:bg-slate-200 dark:bg-zinc-800 dark:hover:bg-zinc-700
-           text-slate-700 dark:text-slate-300 text-sm font-medium
+           bg-bg-card-hover hover:opacity-90
+           text-text-main text-sm font-medium
            transition-colors duration-150
            disabled:opacity-40 disabled:cursor-not-allowed;
   }
@@ -98,26 +142,29 @@
            dark:bg-amber-500/10 dark:text-amber-400 dark:border-amber-500/20;
   }
   .badge-default {
-    @apply bg-slate-100 text-slate-600 border border-slate-200
-           dark:bg-zinc-800 dark:text-zinc-400 dark:border-zinc-700;
+    @apply bg-bg-card-hover text-text-muted border border-border-card;
   }
   .badge-indigo {
-    @apply bg-indigo-50 text-indigo-700 border border-indigo-200
-           dark:bg-indigo-500/10 dark:text-indigo-400 dark:border-indigo-500/20;
+    @apply bg-blue-50 text-blue-700 border border-blue-200
+           dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20;
+  }
+  .badge-brand {
+    @apply bg-blue-50 text-blue-700 border border-blue-200
+           dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/20;
   }
 
   /* Table header cell */
   .th {
-    @apply px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-zinc-500
-           uppercase tracking-wide border-b border-slate-200 dark:border-zinc-800
+    @apply px-4 py-3 text-left text-xs font-semibold text-text-muted
+           uppercase tracking-wide border-b border-border-card
            select-none whitespace-nowrap cursor-pointer
-           hover:text-slate-700 dark:hover:text-zinc-300 transition-colors;
+           hover:text-text-main transition-colors;
   }
 
   /* Table data cell */
   .td {
-    @apply px-4 py-3.5 text-sm text-slate-700 dark:text-slate-300
-           border-b border-slate-100 dark:border-zinc-800/50 align-middle;
+    @apply px-4 py-3.5 text-sm text-text-main
+           border-b border-border-card/50 align-middle;
   }
 }
 
