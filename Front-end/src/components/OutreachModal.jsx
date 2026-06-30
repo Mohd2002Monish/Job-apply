@@ -44,6 +44,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
   const [keywordSuggestions, setKeywordSuggestions] = useState(null);
   const [gapAnalysisResult, setGapAnalysisResult] = useState(null);
   const [templateId, setTemplateId] = useState(job.templateId || 'classic');
+  const [wordCount, setWordCount] = useState(150);
 
   const [savingCL, setSavingCL] = useState(false);
   const [regeneratingCL, setRegeneratingCL] = useState(false);
@@ -74,7 +75,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
       handleCalculateAts();
     }
     if (!job.coverLetter && !coverLetter) {
-      handleRegenerateCoverLetter();
+      handleRegenerateCoverLetter(120);
     }
     return () => {
       if (tailorEsRef.current) {
@@ -224,11 +225,15 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
   };
 
   // Regenerate Cover Letter dynamically
-  const handleRegenerateCoverLetter = async () => {
+  const handleRegenerateCoverLetter = async (targetWords = wordCount) => {
     setRegeneratingCL(true);
     setModalError('');
     try {
-      const res = await axios.post(`${BACKEND}/resume/cover-letter`, { jobId: job._id });
+      const res = await axios.post(`${BACKEND}/jobs/${job._id}/generate-cover-letter`, { 
+        wordCount: targetWords,
+        tone: 'Professional',
+        description: job.description
+      });
       if (res.data.coverLetter) {
         setCoverLetter(res.data.coverLetter);
         setClStatus('dirty');
@@ -363,9 +368,38 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
               </div>
             </div>
 
+            {/* Word Length Selector */}
+            <div className="flex items-center gap-3 py-1.5 px-3 bg-slate-50/80 dark:bg-zinc-900/20 border border-slate-100 dark:border-zinc-800/80 rounded-xl mb-2 shrink-0">
+              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider">Email Length:</span>
+              <div className="flex gap-1.5">
+                {[
+                  { id: 50, label: 'Pitch (50w)' },
+                  { id: 100, label: 'Concise (100w)' },
+                  { id: 180, label: 'Standard (180w)' },
+                  { id: 300, label: 'Detailed (300w)' }
+                ].map(preset => (
+                  <button
+                    key={preset.id}
+                    type="button"
+                    onClick={() => {
+                      setWordCount(preset.id);
+                      handleRegenerateCoverLetter(preset.id);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                      wordCount === preset.id
+                        ? 'bg-brand-primary text-white border-brand-primary shadow-sm shadow-brand-primary/20'
+                        : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-brand-primary hover:text-brand-primary'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="flex-1 relative flex flex-col min-h-0">
               {regeneratingCL ? (
-                <div className="w-full flex-1 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-950/30 flex flex-col items-center justify-center p-6 text-sm text-slate-400 dark:text-zinc-500 leading-normal min-h-[350px]">
+                <div className="w-full flex-1 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-950/30 flex flex-col items-center justify-center p-6 text-sm text-slate-400 dark:text-zinc-550 leading-normal min-h-[350px]">
                   <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
                   Generating personalized cover letter...
                 </div>

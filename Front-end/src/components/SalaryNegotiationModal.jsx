@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
 import { XIcon, WandIcon, GlobeIcon, LinkIcon } from './Icons';
+import Select from 'react-select';
+import { getReactSelectStyles } from '../utils/reactSelectStyles';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -18,6 +20,19 @@ const CopyIcon = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+const CheckIcon = ({ size = 14, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
+  </svg>
+);
+
+const TrendIcon = ({ size = 14, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" />
+    <polyline points="17 6 23 6 23 12" />
   </svg>
 );
 
@@ -222,7 +237,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
             <div className="absolute -bottom-11 flex flex-col items-center -translate-x-1/2 z-10" style={{ left: `${getPct(target)}%` }}>
               <div className="w-2 h-2 bg-indigo-500 rotate-45 mb-0.5" />
               <span className="text-[10px] font-extrabold text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200 dark:border-indigo-500/20 px-2 py-0.5 rounded shadow-sm whitespace-nowrap">
-                🎯 Target: {formatVal(target)}
+                Target: {formatVal(target)}
               </span>
             </div>
           )}
@@ -230,7 +245,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
         
         {negotiationData.benchmarks.marketInsights && (
           <p className="text-xs text-slate-600 dark:text-zinc-400 mt-6 leading-relaxed italic">
-            💡 {negotiationData.benchmarks.marketInsights}
+            Note: {negotiationData.benchmarks.marketInsights}
           </p>
         )}
       </div>
@@ -283,15 +298,13 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                 <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5">
                   Currency
                 </label>
-                <select
-                  value={currency}
-                  onChange={(e) => setCurrency(e.target.value)}
-                  className="w-full pl-3 pr-10 py-2 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold"
-                >
-                  {CURRENCIES.map(c => (
-                    <option key={c.code} value={c.code}>{c.label}</option>
-                  ))}
-                </select>
+                <Select
+                  value={CURRENCIES.map(c => ({ value: c.code, label: c.label })).find(o => o.value === currency)}
+                  onChange={(opt) => setCurrency(opt ? opt.value : 'USD')}
+                  options={CURRENCIES.map(c => ({ value: c.code, label: c.label }))}
+                  styles={getReactSelectStyles()}
+                  id="salary-negotiate-currency"
+                />
               </div>
 
               {/* Offered Salary */}
@@ -444,7 +457,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                         onClick={handleCopy}
                         className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-600 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                       >
-                        {copied ? '✅ Copied!' : <><CopyIcon size={12} /> Copy Draft</>}
+                        {copied ? <><CheckIcon size={12} className="text-emerald-500" /> Copied!</> : <><CopyIcon size={12} /> Copy Draft</>}
                       </button>
                     </div>
 
@@ -459,7 +472,9 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
               </div>
             ) : (
               <div className="flex-1 border border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl flex flex-col items-center justify-center p-6 text-sm text-slate-400 dark:text-zinc-550 leading-normal min-h-[380px]">
-                <div className="text-4xl mb-3">📈</div>
+                <div className="mb-3 text-indigo-500">
+                  <TrendIcon size={36} />
+                </div>
                 <span className="font-bold text-slate-600 dark:text-zinc-400 mb-1">Negotiation Agent Standby</span>
                 <span className="text-xs text-slate-400 dark:text-zinc-500 max-w-sm text-center">
                   Fill in your base offer and target salary goals on the left, then click research to pull market indexes and draft your strategy.

@@ -1,7 +1,13 @@
 import React, {
-  useState, useRef, useEffect, useCallback, useLayoutEffect,
+  useState, useRef, useEffect, useCallback, useLayoutEffect, createContext, useContext,
 } from 'react';
 import { A4_WIDTH_PX, A4_HEIGHT_PX } from '../resumeTemplates/templateSchema.js';
+
+export const SectionActiveContext = createContext({
+  activeSectionId: null,
+  setActiveSectionId: () => {},
+  isSectionActive: false
+});
 
 // ─── EditableText ─────────────────────────────────────────────────────────────
 export const EditableText = ({
@@ -16,14 +22,14 @@ export const EditableText = ({
   const [focused, setFocused] = useState(false);
 
   useEffect(() => {
-    if (!focused && spanRef.current && spanRef.current.textContent !== value) {
-      spanRef.current.textContent = value || '';
+    if (!focused && spanRef.current && spanRef.current.innerHTML !== value) {
+      spanRef.current.innerHTML = value || '';
     }
   }, [value, focused]);
 
   const handleBlur = () => {
     setFocused(false);
-    const newVal = spanRef.current?.textContent?.trim() || '';
+    const newVal = spanRef.current?.innerHTML?.trim() || '';
     if (newVal !== value) onChange?.(newVal);
   };
 
@@ -50,9 +56,8 @@ export const EditableText = ({
       }}
       className={className}
       onMouseDown={(e) => e.stopPropagation()}
-    >
-      {value || (isEmpty ? placeholder : '')}
-    </span>
+      dangerouslySetInnerHTML={{ __html: value || (isEmpty ? placeholder : '') }}
+    />
   );
 };
 
@@ -62,55 +67,55 @@ export const EditableMultiline = ({
   onChange,
   placeholder = '',
   style = {},
+  className = '',
 }) => {
-  const taRef = useRef(null);
-
-  const autoResize = () => {
-    const el = taRef.current;
-    if (!el) return;
-    el.style.height = 'auto';
-    el.style.height = el.scrollHeight + 'px';
-  };
+  const divRef = useRef(null);
+  const [focused, setFocused] = useState(false);
 
   useEffect(() => {
-    if (taRef.current && taRef.current.value !== value) {
-      taRef.current.value = value || '';
-      autoResize();
+    if (!focused && divRef.current && divRef.current.innerHTML !== value) {
+      divRef.current.innerHTML = value || '';
     }
-  }, [value]);
+  }, [value, focused]);
+
+  const handleBlur = () => {
+    setFocused(false);
+    const newVal = divRef.current?.innerHTML?.trim() || '';
+    if (newVal !== value) onChange?.(newVal);
+  };
+
+  const isEmpty = !value && !focused;
 
   return (
-    <textarea
-      ref={taRef}
-      defaultValue={value || ''}
-      placeholder={placeholder}
-      onChange={autoResize}
-      onBlur={(e) => onChange?.(e.target.value)}
-      onMouseDown={(e) => e.stopPropagation()}
-      rows={1}
+    <div
+      ref={divRef}
+      contentEditable
+      suppressContentEditableWarning
+      onFocus={() => setFocused(true)}
+      onBlur={handleBlur}
       style={{
-        display: 'block',
-        width: '100%',
-        resize: 'none',
-        overflow: 'hidden',
-        background: 'transparent',
-        border: 'none',
         outline: 'none',
-        fontFamily: 'inherit',
-        fontSize: 'inherit',
-        color: 'inherit',
-        lineHeight: 'inherit',
-        padding: '0',
-        margin: '0',
         cursor: 'text',
+        minWidth: '4px',
+        width: '100%',
+        minHeight: '20px',
+        display: 'block',
+        whiteSpace: 'pre-wrap',
+        borderBottom: focused ? '1.5px solid #6366f1' : '1px solid transparent',
+        transition: 'border-color 0.15s',
+        color: isEmpty ? '#9ca3af' : undefined,
         ...style,
       }}
+      className={className}
+      onMouseDown={(e) => e.stopPropagation()}
+      dangerouslySetInnerHTML={{ __html: value || (isEmpty ? placeholder : '') }}
     />
   );
 };
 
 // ─── EditableBullets ──────────────────────────────────────────────────────────
 export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) => {
+  const { isSectionActive } = useContext(SectionActiveContext);
   const [hoveredIdx, setHoveredIdx] = useState(null);
 
   if (!editMode && items.length === 0) return null;
@@ -151,7 +156,7 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
           >
             {b}
           </span>
-          {hoveredIdx === i && (
+          {isSectionActive && hoveredIdx === i && (
             <button
               onClick={() => remove(i)}
               onMouseDown={(e) => e.preventDefault()}
@@ -160,14 +165,16 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
           )}
         </li>
       ))}
-      <li style={{ listStyle: 'none', marginLeft: '-16px', marginTop: '3px' }}>
-        <button
-          onClick={addBullet}
-          style={{ fontSize: '7.5pt', color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center', gap: '3px' }}
-        >
-          <span style={{ fontSize: '10px' }}>+</span> Add bullet
-        </button>
-      </li>
+      {isSectionActive && (
+        <li style={{ listStyle: 'none', marginLeft: '-16px', marginTop: '3px' }}>
+          <button
+            onClick={addBullet}
+            style={{ fontSize: '7.5pt', color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', padding: '0', display: 'flex', alignItems: 'center', gap: '3px' }}
+          >
+            <span style={{ fontSize: '10px' }}>+</span> Add bullet
+          </button>
+        </li>
+      )}
     </ul>
   );
 };
@@ -176,6 +183,7 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
 export const EditableSkillChips = ({
   items = [], onChange, editMode, chipStyle = {}, label, inline = false, separator = ', ',
 }) => {
+  const { isSectionActive } = useContext(SectionActiveContext);
   const [adding, setAdding] = useState(false);
   const [inputVal, setInputVal] = useState('');
   const inputRef = useRef(null);
@@ -189,7 +197,9 @@ export const EditableSkillChips = ({
     setInputVal(''); setAdding(false);
   };
 
-  if (!editMode) {
+  const isReallyEditing = editMode && isSectionActive;
+
+  if (!isReallyEditing) {
     if (inline) return <span>{items.join(separator)}</span>;
     return (
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
@@ -254,9 +264,10 @@ export const EditableSkillChips = ({
  * data-block marks this element for the page-break engine.
  * The engine will inject marginTop if the block would cross a page boundary.
  */
-export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDown }) => {
+export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDown, id }) => {
+  const { isSectionActive } = useContext(SectionActiveContext);
   const [active, setActive] = useState(false);
-  const blockId = useRef(`block-${Math.random().toString(36).substr(2, 9)}`).current;
+  const blockId = useRef(id || `block-${Math.random().toString(36).substr(2, 9)}`).current;
   const wrapperRef = useRef(null);
 
   useEffect(() => {
@@ -272,6 +283,8 @@ export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDow
 
   if (!editMode) return <>{children}</>;
 
+  const showControls = active && isSectionActive;
+
   return (
     <div
       ref={wrapperRef}
@@ -280,14 +293,14 @@ export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDow
       style={{
         position: 'relative',
         borderRadius: '4px',
-        outline: active ? '1.5px solid #6366f1' : '1.5px solid transparent',
+        outline: showControls ? '1.5px solid #6366f1' : '1.5px solid transparent',
         transition: 'outline 0.15s',
         marginBottom: '2px',
       }}
       onClick={() => setActive(true)}
       onFocus={() => setActive(true)}
     >
-      {active && (
+      {showControls && (
         <div
           style={{ position: 'absolute', top: '-22px', right: '0', display: 'flex', gap: '2px', background: '#1e1b4b', borderRadius: '5px', padding: '2px 4px', zIndex: 50, boxShadow: '0 2px 8px rgba(0,0,0,0.25)' }}
           onMouseDown={(e) => e.preventDefault()}
@@ -308,9 +321,38 @@ const toolbarBtnStyle = {
 };
 
 // ─── SectionWrapper ───────────────────────────────────────────────────────────
-export const SectionWrapper = ({ children, editMode }) => {
+export const SectionWrapper = ({ children, editMode, id }) => {
+  const context = useContext(SectionActiveContext);
+  const sectionId = useRef(id || `sec-${Math.random().toString(36).substr(2, 9)}`).current;
+
   if (!editMode) return <>{children}</>;
-  return <div data-section style={{ position: 'relative' }}>{children}</div>;
+
+  const isActive = context?.activeSectionId === sectionId;
+
+  return (
+    <SectionActiveContext.Provider value={{
+      activeSectionId: context?.activeSectionId,
+      setActiveSectionId: context?.setActiveSectionId,
+      isSectionActive: isActive
+    }}>
+      <div 
+        data-section 
+        style={{ 
+          position: 'relative', 
+          outline: isActive ? '1px dashed rgba(99, 102, 241, 0.4)' : 'none',
+          outlineOffset: '4px',
+          borderRadius: '4px',
+          cursor: 'pointer'
+        }}
+        onClick={(e) => {
+          e.stopPropagation();
+          context?.setActiveSectionId?.(sectionId);
+        }}
+      >
+        {children}
+      </div>
+    </SectionActiveContext.Provider>
+  );
 };
 
 // ─── useDebounce ──────────────────────────────────────────────────────────────
@@ -330,6 +372,7 @@ const CVCanvas = ({ resumeData, onUpdate, TemplateComponent }) => {
   const cvRef = useRef(null);
   const [pageCount, setPageCount] = useState(1);
   const [injectedStyles, setInjectedStyles] = useState('');
+  const [activeSectionId, setActiveSectionId] = useState(null);
 
   const runPageBreaks = useCallback(() => {
     const container = cvRef.current;
@@ -406,51 +449,64 @@ const CVCanvas = ({ resumeData, onUpdate, TemplateComponent }) => {
     return () => observer.disconnect();
   }, [runPageBreaks, TemplateComponent, resumeData]);
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const canvasEl = cvRef.current;
+      if (canvasEl && !canvasEl.contains(e.target)) {
+        setActiveSectionId(null);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   return (
-    <div style={{ position: 'relative', width: `${A4_WIDTH_PX}px`, minHeight: `${A4_HEIGHT_PX}px` }}>
-      <style>{`
-        .cv-mask-layer > div {
-          background: transparent !important;
-        }
-      `}</style>
-      <style id="cv-dynamic-margins">{injectedStyles}</style>
+    <SectionActiveContext.Provider value={{ activeSectionId, setActiveSectionId }}>
+      <div style={{ position: 'relative', width: `${A4_WIDTH_PX}px`, minHeight: `${A4_HEIGHT_PX}px` }}>
+        <style>{`
+          .cv-mask-layer > div {
+            background: transparent !important;
+          }
+        `}</style>
+        <style id="cv-dynamic-margins">{injectedStyles}</style>
 
-      {/* ── Visual A4 Background Cards ── */}
-      {Array.from({ length: Math.max(1, pageCount) }).map((_, i) => (
-        <div key={i} style={{
-          position: 'absolute',
-          top: `${i * (A4_HEIGHT_PX + PAGE_GAP)}px`,
-          left: 0,
-          width: '100%',
-          height: `${A4_HEIGHT_PX}px`,
-          background: 'white',
-          boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
-          borderRadius: '4px',
-          zIndex: 0,
-          pointerEvents: 'none',
-        }} />
-      ))}
+        {/* ── Visual A4 Background Cards ── */}
+        {Array.from({ length: Math.max(1, pageCount) }).map((_, i) => (
+          <div key={i} style={{
+            position: 'absolute',
+            top: `${i * (A4_HEIGHT_PX + PAGE_GAP)}px`,
+            left: 0,
+            width: '100%',
+            height: `${A4_HEIGHT_PX}px`,
+            background: 'white',
+            boxShadow: '0 4px 24px rgba(0,0,0,0.12)',
+            borderRadius: '4px',
+            zIndex: 0,
+            pointerEvents: 'none',
+          }} />
+        ))}
 
-      {/* ── Single CV Render Layer ── */}
-      <div
-        ref={cvRef}
-        className="cv-mask-layer"
-        style={{
-          width: '100%',
-          position: 'relative',
-          zIndex: 1,
-          // The mask hides the continuous DOM exactly in the gap regions
-          WebkitMaskImage: `repeating-linear-gradient(to bottom, black 0px, black ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX + PAGE_GAP}px)`,
-          maskImage: `repeating-linear-gradient(to bottom, black 0px, black ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX + PAGE_GAP}px)`,
-        }}
-      >
-        <TemplateComponent
-          resumeData={resumeData}
-          onUpdate={onUpdate}
-          editMode
-        />
+        {/* ── Single CV Render Layer ── */}
+        <div
+          ref={cvRef}
+          className="cv-mask-layer"
+          style={{
+            width: '100%',
+            position: 'relative',
+            zIndex: 1,
+            // The mask hides the continuous DOM exactly in the gap regions
+            WebkitMaskImage: `repeating-linear-gradient(to bottom, black 0px, black ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX + PAGE_GAP}px)`,
+            maskImage: `repeating-linear-gradient(to bottom, black 0px, black ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX}px, transparent ${A4_HEIGHT_PX + PAGE_GAP}px)`,
+          }}
+        >
+          <TemplateComponent
+            resumeData={resumeData}
+            onUpdate={onUpdate}
+            editMode
+          />
+        </div>
       </div>
-    </div>
+    </SectionActiveContext.Provider>
   );
 };
 
@@ -491,12 +547,131 @@ const InlineCVEditor = ({ resumeData, onUpdate, selectedTemplate = 'classic' }) 
       background: '#f1f5f9',
       minHeight: '100%',
       width: '100%',
+      position: 'relative',
     }}>
       <CVCanvas
         resumeData={resumeData}
         onUpdate={onUpdate}
         TemplateComponent={TemplateComponent}
       />
+      <FloatingTextToolbar />
+    </div>
+  );
+};
+
+const FloatingTextToolbar = () => {
+  const [visible, setVisible] = useState(false);
+  const [coords, setCoords] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.rangeCount === 0 || sel.isCollapsed) {
+        setVisible(false);
+        return;
+      }
+
+      const range = sel.getRangeAt(0);
+      let node = range.commonAncestorContainer;
+      if (node.nodeType === 3) node = node.parentNode;
+
+      let isEditable = false;
+      let curr = node;
+      while (curr) {
+        if (curr.contentEditable === 'true') {
+          isEditable = true;
+          break;
+        }
+        curr = curr.parentNode;
+      }
+
+      if (!isEditable) {
+        setVisible(false);
+        return;
+      }
+
+      const rect = range.getBoundingClientRect();
+      setCoords({
+        top: rect.top + window.scrollY - 36, // float 36px above selection
+        left: rect.left + window.scrollX + rect.width / 2
+      });
+      setVisible(true);
+    };
+
+    document.addEventListener('selectionchange', handleSelectionChange);
+    return () => document.removeEventListener('selectionchange', handleSelectionChange);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        top: `${coords.top}px`,
+        left: `${coords.left}px`,
+        transform: 'translateX(-50%)',
+        background: '#1e1b4b',
+        border: '1px solid #4338ca',
+        borderRadius: '6px',
+        padding: '3px 5px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '4px',
+        boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        zIndex: 1000,
+        pointerEvents: 'auto',
+      }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <button
+        onClick={() => document.execCommand('bold')}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'white',
+          fontWeight: 'bold',
+          cursor: 'pointer',
+          padding: '2px 6px',
+          fontSize: '10px',
+          borderRadius: '3px',
+        }}
+      >
+        B
+      </button>
+      <button
+        onClick={() => {
+          const url = prompt('Enter URL (e.g. https://example.com):');
+          if (url) {
+            document.execCommand('createLink', false, url);
+          }
+        }}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: 'white',
+          cursor: 'pointer',
+          padding: '2px 6px',
+          fontSize: '10px',
+          borderRadius: '3px',
+        }}
+      >
+        🔗 Link
+      </button>
+      <button
+        onClick={() => document.execCommand('unlink')}
+        style={{
+          background: 'none',
+          border: 'none',
+          color: '#f87171',
+          cursor: 'pointer',
+          padding: '2px 6px',
+          fontSize: '10px',
+          borderRadius: '3px',
+        }}
+      >
+        Unlink
+      </button>
     </div>
   );
 };

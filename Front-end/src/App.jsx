@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import axios from 'axios';
-import LoginPage from './components/LoginPage';
+import HomePage from './components/HomePage';
 import JobsTable, { useToast, ToastContainer } from './components/JobsTable';
 import ResumeUpload from './components/ResumeUpload';
 import ResumeBuilder from './components/ResumeBuilder';
@@ -9,8 +10,17 @@ import AnalyticsDashboard from './components/AnalyticsDashboard';
 import InteractiveBackground from './components/InteractiveBackground';
 import JobDiscoverer from './components/JobDiscoverer';
 import AdminPanel from './components/AdminPanel';
-import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon } from './components/Icons';
+import CoverLetterTab from './components/CoverLetterTab';
+import Select from 'react-select';
+import { getReactSelectStyles } from './utils/reactSelectStyles';
+import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon, FileTextIcon } from './components/Icons';
 import { setAuth, setResumeInfo, setResumesInfo, toggleTheme, setActiveTab, logoutUser } from './store/authSlice';
+import PricingPage from './pages/PricingPage';
+import FAQPage from './pages/FAQPage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
+import TermsPage from './pages/TermsPage';
+import ContactPage from './pages/ContactPage';
+import PaymentGate from './components/PaymentGate';
 import './index.css';
 
 const ShieldAlertIcon = ({ size = 15 }) => (
@@ -163,7 +173,7 @@ const Dashboard = () => {
     setBillingLoading(true);
     setProfileError('');
     try {
-      const res = await axios.post(`${BACKEND}/stripe/cancel-subscription`, {}, { withCredentials: true });
+      const res = await axios.post(`${BACKEND}/payment/razorpay/cancel`, {}, { withCredentials: true });
       if (res.data.success) {
         const statusRes = await axios.get(`${BACKEND}/auth/status`);
         if (statusRes.data.authenticated) {
@@ -190,7 +200,7 @@ const Dashboard = () => {
             resumeData: statusRes.data.resumeData
           }));
         }
-        toast.success('Subscription cancelled. Reverted to Free tier.');
+        toast.success('Subscription cancelled successfully.');
       }
     } catch (err) {
       setProfileError(err.response?.data?.error || 'Failed to cancel subscription.');
@@ -317,8 +327,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleSelectResume = async (e) => {
-    const id = e.target.value;
+  const handleSelectResume = async (val) => {
+    const id = val?.target ? val.target.value : (val?.value || val);
+    if (!id) return;
     try {
       const res = await axios.post(`${BACKEND}/resume/select`, { id });
       dispatch(setAuth({
@@ -375,6 +386,7 @@ const Dashboard = () => {
           <nav className="p-4 space-y-1">
             <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+            <NavTab id="cover-letter" label="Cover Letter" Icon={FileTextIcon} active={activeTab === 'cover-letter'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             {user?.role === 'owner' && (
@@ -418,18 +430,13 @@ const Dashboard = () => {
                     Manage
                   </button>
                 </div>
-                <select
-                  value={activeResumeId}
+                <Select
+                  value={resumes.map(r => ({ value: r.id, label: r.title })).find(o => o.value === activeResumeId)}
                   onChange={handleSelectResume}
-                  className="w-full bg-bg-card border border-border-card text-[11px] font-medium px-2.5 py-2 rounded-lg text-text-main outline-none focus:border-brand-primary transition-all cursor-pointer"
+                  options={resumes.map(r => ({ value: r.id, label: r.title }))}
+                  styles={getReactSelectStyles()}
                   id="resume-selector-dropdown"
-                >
-                  {resumes.map(r => (
-                    <option key={r.id} value={r.id}>
-                      {r.title}
-                    </option>
-                  ))}
-                </select>
+                />
               </div>
             )}
 
@@ -523,6 +530,7 @@ const Dashboard = () => {
 
           {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
           {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
+          {activeTab === 'cover-letter' && <CoverLetterTab user={user} />}
           {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
           {activeTab === 'analytics' && <AnalyticsDashboard />}
           {activeTab === 'admin' && user?.role === 'owner' && <AdminPanel />}
@@ -563,19 +571,22 @@ const Dashboard = () => {
       {/* Profile Settings Modal */}
       {profileModalOpen && (
         <div
-          className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 animate-fade-in animate-fade-in"
+          className="fixed inset-0 bg-slate-900/40 dark:bg-black/60 backdrop-blur-[2px] z-50 flex items-center justify-center p-4 animate-fade-in pointer-events-auto"
           onClick={(e) => e.target === e.currentTarget && !savingProfile && setProfileModalOpen(false)}
         >
           {/* Modal content */}
-          <div className="relative w-full max-w-md bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 overflow-hidden animate-fade-in pointer-events-auto">
+          <div className="relative w-full max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-[28px] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.25)] border border-slate-200/60 dark:border-zinc-800/60 overflow-hidden animate-fade-in pointer-events-auto flex flex-col max-h-[90vh]">
             {/* Header */}
-            <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between">
-              <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Profile Settings</h2>
+            <div className="px-6 py-5 border-b border-slate-100 dark:border-zinc-850 flex items-center justify-between shrink-0">
+              <div>
+                <h2 className="text-base font-bold text-slate-900 dark:text-slate-50">Profile Settings</h2>
+                <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5">Manage your details, referrals, and subscription limits.</p>
+              </div>
               <button
                 type="button"
                 disabled={savingProfile}
                 onClick={() => setProfileModalOpen(false)}
-                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-zinc-200 hover:bg-slate-100/80 dark:hover:bg-zinc-800 transition-colors disabled:opacity-50 border-0 bg-transparent cursor-pointer"
                 aria-label="Close dialog"
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -585,21 +596,21 @@ const Dashboard = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleProfileSubmit} className="p-6 space-y-4">
+            <form onSubmit={handleProfileSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 min-h-0 scrollbar-thin">
               {/* Picture Upload */}
-              <div className="flex flex-col items-center gap-3">
+              <div className="flex flex-col items-center gap-2">
                 <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 dark:border-zinc-700 group-hover:border-indigo-500 transition-colors bg-slate-100 dark:bg-zinc-800 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 dark:border-zinc-700 group-hover:border-indigo-500 group-hover:ring-4 group-hover:ring-indigo-500/10 transition-all duration-300 bg-slate-50 dark:bg-zinc-850 flex items-center justify-center shadow-inner">
                     {previewUrl ? (
                       <img src={previewUrl} alt="Profile preview" className="w-full h-full object-cover" />
                     ) : user?.picture ? (
                       <img src={user.picture.startsWith('http') ? user.picture : `${BACKEND}${user.picture}`} alt={user.name} className="w-full h-full object-cover" />
                     ) : (
-                      <span className="text-2xl font-bold text-slate-400">{user?.name?.charAt(0) || 'U'}</span>
+                      <span className="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{user?.name?.charAt(0) || 'U'}</span>
                     )}
                   </div>
-                  <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <div className="absolute inset-0 bg-black/45 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[1px]">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
                       <circle cx="12" cy="13" r="4"/>
                     </svg>
@@ -616,56 +627,57 @@ const Dashboard = () => {
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 transition-colors"
+                  className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors bg-transparent border-0 cursor-pointer"
                 >
                   Change Photo
                 </button>
               </div>
 
-              {/* Name */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  className="input"
-                  placeholder="Your Name"
-                  id="profile-name-input"
-                />
-              </div>
+              {/* Inputs */}
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">Full Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={profileName}
+                    onChange={(e) => setProfileName(e.target.value)}
+                    className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-medium transition-all"
+                    placeholder="Your Name"
+                    id="profile-name-input"
+                  />
+                </div>
 
-              {/* Email */}
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={profileEmail}
-                  onChange={(e) => setProfileEmail(e.target.value)}
-                  className="input"
-                  placeholder="your.email@example.com"
-                  id="profile-email-input"
-                />
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">Email Address</label>
+                  <input
+                    type="email"
+                    required
+                    value={profileEmail}
+                    onChange={(e) => setProfileEmail(e.target.value)}
+                    className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-medium transition-all"
+                    placeholder="your.email@example.com"
+                    id="profile-email-input"
+                  />
+                </div>
               </div>
 
               {/* Referral Program */}
-              <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+              <div className="pt-4 border-t border-slate-150 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
+                  <h3 className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">
                     Referral Program
                   </h3>
                 </div>
-                <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-normal">
-                  Invite your friends to RecoCareer.ai! When they sign up using your link, we will track your clicks and their subscription upgrades below.
+                <p className="text-[11px] text-slate-450 dark:text-zinc-455 leading-relaxed">
+                  Invite friends to RecoCareer.ai! When they sign up using your link, we will track your stats.
                 </p>
                 <div className="flex items-center gap-2">
                   <input
                     type="text"
                     readOnly
                     value={`${BACKEND}/r/${user?.referralCode || ''}`}
-                    className="w-full bg-slate-50 dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-xs font-mono rounded-lg px-2.5 py-1.5 focus:outline-none dark:text-slate-200"
+                    className="w-full bg-slate-50/50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800 text-[11px] font-mono rounded-xl px-3 py-2 focus:outline-none text-slate-600 dark:text-slate-400 shrink min-w-0"
                     id="referral-url-input"
                   />
                   <button
@@ -674,32 +686,32 @@ const Dashboard = () => {
                       navigator.clipboard.writeText(`${BACKEND}/r/${user?.referralCode || ''}`);
                       toast.success('Referral link copied to clipboard!');
                     }}
-                    className="text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-200/50 dark:border-indigo-500/20 px-3 py-1.5 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-500/25 transition-all shrink-0"
+                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-150/40 dark:border-indigo-500/20 px-3.5 py-2 rounded-xl hover:bg-indigo-100/70 dark:hover:bg-indigo-500/20 transition-all shrink-0 cursor-pointer"
                   >
                     Copy
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-3 bg-slate-50/50 dark:bg-zinc-800/20 p-3 rounded-xl border border-slate-200/30 dark:border-zinc-800/40">
-                  <div className="text-center">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Link Clicks</span>
-                    <span className="text-lg font-bold text-slate-800 dark:text-slate-200 leading-none">{user?.referralClicks || 0}</span>
+                <div className="grid grid-cols-2 gap-3 bg-slate-50/40 dark:bg-zinc-950/20 p-3 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
+                  <div className="text-center py-1">
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block mb-0.5">Link Clicks</span>
+                    <span className="text-xl font-extrabold text-slate-800 dark:text-slate-100 leading-none">{user?.referralClicks || 0}</span>
                   </div>
-                  <div className="text-center border-l border-slate-200/60 dark:border-zinc-800/50">
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider block">Pro Converts</span>
-                    <span className="text-lg font-bold text-indigo-600 dark:text-indigo-400 leading-none">{user?.referralConversions || 0}</span>
+                  <div className="text-center py-1 border-l border-slate-200/50 dark:border-zinc-800/40">
+                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block mb-0.5">Pro Converts</span>
+                    <span className="text-xl font-extrabold text-indigo-500 dark:text-indigo-400 leading-none">{user?.referralConversions || 0}</span>
                   </div>
                 </div>
               </div>
 
               {/* Billing & Subscriptions */}
-              <div className="pt-4 border-t border-slate-100 dark:border-zinc-800 space-y-3">
+              <div className="pt-4 border-t border-slate-150 dark:border-zinc-800 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">
+                  <h3 className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
                     Subscription & Usage
                   </h3>
-                  <span className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                  <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
                     user?.subscriptionTier === 'pro'
-                      ? 'bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/30'
+                      ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
                       : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
                   }`}>
                     {user?.subscriptionTier === 'pro' ? 'Pro Tier' : 'Free Tier'}
@@ -707,18 +719,23 @@ const Dashboard = () => {
                 </div>
 
                 {/* Usage Metrics */}
-                <div className="space-y-2.5 bg-slate-50 dark:bg-zinc-800/30 p-3 rounded-xl border border-slate-100 dark:border-zinc-800/50">
+                <div className="space-y-3 bg-slate-50/50 dark:bg-zinc-950/10 p-3.5 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
                   {/* Tracked Jobs Limit */}
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-600 dark:text-zinc-400">Jobs Tracked</span>
-                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-semibold text-slate-650 dark:text-zinc-400">Jobs Tracked</span>
+                      <span className={`font-bold ${user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5 ? 'text-rose-500' : 'text-slate-800 dark:text-zinc-200'}`}>
                         {user?.jobCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '5'}
+                        {user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5 && ' (Limit Exceeded)'}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-200/60 dark:bg-zinc-805 h-2 rounded-full overflow-hidden p-[1px]">
                       <div
-                        className="bg-indigo-600 dark:bg-indigo-500 h-full rounded-full transition-all duration-300"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5
+                            ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                            : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+                        }`}
                         style={{
                           width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.jobCount || 0) / 5) * 100, 100)}%`
                         }}
@@ -727,16 +744,21 @@ const Dashboard = () => {
                   </div>
 
                   {/* AI Features Limit */}
-                  <div>
-                    <div className="flex justify-between text-xs mb-1">
-                      <span className="text-slate-600 dark:text-zinc-400">AI Features Usage</span>
-                      <span className="font-semibold text-slate-800 dark:text-zinc-200">
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between text-[11px]">
+                      <span className="font-semibold text-slate-650 dark:text-zinc-400">AI Features Usage</span>
+                      <span className={`font-bold ${user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3 ? 'text-rose-500' : 'text-slate-800 dark:text-zinc-200'}`}>
                         {user?.aiRequestCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '3'}
+                        {user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3 && ' (Over Limit)'}
                       </span>
                     </div>
-                    <div className="w-full bg-slate-200 dark:bg-zinc-700 h-1.5 rounded-full overflow-hidden">
+                    <div className="w-full bg-slate-200/60 dark:bg-zinc-805 h-2 rounded-full overflow-hidden p-[1px]">
                       <div
-                        className="bg-violet-600 dark:bg-violet-500 h-full rounded-full transition-all duration-300"
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3
+                            ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                            : 'bg-gradient-to-r from-violet-500 to-indigo-500'
+                        }`}
                         style={{
                           width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.aiRequestCount || 0) / 3) * 100, 100)}%`
                         }}
@@ -745,39 +767,35 @@ const Dashboard = () => {
                   </div>
                 </div>
 
-                {/* Subscription Action Trigger */}
-                <div className="pt-1 flex items-center justify-between">
+                {/* Subscription Action Trigger Card */}
+                <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-violet-50/50 dark:from-indigo-950/10 dark:via-purple-950/5 dark:to-zinc-950/20 p-3.5 rounded-2xl border border-indigo-100/50 dark:border-indigo-500/10 flex items-center justify-between gap-3 mt-1.5">
                   {user?.subscriptionTier === 'pro' ? (
                     <>
-                      <p className="text-[11px] text-slate-400 dark:text-zinc-500 max-w-[200px]">
+                      <p className="text-[11px] text-slate-450 dark:text-zinc-500 leading-normal max-w-[200px]">
                         You have unlimited access to all features. Need to downgrade?
                       </p>
                       <button
                         type="button"
                         disabled={billingLoading}
                         onClick={handleCancelSubscription}
-                        className="text-xs font-semibold text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-50 flex items-center gap-1.5"
+                        className="text-xs font-bold text-rose-500 hover:text-rose-600 disabled:opacity-50 flex items-center gap-1 cursor-pointer bg-transparent border-0"
                       >
-                        {billingLoading ? (
-                          <div className="w-3.5 h-3.5 border-2 border-red-500 border-t-transparent rounded-full animate-spin" />
-                        ) : null}
+                        {billingLoading && <div className="w-3 h-3 border border-rose-500 border-t-transparent rounded-full animate-spin" />}
                         Cancel Pro
                       </button>
                     </>
                   ) : (
                     <>
-                      <p className="text-[11px] text-slate-400 dark:text-zinc-500 max-w-[200px]">
-                        Get unlimited jobs, resumes, search imports, and AI tailoring.
+                      <p className="text-[11px] text-slate-450 dark:text-zinc-455 leading-normal max-w-[210px]">
+                        Unlock unlimited jobs, resumes, search imports, and advanced AI matching.
                       </p>
                       <button
                         type="button"
                         disabled={billingLoading}
                         onClick={handleUpgrade}
-                        className="text-xs font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-3.5 py-1.5 rounded-lg shadow-sm shadow-indigo-500/25 transition-all disabled:opacity-50 flex items-center gap-1.5"
+                        className="text-[11px] font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-98 transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shrink-0 border-0"
                       >
-                        {billingLoading ? (
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        ) : null}
+                        {billingLoading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
                         Upgrade to Pro
                       </button>
                     </>
@@ -787,45 +805,46 @@ const Dashboard = () => {
 
               {/* Error Box */}
               {profileError && (
-                <div className="p-3 text-xs bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-lg text-red-600 dark:text-red-400 animate-fade-in">
+                <div className="p-3 text-xs bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-600 dark:text-red-400 animate-fade-in">
                   {profileError}
                 </div>
               )}
 
               {/* Success Box */}
               {profileSuccess && (
-                <div className="p-3 text-xs bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg text-emerald-600 dark:text-emerald-400 animate-fade-in">
+                <div className="p-3 text-xs bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 animate-fade-in">
                   Profile updated successfully!
                 </div>
               )}
-
-              {/* Footer Actions */}
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  disabled={savingProfile}
-                  onClick={() => setProfileModalOpen(false)}
-                  className="btn-ghost flex-1"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingProfile}
-                  className="btn-primary flex-1 flex items-center justify-center gap-2"
-                  id="profile-save-btn"
-                >
-                  {savingProfile ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
-                </button>
-              </div>
             </form>
+
+            {/* Footer Actions */}
+            <div className="px-6 py-4 bg-slate-50 dark:bg-zinc-950 border-t border-slate-100 dark:border-zinc-850/80 flex gap-3 shrink-0">
+              <button
+                type="button"
+                disabled={savingProfile}
+                onClick={() => setProfileModalOpen(false)}
+                className="flex-1 py-2.5 text-xs font-bold text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-850 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer border-0"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={savingProfile}
+                onClick={handleProfileSubmit}
+                className="flex-1 py-2.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl transition-all shadow-md shadow-indigo-500/10 cursor-pointer flex items-center justify-center gap-1.5 border-0"
+                id="profile-save-btn"
+              >
+                {savingProfile ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  'Save Changes'
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -837,7 +856,7 @@ const Dashboard = () => {
 // ─── Root App ─────────────────────────────────────────────────────────────────
 function App() {
   const dispatch = useDispatch();
-  const { authenticated, isDark } = useSelector(state => state.auth);
+  const { authenticated, isDark, user } = useSelector(state => state.auth);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -933,11 +952,64 @@ function App() {
     document.documentElement.classList.toggle('dark', isDark);
   }, [isDark]);
 
+  const toggleThemeHandler = () => dispatch(toggleTheme());
+
+  const handleUpgradeSuccess = () => {
+    axios.get(`${BACKEND}/auth/status`)
+      .then(res => {
+        if (res.data.authenticated) {
+          dispatch(setAuth({
+            authenticated: true,
+            user: { 
+              email: res.data.email, 
+              name: res.data.name, 
+              picture: res.data.picture, 
+              provider: res.data.provider || 'google',
+              hasGoogleTokens: res.data.hasGoogleTokens,
+              hasMicrosoftTokens: res.data.hasMicrosoftTokens,
+              subscriptionTier: res.data.subscriptionTier || 'free',
+              stripeSubscriptionId: res.data.stripeSubscriptionId || '',
+              aiRequestCount: res.data.aiRequestCount || 0,
+              role: res.data.role || 'user',
+              tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+              referralCode: res.data.referralCode || '',
+              referralClicks: res.data.referralClicks || 0,
+              referralConversions: res.data.referralConversions || 0
+            },
+            resumeName: res.data.resumeName || null,
+            resumeData: res.data.resumeData || null,
+          }));
+        }
+      });
+  };
+
+  const handleLogout = () => {
+    dispatch(logoutUser());
+  };
+
   if (!authenticated) {
     return (
       <>
         <InteractiveBackground />
-        <LoginPage isDark={isDark} onToggleTheme={() => dispatch(toggleTheme())} />
+        <Routes>
+          <Route path="/" element={<HomePage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+          <Route path="/pricing" element={<PricingPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+          <Route path="/faq" element={<FAQPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+          <Route path="/privacy" element={<PrivacyPolicyPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+          <Route path="/terms" element={<TermsPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+          <Route path="/contact" element={<ContactPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </>
+    );
+  }
+
+  // Gated: only paid users can access dashboard
+  if (user?.subscriptionTier !== 'pro') {
+    return (
+      <>
+        <InteractiveBackground />
+        <PaymentGate user={user} onUpgradeSuccess={handleUpgradeSuccess} handleLogout={handleLogout} />
       </>
     );
   }

@@ -202,3 +202,111 @@
 .animate-slide-in {
   animation: slideIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* ─── Neomorphism Design System ──────────────────────────────────────────────── */
+
+:root {
+  --neo-bg: #eef2f7;
+  --neo-shadow-dark: #c8cdd6;
+  --neo-shadow-light: #ffffff;
+}
+
+.dark {
+  --neo-bg: #151c2c;
+  --neo-shadow-dark: #0c1018;
+  --neo-shadow-light: #1e2840;
+}
+
+/* Neo Card – extruded raised surface */
+.neo-card {
+  background: var(--neo-bg);
+  box-shadow: 8px 8px 20px var(--neo-shadow-dark), -8px -8px 20px var(--neo-shadow-light);
+  border-radius: 20px;
+  transition: box-shadow 0.25s ease, transform 0.25s ease;
+}
+.neo-card:hover {
+  box-shadow: 10px 10px 26px var(--neo-shadow-dark), -10px -10px 26px var(--neo-shadow-light);
+  transform: translateY(-2px);
+}
+
+/* Neo Card Inset – pressed-in surface */
+.neo-card-inset {
+  background: var(--neo-bg);
+  box-shadow: inset 6px 6px 14px var(--neo-shadow-dark), inset -6px -6px 14px var(--neo-shadow-light);
+  border-radius: 16px;
+}
+
+/* Neo Button – clickable raised pill */
+.neo-btn {
+  background: var(--neo-bg);
+  box-shadow: 5px 5px 12px var(--neo-shadow-dark), -5px -5px 12px var(--neo-shadow-light);
+  border-radius: 14px;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+  cursor: pointer;
+  border: none;
+}
+.neo-btn:hover {
+  box-shadow: 7px 7px 16px var(--neo-shadow-dark), -7px -7px 16px var(--neo-shadow-light);
+  transform: translateY(-1px);
+}
+.neo-btn:active {
+  box-shadow: inset 4px 4px 10px var(--neo-shadow-dark), inset -4px -4px 10px var(--neo-shadow-light);
+  transform: translateY(0);
+}
+
+/* Neo Input – inset field */
+.neo-input {
+  background: var(--neo-bg);
+  box-shadow: inset 4px 4px 10px var(--neo-shadow-dark), inset -4px -4px 10px var(--neo-shadow-light);
+  border: none;
+  border-radius: 12px;
+  outline: none;
+  transition: box-shadow 0.2s ease;
+  color: var(--text-main);
+}
+.neo-input:focus {
+  box-shadow: inset 5px 5px 14px var(--neo-shadow-dark), inset -5px -5px 14px var(--neo-shadow-light), 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+/* Neo surface background helper */
+.neo-surface {
+  background: var(--neo-bg);
+}
+
+/* Public page wrapper */
+.public-page {
+  min-height: 100vh;
+  background: var(--neo-bg);
+}
+
+/* Gradient text utility */
+.text-gradient {
+  background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #a855f7 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Floating animation */
+@keyframes floatUp {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: floatUp 3s ease-in-out infinite;
+}
+
+/* Pulse glow */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(99, 102, 241, 0.2); }
+  50% { box-shadow: 0 0 40px rgba(99, 102, 241, 0.4); }
+}
+.animate-pulse-glow {
+  animation: pulseGlow 2.5s ease-in-out infinite;
+}
+
+/* Accordion transition */
+.accordion-content {
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+}

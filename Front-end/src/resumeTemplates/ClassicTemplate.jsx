@@ -1,6 +1,6 @@
 import React from 'react';
 import { TEMPLATE_TOKENS, resolveTheme } from './templateSchema.js';
-import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper } from '../components/InlineCVEditor.jsx';
+import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, SectionActiveContext } from '../components/InlineCVEditor.jsx';
 
 /**
  * Classic Template — Georgia serif, single-column, traditional layout.
@@ -11,6 +11,13 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   const t = resolveTheme('classic', rawTheme || resumeData.theme);
   const s = TEMPLATE_TOKENS.classic.styles(t);
   const skills = resumeData.skills || {};
+
+  const { isSectionActive } = React.useContext(SectionActiveContext);
+  const addBtn = (onClick, label) => (editMode && isSectionActive) ? (
+    <button onClick={onClick} style={{ width: '100%', padding: '6px', marginTop: '4px', background: 'transparent', border: '1px dashed #d1d5db', borderRadius: '4px', cursor: 'pointer', fontSize: '8pt', color: '#6b7280' }}>
+      {label}
+    </button>
+  ) : null;
 
   const updPI = (k) => (v) => onUpdate?.({ personalInfo: { ...p, [k]: v } });
   const updSummary = (v) => onUpdate?.({ summary: v });
@@ -71,8 +78,12 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
     onUpdate?.({ projects: arr });
   };
 
-  const T = editMode ? EditableText : ({ children }) => <span>{children}</span>;
-  const ML = editMode ? EditableMultiline : ({ children }) => <span style={{ whiteSpace: 'pre-wrap' }}>{children}</span>;
+  const T = editMode ? EditableText : ({ children, value }) => (
+    <span dangerouslySetInnerHTML={{ __html: value || children || '' }} />
+  );
+  const ML = editMode ? EditableMultiline : ({ children, value }) => (
+    <span style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: value || children || '' }} />
+  );
 
   return (
     <div style={{ fontFamily: TEMPLATE_TOKENS.classic.fontFamily, fontSize: TEMPLATE_TOKENS.classic.fontSize, color: t.primary, background: '#fff', padding: TEMPLATE_TOKENS.classic.bodyPadding, maxWidth: TEMPLATE_TOKENS.classic.maxWidth, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
@@ -121,7 +132,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
           <div style={s.section}>
             <div style={s.sectionTitle}>Experience</div>
             {(resumeData.experience || []).map((exp, i) => (
-              <BlockWrapper key={i} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
+              <BlockWrapper key={i} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
                 <div style={s.expItem}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
@@ -148,11 +159,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
                 </div>
               </BlockWrapper>
             ))}
-            {editMode && (
-              <button onClick={addExp} style={{ width: '100%', padding: '6px', marginTop: '4px', background: 'transparent', border: '1px dashed #d1d5db', borderRadius: '4px', cursor: 'pointer', fontSize: '8pt', color: '#6b7280' }}>
-                + Add Experience
-              </button>
-            )}
+            {addBtn(addExp, '+ Add Experience')}
           </div>
         </SectionWrapper>
       )}
@@ -163,7 +170,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
           <div style={s.section}>
             <div style={s.sectionTitle}>Education</div>
             {(resumeData.education || []).map((edu, i) => (
-              <BlockWrapper key={i} editMode={editMode} onDelete={() => removeEdu(i)}>
+              <BlockWrapper key={i} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
                 <div style={{ marginBottom: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
@@ -185,11 +192,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
                 </div>
               </BlockWrapper>
             ))}
-            {editMode && (
-              <button onClick={addEdu} style={{ width: '100%', padding: '6px', marginTop: '4px', background: 'transparent', border: '1px dashed #d1d5db', borderRadius: '4px', cursor: 'pointer', fontSize: '8pt', color: '#6b7280' }}>
-                + Add Education
-              </button>
-            )}
+            {addBtn(addEdu, '+ Add Education')}
           </div>
         </SectionWrapper>
       )}
@@ -222,7 +225,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
           <div style={s.section}>
             <div style={s.sectionTitle}>Projects</div>
             {(resumeData.projects || []).map((pr, i) => (
-              <BlockWrapper key={i} editMode={editMode} onDelete={() => removePr(i)}>
+              <BlockWrapper key={i} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
                 <div style={s.expItem}>
                   <div style={s.jobTitle}>
                     <T value={pr.name || ''} onChange={updPr(i, 'name')} placeholder="Project Name" bold />
@@ -237,11 +240,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
                 </div>
               </BlockWrapper>
             ))}
-            {editMode && (
-              <button onClick={addPr} style={{ width: '100%', padding: '6px', marginTop: '4px', background: 'transparent', border: '1px dashed #d1d5db', borderRadius: '4px', cursor: 'pointer', fontSize: '8pt', color: '#6b7280' }}>
-                + Add Project
-              </button>
-            )}
+            {addBtn(addPr, '+ Add Project')}
           </div>
         </SectionWrapper>
       )}

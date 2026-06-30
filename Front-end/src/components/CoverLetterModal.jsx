@@ -9,6 +9,8 @@ import {
   AlertTriangleIcon,
   RefreshIcon
 } from './Icons';
+import Select from 'react-select';
+import { getReactSelectStyles } from '../utils/reactSelectStyles';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -20,11 +22,35 @@ const INDUSTRIES = [
 ];
 
 const TONES = [
-  { id: 'Professional', emoji: '💼', desc: 'Formal & structured' },
-  { id: 'Confident', emoji: '🎯', desc: 'Assertive & results-driven' },
-  { id: 'Creative', emoji: '✨', desc: 'Unique & personality-forward' },
-  { id: 'Executive', emoji: '👔', desc: 'Authoritative & commanding' },
-  { id: 'Friendly', emoji: '😊', desc: 'Warm & approachable' },
+  { id: 'Professional', icon: (
+    <svg className="w-4 h-4 text-brand-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+      <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+    </svg>
+  ), desc: 'Formal & structured' },
+  { id: 'Confident', icon: (
+    <svg className="w-4 h-4 text-brand-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <circle cx="12" cy="12" r="10" />
+      <circle cx="12" cy="12" r="6" />
+      <circle cx="12" cy="12" r="2" />
+    </svg>
+  ), desc: 'Assertive & results-driven' },
+  { id: 'Creative', icon: (
+    <svg className="w-4 h-4 text-brand-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <path d="M15 4V2M15 16v-2M8 9h2M20 9h2M3 21l9-9" />
+    </svg>
+  ), desc: 'Unique & personality-forward' },
+  { id: 'Executive', icon: (
+    <svg className="w-4 h-4 text-brand-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+      <circle cx="12" cy="7" r="4" />
+    </svg>
+  ), desc: 'Authoritative & commanding' },
+  { id: 'Friendly', icon: (
+    <svg className="w-4 h-4 text-brand-primary shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
+      <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+    </svg>
+  ), desc: 'Warm & approachable' }
 ];
 
 const WORD_COUNT_PRESETS = [
@@ -41,6 +67,12 @@ const CopyIcon = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
     <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </svg>
+);
+
+const CheckIcon = ({ size = 14, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 
@@ -195,23 +227,13 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
           <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
             Industry / Domain
           </label>
-          <div className="relative">
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="w-full pl-3 pr-10 py-2 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 appearance-none text-slate-800 dark:text-slate-200 font-medium"
+            <Select
+              value={INDUSTRIES.map(ind => ({ value: ind, label: ind })).find(o => o.value === industry)}
+              onChange={(opt) => setIndustry(opt ? opt.value : '')}
+              options={INDUSTRIES.map(ind => ({ value: ind, label: ind }))}
+              styles={getReactSelectStyles()}
               id="cl-industry-select"
-            >
-              {INDUSTRIES.map(ind => (
-                <option key={ind} value={ind}>{ind}</option>
-              ))}
-            </select>
-            <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="m6 9 6 6 6-6"/>
-              </svg>
-            </div>
-          </div>
+            />
         </div>
 
         {/* Tone */}
@@ -234,7 +256,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                   }`}
                 >
                   <div className="flex items-start gap-2">
-                    <span className="text-base shrink-0 mt-0.5">{t.emoji}</span>
+                    <span className="shrink-0 mt-0.5">{t.icon}</span>
                     <div className="overflow-hidden">
                       <p className={`text-[11px] font-bold truncate transition-colors ${isSelected ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-700 dark:text-slate-200'}`}>
                         {t.id}
@@ -380,7 +402,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
 
                 {error && (
                   <div className="flex items-start gap-2 p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-xs font-semibold text-red-700 dark:text-red-400 animate-fade-in">
-                    <span className="text-red-500 text-sm flex-shrink-0">⚠</span>
+                    <AlertTriangleIcon className="text-red-500 w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
                     <p className="flex-1">{error}</p>
                   </div>
                 )}
@@ -423,7 +445,10 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                         : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
-                    ⚙ AI Settings
+                    <span className="flex items-center justify-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                      AI Settings
+                    </span>
                   </button>
                   <button
                     type="button"
@@ -434,7 +459,10 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                         : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
-                    📝 Job Description
+                    <span className="flex items-center justify-center gap-1">
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                      Job Description
+                    </span>
                   </button>
                 </div>
 
@@ -540,7 +568,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                           className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-605 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
                           id="copy-cl-btn"
                         >
-                          {copied ? '✅' : <CopyIcon size={12} />}
+                          {copied ? <CheckIcon size={12} className="text-emerald-500" /> : <CopyIcon size={12} />}
                           {copied ? 'Copied!' : 'Copy'}
                         </button>
                       </div>

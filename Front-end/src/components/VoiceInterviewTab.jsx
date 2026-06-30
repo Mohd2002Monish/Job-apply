@@ -13,6 +13,14 @@ const Spinner = ({ size = 16, className = '' }) => (
   />
 );
 
+const AlertIcon = ({ size = 16, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
 const AudioWaveform = ({ isRecording, stream }) => {
   const canvasRef = useRef(null);
   const animationRef = useRef(null);
@@ -362,8 +370,8 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
   if (!isSupported) {
     return (
       <div className="p-4 rounded-xl border border-rose-250 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/10 text-xs text-rose-600 dark:text-rose-455 space-y-2">
-        <p className="font-bold flex items-center gap-1.5">
-          <span>⚠️</span> Voice Feature Unsupported
+        <p className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
+          <AlertIcon size={14} className="text-rose-500" /> Voice Feature Unsupported
         </p>
         <p className="leading-relaxed">
           The Web Speech API is not supported in your current browser. We highly recommend running Google Chrome, Apple Safari, or Microsoft Edge for a full real-time speech analytics experience.
@@ -496,7 +504,7 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
       {/* Error feedback */}
       {error && (
         <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-xs font-semibold text-red-700 dark:text-red-400 animate-fade-in flex items-center gap-1.5">
-          <span>⚠️</span>
+          <AlertIcon size={13} className="text-red-500 flex-shrink-0" />
           <span>{error}</span>
         </div>
       )}

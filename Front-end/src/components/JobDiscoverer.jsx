@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
+import Select from 'react-select';
+import { getReactSelectStyles } from '../utils/reactSelectStyles';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -8,6 +10,13 @@ const Spinner = ({ size = 16, className = '' }) => (
     className={`border-2 border-slate-300 border-t-transparent rounded-full animate-spin ${className}`} 
     style={{ width: size, height: size }}
   />
+);
+
+const SearchIcon = ({ size = 14, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="11" cy="11" r="8" />
+    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
 );
 
 const JobDiscoverer = ({ toast, onImported }) => {
@@ -253,7 +262,10 @@ const JobDiscoverer = ({ toast, onImported }) => {
               : 'border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-slate-200'
           }`}
         >
-          🔍 In-App Job Search Portal
+          <span className="flex items-center gap-1.5">
+            <SearchIcon size={13} />
+            In-App Job Search Portal
+          </span>
         </button>
       </div>
 
@@ -324,14 +336,19 @@ const JobDiscoverer = ({ toast, onImported }) => {
                   {profile.digestEnabled && (
                     <div className="space-y-1 animate-fade-in">
                       <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Frequency</label>
-                      <select
-                        value={profile.digestFrequency}
-                        onChange={e => setProfile({ ...profile, digestFrequency: e.target.value })}
-                        className="input text-xs py-1.5"
-                      >
-                        <option value="daily">Daily digest (9:10 AM)</option>
-                        <option value="weekly">Weekly digest (Mondays)</option>
-                      </select>
+                      <Select
+                        value={[
+                          { value: 'daily', label: 'Daily digest (9:10 AM)' },
+                          { value: 'weekly', label: 'Weekly digest (Mondays)' }
+                        ].find(o => o.value === profile.digestFrequency)}
+                        onChange={(opt) => setProfile({ ...profile, digestFrequency: opt ? opt.value : 'daily' })}
+                        options={[
+                          { value: 'daily', label: 'Daily digest (9:10 AM)' },
+                          { value: 'weekly', label: 'Weekly digest (Mondays)' }
+                        ]}
+                        styles={getReactSelectStyles()}
+                        id="discoverer-frequency-select"
+                      />
                     </div>
                   )}
                 </div>
@@ -608,7 +625,7 @@ const JobDiscoverer = ({ toast, onImported }) => {
               </div>
             ) : searchResults.length === 0 ? (
               <div className="bg-slate-50/50 dark:bg-zinc-900/10 border border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl p-12 text-center select-none">
-                <span className="text-3xl">🔍</span>
+                <SearchIcon size={28} className="text-slate-350 dark:text-zinc-600 mx-auto" />
                 <p className="text-xs font-bold text-slate-500 mt-2">Start your search</p>
                 <p className="text-[11px] text-slate-450 dark:text-zinc-650 mt-0.5">Type keyword parameters above to scan active job listings in real-time.</p>
               </div>

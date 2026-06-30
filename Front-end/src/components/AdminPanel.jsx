@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import Select from 'react-select';
+import { getReactSelectStyles } from '../utils/reactSelectStyles';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -260,15 +262,21 @@ export default function AdminPanel() {
             </div>
 
             {/* Filter Dropdown */}
-            <select
-              value={filterTier}
-              onChange={e => setFilterTier(e.target.value)}
-              className="bg-bg-app border border-border-card text-xs font-semibold px-3 py-2.5 rounded-xl text-text-main outline-none focus:border-brand-primary cursor-pointer"
-            >
-              <option value="all">All Tiers</option>
-              <option value="free">Free Tier</option>
-              <option value="pro">Pro Tier</option>
-            </select>
+            <Select
+              value={[
+                { value: 'all', label: 'All Tiers' },
+                { value: 'free', label: 'Free Tier' },
+                { value: 'pro', label: 'Pro Tier' }
+              ].find(o => o.value === filterTier)}
+              onChange={(opt) => setFilterTier(opt ? opt.value : 'all')}
+              options={[
+                { value: 'all', label: 'All Tiers' },
+                { value: 'free', label: 'Free Tier' },
+                { value: 'pro', label: 'Pro Tier' }
+              ]}
+              styles={getReactSelectStyles()}
+              id="admin-filter-tier-select"
+            />
           </div>
         </div>
 
@@ -408,14 +416,21 @@ export default function AdminPanel() {
                           {/* Role Selector */}
                           <div className="flex items-center gap-1.5">
                             <span className="text-[9px] font-bold uppercase text-text-muted tracking-wider">Role</span>
-                            <select
-                              value={user.role}
-                              onChange={e => handleRoleChange(user._id, e.target.value)}
-                              className="bg-bg-card border border-border-card text-[11px] font-semibold px-2 py-1.5 rounded-lg text-text-main focus:outline-none focus:border-brand-primary cursor-pointer transition-all"
-                            >
-                              <option value="user">User</option>
-                              <option value="owner">Owner</option>
-                            </select>
+                            <div className="w-28 text-left">
+                              <Select
+                                value={[
+                                  { value: 'user', label: 'User' },
+                                  { value: 'owner', label: 'Owner' }
+                                ].find(o => o.value === user.role)}
+                                onChange={(opt) => { if (opt) handleRoleChange(user._id, opt.value); }}
+                                options={[
+                                  { value: 'user', label: 'User' },
+                                  { value: 'owner', label: 'Owner' }
+                                ]}
+                                styles={getReactSelectStyles()}
+                                id={`admin-user-role-${user._id}`}
+                              />
+                            </div>
                           </div>
 
                           {/* Tier Toggle Switch */}

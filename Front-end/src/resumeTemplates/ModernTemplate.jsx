@@ -1,6 +1,6 @@
 import React from 'react';
 import { TEMPLATE_TOKENS, resolveTheme } from './templateSchema.js';
-import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper } from '../components/InlineCVEditor.jsx';
+import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, SectionActiveContext } from '../components/InlineCVEditor.jsx';
 
 /**
  * Modern Template — Helvetica sans-serif, gradient header, sidebar layout.
@@ -52,10 +52,15 @@ const ModernTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: raw
   const addPr = () => onUpdate?.({ projects: [...(resumeData.projects || []), { name: 'New Project', description: '', techStack: [], url: '' }] });
   const removePr = (i) => onUpdate?.({ projects: (resumeData.projects || []).filter((_, j) => j !== i) });
 
-  const T = editMode ? EditableText : ({ children, value }) => <span>{value || children}</span>;
-  const ML = editMode ? EditableMultiline : ({ value }) => <span style={{ whiteSpace: 'pre-wrap' }}>{value}</span>;
+  const T = editMode ? EditableText : ({ children, value }) => (
+    <span dangerouslySetInnerHTML={{ __html: value || children || '' }} />
+  );
+  const ML = editMode ? EditableMultiline : ({ children, value }) => (
+    <span style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: value || children || '' }} />
+  );
 
-  const addBtn = (onClick) => editMode ? (
+  const { isSectionActive } = React.useContext(SectionActiveContext);
+  const addBtn = (onClick) => (editMode && isSectionActive) ? (
     <button onClick={onClick} style={{ width: '100%', padding: '5px', marginTop: '4px', background: 'transparent', border: `1px dashed ${t.primary}44`, borderRadius: '4px', cursor: 'pointer', fontSize: '7.5pt', color: t.primary + '99' }}>
       + Add
     </button>
@@ -135,7 +140,7 @@ const ModernTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: raw
               <div style={s.section}>
                 <div style={s.sectionTitle}>Experience</div>
                 {(resumeData.experience || []).map((exp, i) => (
-                  <BlockWrapper key={i} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
+                  <BlockWrapper key={i} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
                     <div style={s.expItem}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -169,7 +174,7 @@ const ModernTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: raw
               <div style={s.section}>
                 <div style={s.sectionTitle}>Projects</div>
                 {(resumeData.projects || []).map((pr, i) => (
-                  <BlockWrapper key={i} editMode={editMode} onDelete={() => removePr(i)}>
+                  <BlockWrapper key={i} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
                     <div style={{ marginBottom: '10px' }}>
                       <div style={{ ...s.role, fontWeight: '700', fontSize: '9pt' }}>
                         <T value={pr.name || ''} onChange={updPr(i, 'name')} placeholder="Project Name" bold />
@@ -191,7 +196,7 @@ const ModernTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: raw
               <div style={s.section}>
                 <div style={s.sectionTitle}>Education</div>
                 {(resumeData.education || []).map((edu, i) => (
-                  <BlockWrapper key={i} editMode={editMode} onDelete={() => removeEdu(i)}>
+                  <BlockWrapper key={i} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
                     <div style={{ marginBottom: '8px' }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                         <div>

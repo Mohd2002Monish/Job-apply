@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
+import Select from 'react-select';
+import { getReactSelectStyles } from '../utils/reactSelectStyles';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -8,6 +10,21 @@ const CloseIcon = ({ size = 18 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <line x1="18" y1="6" x2="6" y2="18"></line>
     <line x1="6" y1="6" x2="18" y2="18"></line>
+  </svg>
+);
+
+const AlertIcon = ({ size = 16, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+    <line x1="12" y1="9" x2="12" y2="13" />
+    <line x1="12" y1="17" x2="12.01" y2="17" />
+  </svg>
+);
+
+const FileIcon = ({ size = 14, className = "" }) => (
+  <svg className={className} width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
   </svg>
 );
 
@@ -219,7 +236,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
         <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {error && (
             <div className="mb-4 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs font-semibold leading-relaxed flex items-start gap-2.5">
-              <span className="text-sm">⚠️</span>
+              <AlertIcon size={14} className="text-rose-400 mt-0.5" />
               <div className="flex-1">
                 <span className="font-bold block mb-0.5">Autofill Process Issue</span>
                 {error}
@@ -305,18 +322,13 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
                         {/* Input Value Editor */}
                         <div className="flex-1 min-w-0">
                           {field.type === 'select' ? (
-                            <select
-                              value={field.mappedValue}
-                              onChange={(e) => handleFieldChange(field.id, e.target.value)}
-                              className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:border-indigo-500 text-slate-200 font-semibold font-mono"
-                            >
-                              <option value="">Select...</option>
-                              {field.options?.map((opt, oIdx) => (
-                                <option key={oIdx} value={opt.value}>
-                                  {opt.text || opt.value}
-                                </option>
-                              ))}
-                            </select>
+                            <Select
+                              value={(field.options || []).map(opt => ({ value: opt.value, label: opt.text || opt.value })).find(o => o.value === field.mappedValue) || null}
+                              onChange={(opt) => handleFieldChange(field.id, opt ? opt.value : '')}
+                              options={(field.options || []).map(opt => ({ value: opt.value, label: opt.text || opt.value }))}
+                              styles={getReactSelectStyles()}
+                              placeholder="Select..."
+                            />
                           ) : field.type === 'textarea' ? (
                             <textarea
                               rows={2}
@@ -326,8 +338,9 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
                             />
                           ) : field.type === 'file' ? (
                             <div className="px-3 py-1.5 rounded-xl border border-slate-800 bg-slate-900/50 flex items-center justify-between text-xs font-bold">
-                              <span className="text-slate-350">
-                                📄 {field.mappedValue === '[RESUME_FILE]' ? `${user?.resumeFileName || 'Primary_Resume.pdf'}` : 'Cover_Letter.pdf'}
+                              <span className="text-slate-350 flex items-center gap-1.5">
+                                <FileIcon size={12} />
+                                {field.mappedValue === '[RESUME_FILE]' ? `${user?.resumeFileName || 'Primary_Resume.pdf'}` : 'Cover_Letter.pdf'}
                               </span>
                               <span className="text-[10px] text-indigo-400 font-mono uppercase">
                                 File Auto-Upload

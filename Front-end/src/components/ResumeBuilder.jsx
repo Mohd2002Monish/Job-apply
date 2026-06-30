@@ -3,8 +3,10 @@ import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
 import {
   DownloadIcon, LayersIcon, CheckCircleIcon,
-  ChevronDownIcon, ChevronUpIcon, TrashIcon, XIcon, MailIcon, EditIcon,
+  ChevronDownIcon, ChevronUpIcon, TrashIcon, XIcon, MailIcon, EditIcon, WandIcon,
 } from './Icons';
+import Select from 'react-select';
+import { getReactSelectStyles } from '../utils/reactSelectStyles';
 import { setResumesInfo, setAuth } from '../store/authSlice';
 import InlineCVEditor, { useDebounce } from './InlineCVEditor.jsx';
 
@@ -17,8 +19,6 @@ const TEMPLATES = [
   { id: 'classic', name: 'Classic', desc: 'Traditional serif layout, clean and timeless', accent: '#1a1a1a' },
   { id: 'modern', name: 'Modern', desc: 'Bold blue sidebar with card-based sections', accent: '#1e40af' },
   { id: 'minimal', name: 'Minimal', desc: 'Ultra-clean whitespace, typography-first', accent: '#111111' },
-  { id: 'creative', name: 'Creative', desc: 'Emerald green sidebar, vibrant and modern', accent: '#065f46' },
-  { id: 'executive', name: 'Executive', desc: 'Navy & gold prestige — command the room', accent: '#0f2d52' },
 ];
 
 // Templates with inline editor support (V1)
@@ -164,8 +164,11 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
     setExporting(format);
     setExportError('');
     try {
+      const styleEl = document.getElementById('cv-dynamic-margins');
+      const injectedStyles = styleEl ? styleEl.textContent : '';
+
       const res = await axios.post(`${BACKEND}/export-resume`, {
-        templateId: selectedTemplate, format, resumeData,
+        templateId: selectedTemplate, format, resumeData, injectedStyles,
       }, { responseType: 'blob', timeout: 60000 });
       const mimes = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', jpg: 'image/jpeg' };
       const blob = new Blob([res.data], { type: mimes[format] });
@@ -220,11 +223,13 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
 
   const fetchJobs = async () => {
     try {
-      const res = await axios.get(`${BACKEND}/jobs`);
-      setJobs(res.data);
-      if (res.data.length > 0 && !selectedJobId) {
-        setSelectedJobId(res.data[0]._id);
-        setCoverLetterText(res.data[0].coverLetter || '');
+      const res = await axios.get(`${BACKEND}/jobs`, { params: { limit: 1000, sortBy: 'createdAt:desc' } });
+      const rawJobs = res.data.jobs || (Array.isArray(res.data) ? res.data : []);
+      const sorted = [...rawJobs].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      setJobs(sorted);
+      if (sorted.length > 0 && !selectedJobId) {
+        setSelectedJobId(sorted[0]._id);
+        setCoverLetterText(sorted[0].coverLetter || '');
       }
     } catch (_) {}
   };
@@ -479,8 +484,9 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
 
         {/* Save status */}
         {saveStatus && (
-          <span className={`text-[10px] font-medium flex-shrink-0 ${saveStatus === 'saved' ? 'text-emerald-500' : saveStatus === 'saving' ? 'text-amber-500' : 'text-red-500'}`}>
-            {saveStatus === 'saving' ? '⏳ Saving…' : saveStatus === 'saved' ? '✓ Saved' : '⚠ Save failed'}
+          <span className={`text-[10px] font-medium flex-shrink-0 flex items-center gap-1 ${saveStatus === 'saved' ? 'text-emerald-500' : saveStatus === 'saving' ? 'text-amber-500' : 'text-red-500'}`}>
+            {saveStatus === 'saving' && <div className="w-2.5 h-2.5 border border-amber-500 border-t-transparent rounded-full animate-spin" />}
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : '⚠ Save failed'}
           </span>
         )}
 
@@ -594,9 +600,13 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Target Job</label>
                 {jobs.length > 0 ? (
-                  <select value={selectedJobId} onChange={(e) => setSelectedJobId(e.target.value)} className="input w-full text-xs">
-                    {jobs.map(j => <option key={j._id} value={j._id}>{j.job} · {j.email}</option>)}
-                  </select>
+                  <Select
+                    value={jobs.map(j => ({ value: j._id, label: `${j.job} · ${j.email}` })).find(o => o.value === selectedJobId)}
+                    onChange={(opt) => setSelectedJobId(opt ? opt.value : '')}
+                    options={jobs.map(j => ({ value: j._id, label: `${j.job} · ${j.email}` }))}
+                    styles={getReactSelectStyles()}
+                    id="resume-cover-job-select"
+                  />
                 ) : (
                   <p className="text-xs text-slate-400 dark:text-zinc-500">No jobs found. Add contacts in Outreach first.</p>
                 )}
@@ -633,8 +643,8 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
                     <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Generate an AI-tailored cover letter</p>
                   </div>
                   <button onClick={handleGenerateCoverLetter} disabled={generatingCoverLetter} className="btn-primary text-xs">
-                    {generatingCoverLetter ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : null}
-                    {generatingCoverLetter ? 'Generating…' : '✨ Generate Letter'}
+                    {generatingCoverLetter ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <WandIcon size={12} />}
+                    {generatingCoverLetter ? 'Generating…' : 'Generate Letter'}
                   </button>
                 </div>
               ) : null}
@@ -664,7 +674,9 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
           ) : (
             /* Fallback: template doesn't have inline editor yet — show notice */
             <div className="flex flex-col items-center gap-4 py-20 text-center max-w-sm">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500 text-xl">✏️</div>
+              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500 text-xl">
+                <EditIcon size={20} />
+              </div>
               <div>
                 <p className="font-semibold text-slate-800 dark:text-slate-200">Inline editing coming soon</p>
                 <p className="text-sm text-slate-400 dark:text-zinc-500 mt-1">

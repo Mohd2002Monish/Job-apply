@@ -1,6 +1,6 @@
 import React from 'react';
 import { TEMPLATE_TOKENS, resolveTheme } from './templateSchema.js';
-import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper } from '../components/InlineCVEditor.jsx';
+import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, SectionActiveContext } from '../components/InlineCVEditor.jsx';
 
 /**
  * Minimal Template — ultra-clean, typography-first, whitespace-focused.
@@ -53,10 +53,15 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   const addPr = () => onUpdate?.({ projects: [...(resumeData.projects || []), { name: 'New Project', description: '', techStack: [] }] });
   const removePr = (i) => onUpdate?.({ projects: (resumeData.projects || []).filter((_, j) => j !== i) });
 
-  const T = editMode ? EditableText : ({ value }) => <span>{value}</span>;
-  const ML = editMode ? EditableMultiline : ({ value }) => <span style={{ whiteSpace: 'pre-wrap' }}>{value}</span>;
+  const T = editMode ? EditableText : ({ children, value }) => (
+    <span dangerouslySetInnerHTML={{ __html: value || children || '' }} />
+  );
+  const ML = editMode ? EditableMultiline : ({ children, value }) => (
+    <span style={{ whiteSpace: 'pre-wrap' }} dangerouslySetInnerHTML={{ __html: value || children || '' }} />
+  );
 
-  const addBtn = (onClick) => editMode ? (
+  const { isSectionActive } = React.useContext(SectionActiveContext);
+  const addBtn = (onClick) => (editMode && isSectionActive) ? (
     <button onClick={onClick} style={{ width: '100%', padding: '5px', marginTop: '4px', background: 'transparent', border: '1px dashed #e5e7eb', borderRadius: '3px', cursor: 'pointer', fontSize: '7.5pt', color: '#9ca3af' }}>
       + Add
     </button>
@@ -109,7 +114,7 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
             <div style={s.sectionTitle}>Experience</div>
             <ThinLine />
             {(resumeData.experience || []).map((exp, i) => (
-              <BlockWrapper key={i} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
+              <BlockWrapper key={i} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
                 <div style={s.expItem}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
                     <div style={s.role}><T value={exp.role || ''} onChange={updExp(i, 'role')} placeholder="Job Title" bold /></div>
@@ -172,7 +177,7 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
             <div style={s.sectionTitle}>Education</div>
             <ThinLine />
             {(resumeData.education || []).map((edu, i) => (
-              <BlockWrapper key={i} editMode={editMode} onDelete={() => removeEdu(i)}>
+              <BlockWrapper key={i} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '6px' }}>
                   <div>
                     <div style={s.eduDegree}>
@@ -201,7 +206,7 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
             <div style={s.sectionTitle}>Projects</div>
             <ThinLine />
             {(resumeData.projects || []).map((pr, i) => (
-              <BlockWrapper key={i} editMode={editMode} onDelete={() => removePr(i)}>
+              <BlockWrapper key={i} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
                 <div style={{ marginBottom: '10px' }}>
                   <div style={{ fontWeight: '600', color: t.primary, fontSize: '9.5pt' }}>
                     <T value={pr.name || ''} onChange={updPr(i, 'name')} placeholder="Project Name" bold />
