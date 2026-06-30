@@ -182,7 +182,7 @@ const getResumeData = async (req, res) => {
 };
 
 const exportUserResume = async (req, res) => {
-  const { templateId = 'classic', format = 'pdf', resumeData: clientData } = req.body;
+  const { templateId = 'classic', format = 'pdf', resumeData: clientData, injectedStyles = '' } = req.body;
   const user = req.user;
   
   try {
@@ -195,7 +195,7 @@ const exportUserResume = async (req, res) => {
     }
 
     console.log(`Exporting resume: format=${format}, template=${templateId}`);
-    const { buffer, mime, ext } = await exportResume(resumeData, templateId, format);
+    const { buffer, mime, ext } = await exportResume(resumeData, templateId, format, injectedStyles);
     const filename = `resume_${templateId}_${Date.now()}.${ext}`;
 
     res.setHeader('Content-Type', mime);

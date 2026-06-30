@@ -6,8 +6,8 @@ const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, Borde
 const buildClassicHTML = (data) => {
   const t = data.theme || {};
   const p = data.personalInfo || {};
-  const exp = (data.experience || []).map(e => `
-    <div class="exp-item">
+  const exp = (data.experience || []).map((e, i) => `
+    <div class="exp-item" data-block data-block-id="experience-${i}">
       <div class="exp-header">
         <div>
           <div class="job-title">${e.role || ''}</div>
@@ -20,8 +20,8 @@ const buildClassicHTML = (data) => {
     </div>
   `).join('');
 
-  const edu = (data.education || []).map(e => `
-    <div class="edu-item">
+  const edu = (data.education || []).map((e, i) => `
+    <div class="edu-item" data-block data-block-id="education-${i}">
       <div class="exp-header">
         <div>
           <div class="job-title">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
@@ -36,8 +36,8 @@ const buildClassicHTML = (data) => {
   const skills = data.skills || {};
   const allSkills = [...(skills.technical || []), ...(skills.tools || [])];
 
-  const projects = (data.projects || []).map(pr => `
-    <div class="exp-item">
+  const projects = (data.projects || []).map((pr, i) => `
+    <div class="exp-item" data-block data-block-id="project-${i}">
       <div class="job-title">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:0.75rem;color:#2563eb;">[Link]</a>` : ''}</div>
       ${pr.description ? `<p class="desc">${pr.description}</p>` : ''}
       ${(pr.techStack || []).length ? `<p class="desc tech-stack"><strong>Tech:</strong> ${pr.techStack.join(', ')}</p>` : ''}
@@ -132,8 +132,8 @@ const buildClassicHTML = (data) => {
 const buildModernHTML = (data) => {
   const t = data.theme || {};
   const p = data.personalInfo || {};
-  const exp = (data.experience || []).map(e => `
-    <div class="exp-item">
+  const exp = (data.experience || []).map((e, i) => `
+    <div class="exp-item" data-block data-block-id="experience-${i}">
       <div class="exp-row">
         <div class="role-company">
           <span class="role">${e.role || ''}</span>
@@ -146,8 +146,8 @@ const buildModernHTML = (data) => {
     </div>
   `).join('');
 
-  const edu = (data.education || []).map(e => `
-    <div class="edu-card">
+  const edu = (data.education || []).map((e, i) => `
+    <div class="edu-card" data-block data-block-id="education-${i}">
       <div class="edu-top">
         <div><div class="edu-degree">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
         <div class="edu-inst">${e.institution || ''}</div></div>
@@ -260,8 +260,8 @@ const buildModernHTML = (data) => {
       ${(data.projects || []).length ? `
       <div class="section">
         <div class="section-title">Projects</div>
-        ${data.projects.map(pr => `
-          <div class="project-item">
+        ${data.projects.map((pr, i) => `
+          <div class="project-item" data-block data-block-id="project-${i}">
             <div class="project-name">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:7.5pt;color:#2563eb;">[Link]</a>` : ''}</div>
             ${pr.description ? `<p class="desc">${pr.description}</p>` : ''}
             ${(pr.techStack || []).length ? `<div class="project-tech">🛠 ${pr.techStack.join(' · ')}</div>` : ''}
@@ -283,8 +283,8 @@ const buildModernHTML = (data) => {
 const buildMinimalHTML = (data) => {
   const t = data.theme || {};
   const p = data.personalInfo || {};
-  const exp = (data.experience || []).map(e => `
-    <div style="margin-bottom:14px; page-break-inside: avoid; break-inside: avoid;">
+  const exp = (data.experience || []).map((e, i) => `
+    <div style="margin-bottom:14px; page-break-inside: avoid; break-inside: avoid;" data-block data-block-id="experience-${i}">
       <div style="display:flex;justify-content:space-between;align-items:baseline;">
         <div style="font-weight:600;color:${t.primary || '#111111'};">${e.role || ''}</div>
         <div style="font-size:8.5pt;color:#9ca3af;">${e.startDate || ''}${e.endDate || e.current ? ` – ${e.current ? 'Present' : e.endDate}` : ''}</div>
@@ -360,8 +360,8 @@ const buildMinimalHTML = (data) => {
   <div class="section">
     <div class="section-title">Education</div>
     <hr class="thin-line"/>
-    ${data.education.map(e => `
-      <div class="edu-row">
+    ${data.education.map((e, i) => `
+      <div class="edu-row" data-block data-block-id="education-${i}">
         <div>
           <div class="edu-degree">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
           <div class="edu-inst">${e.institution || ''}</div>
@@ -375,8 +375,8 @@ const buildMinimalHTML = (data) => {
   <div class="section">
     <div class="section-title">Projects</div>
     <hr class="thin-line"/>
-    ${data.projects.map(pr => `
-      <div style="margin-bottom:10px; page-break-inside: avoid; break-inside: avoid;">
+    ${data.projects.map((pr, i) => `
+      <div style="margin-bottom:10px; page-break-inside: avoid; break-inside: avoid;" data-block data-block-id="project-${i}">
         <div style="font-weight:600;color:${t.primary || '#111111'};font-size:9.5pt;">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:8pt;color:#6b7280;">[↗]</a>` : ''}</div>
         ${pr.description ? `<p style="font-size:8.5pt;color:#4b5563;margin-top:3px;line-height:1.5;">${pr.description}</p>` : ''}
         ${(pr.techStack || []).length ? `<div style="font-size:7.5pt;color:#9ca3af;margin-top:3px;">${pr.techStack.join(' · ')}</div>` : ''}
@@ -738,9 +738,12 @@ const getBrowser = async () => {
   });
 };
 
-const exportAsPdf = async (resumeData, templateId = 'classic') => {
+const exportAsPdf = async (resumeData, templateId = 'classic', injectedStyles = '') => {
   const htmlBuilder = TEMPLATES[templateId] || TEMPLATES.classic;
-  const html = htmlBuilder(resumeData);
+  let html = htmlBuilder(resumeData);
+  if (injectedStyles) {
+    html = html.replace('</head>', `<style>${injectedStyles}</style></head>`);
+  }
 
   const browser = await getBrowser();
   try {
@@ -757,9 +760,12 @@ const exportAsPdf = async (resumeData, templateId = 'classic') => {
   }
 };
 
-const exportAsJpg = async (resumeData, templateId = 'classic') => {
+const exportAsJpg = async (resumeData, templateId = 'classic', injectedStyles = '') => {
   const htmlBuilder = TEMPLATES[templateId] || TEMPLATES.classic;
-  const html = htmlBuilder(resumeData);
+  let html = htmlBuilder(resumeData);
+  if (injectedStyles) {
+    html = html.replace('</head>', `<style>${injectedStyles}</style></head>`);
+  }
 
   const browser = await getBrowser();
   try {
@@ -926,10 +932,10 @@ const exportAsDocx = async (resumeData, templateId = 'classic') => {
 
 // ─── Main Export Function ────────────────────────────────────────────────────
 
-const exportResume = async (resumeData, templateId = 'classic', format = 'pdf') => {
+const exportResume = async (resumeData, templateId = 'classic', format = 'pdf', injectedStyles = '') => {
   switch (format) {
-    case 'pdf': return { buffer: await exportAsPdf(resumeData, templateId), mime: 'application/pdf', ext: 'pdf' };
-    case 'jpg': return { buffer: await exportAsJpg(resumeData, templateId), mime: 'image/jpeg', ext: 'jpg' };
+    case 'pdf': return { buffer: await exportAsPdf(resumeData, templateId, injectedStyles), mime: 'application/pdf', ext: 'pdf' };
+    case 'jpg': return { buffer: await exportAsJpg(resumeData, templateId, injectedStyles), mime: 'image/jpeg', ext: 'jpg' };
     case 'docx': return { buffer: await exportAsDocx(resumeData, templateId), mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' };
     default: throw new Error(`Unsupported format: ${format}`);
   }

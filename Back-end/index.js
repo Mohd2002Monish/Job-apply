@@ -12,6 +12,7 @@ const scrapedJobRoutes = require("./routes/scrapedJobRoutes");
 const stripeRoutes = require("./routes/stripeRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const referralRoutes = require("./routes/referralRoutes");
+const paymentRoutes = require("./routes/paymentRoutes");
 
 const { startCronJob } = require("./utils/cronService");
 
@@ -85,6 +86,7 @@ app.use("/", emailRoutes); // Mounts /apply and /emails/replies
 app.use("/", resumeRoutes); // Mounts /upload-resume, /resume-data, /export-resume, /preview-template
 app.use("/scraped-jobs", scrapedJobRoutes);
 app.use("/", stripeRoutes);
+app.use("/", paymentRoutes);
 app.use("/admin", adminRoutes);
 app.use("/", referralRoutes);
 
