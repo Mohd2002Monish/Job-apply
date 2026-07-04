@@ -63,9 +63,9 @@ const AudioWaveform = ({ isRecording, stream }) => {
 
         analyserRef.current.getByteFrequencyData(dataArray);
 
-        ctx.fillStyle = '#0f172a'; // Slate 900
+        ctx.fillStyle = '#090d16';
         if (document.documentElement.classList.contains('dark')) {
-          ctx.fillStyle = '#18181b'; // Zinc 900
+          ctx.fillStyle = '#0d121f';
         }
         ctx.fillRect(0, 0, width, height);
 
@@ -76,15 +76,13 @@ const AudioWaveform = ({ isRecording, stream }) => {
           const percent = dataArray[i] / 255;
           const barHeight = Math.max(4, percent * height * 0.85);
 
-          // Custom emerald/teal gradient
           const gradient = ctx.createLinearGradient(0, height, 0, 0);
-          gradient.addColorStop(0, '#10b981'); // Emerald 500
-          gradient.addColorStop(0.5, '#14b8a6'); // Teal 500
-          gradient.addColorStop(1, '#6366f1'); // Indigo 500
+          gradient.addColorStop(0, '#10b981');
+          gradient.addColorStop(0.5, '#14b8a6');
+          gradient.addColorStop(1, '#6366f1');
 
           ctx.fillStyle = gradient;
           
-          // Draw symmetric bars from the center vertically
           const yPos = (height - barHeight) / 2;
           ctx.beginPath();
           if (ctx.roundRect) {
@@ -131,14 +129,13 @@ const AudioWaveform = ({ isRecording, stream }) => {
     const width = canvas.width;
     const height = canvas.height;
     
-    ctx.fillStyle = '#0f172a';
+    ctx.fillStyle = '#090d16';
     if (document.documentElement.classList.contains('dark')) {
-      ctx.fillStyle = '#18181b';
+      ctx.fillStyle = '#0d121f';
     }
     ctx.fillRect(0, 0, width, height);
 
-    // Draw straight line for silence
-    ctx.strokeStyle = '#334155'; // Slate 700
+    ctx.strokeStyle = '#334155';
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.moveTo(0, height / 2);
@@ -155,7 +152,7 @@ const AudioWaveform = ({ isRecording, stream }) => {
       ref={canvasRef} 
       width="380" 
       height="64" 
-      className="w-full h-16 rounded-xl bg-slate-900 dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 shadow-inner"
+      className="w-full h-16 rounded-xl bg-bg-card border border-border-card shadow-inner"
     />
   );
 };
@@ -165,23 +162,20 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
   const [isRecording, setIsRecording] = useState(false);
   const [stream, setStream] = useState(null);
   const [transcript, setTranscript] = useState('');
-  const [duration, setDuration] = useState(0); // in seconds
+  const [duration, setDuration] = useState(0);
   const [pacingWpm, setPacingWpm] = useState(0);
   const [fillers, setFillers] = useState({
     uh: 0, um: 0, like: 0, so: 0, actually: 0, basically: 0, literally: 0
   });
 
-  // API response feedback states
   const [grading, setGrading] = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [error, setError] = useState('');
 
-  // Refs for tracking recognition and timers
   const recognitionRef = useRef(null);
   const timerRef = useRef(null);
   const secondsRef = useRef(0);
 
-  // Check browser speech support
   useEffect(() => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -189,7 +183,6 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
     }
   }, []);
 
-  // Clean timers and audio stream on unmount
   useEffect(() => {
     return () => {
       stopAllTracks();
@@ -204,12 +197,10 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
     }
   };
 
-  // Live fillers and WPM calculations based on text changes
   const analyzeTextMetrics = (text) => {
     const words = text.trim().split(/\s+/).filter(Boolean);
     const wordCount = words.length;
 
-    // Compute live fillers count
     const newFillers = { uh: 0, um: 0, like: 0, so: 0, actually: 0, basically: 0, literally: 0 };
     words.forEach(w => {
       const cleaned = w.toLowerCase().replace(/[^a-z]/g, '');
@@ -219,7 +210,6 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
     });
     setFillers(newFillers);
 
-    // Compute WPM pacing
     const seconds = secondsRef.current || 1;
     const computedWpm = Math.round((wordCount / seconds) * 60);
     setPacingWpm(computedWpm);
@@ -271,7 +261,6 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
       };
 
       recognition.onend = () => {
-        // Safe check in case of unintentional mic disconnects
         setIsRecording(false);
       };
 
@@ -279,7 +268,6 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
       recognition.start();
       setIsRecording(true);
 
-      // Start duration timer
       timerRef.current = setInterval(() => {
         secondsRef.current += 1;
         setDuration(secondsRef.current);
@@ -352,7 +340,7 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
   };
 
   const getPacingColor = (wpm) => {
-    if (wpm === 0) return 'text-slate-500';
+    if (wpm === 0) return 'text-text-muted';
     if (wpm < 110) return 'text-amber-500';
     if (wpm > 165) return 'text-red-500';
     return 'text-emerald-500';
@@ -369,15 +357,12 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
 
   if (!isSupported) {
     return (
-      <div className="p-4 rounded-xl border border-rose-250 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/10 text-xs text-rose-600 dark:text-rose-455 space-y-2">
-        <p className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-400">
-          <AlertIcon size={14} className="text-rose-500" /> Voice Feature Unsupported
+      <div className="p-4 rounded-xl border border-rose-500/20 bg-rose-500/10 text-xs text-rose-500 space-y-2">
+        <p className="font-bold flex items-center gap-1.5">
+          <AlertIcon size={14} /> Voice Feature Unsupported
         </p>
         <p className="leading-relaxed">
-          The Web Speech API is not supported in your current browser. We highly recommend running Google Chrome, Apple Safari, or Microsoft Edge for a full real-time speech analytics experience.
-        </p>
-        <p className="leading-relaxed font-mono">
-          You can still type notes and use the standard written answer grading feature on the notes tab.
+          The Web Speech API is not supported in your current browser. We highly recommend running Google Chrome, Apple Safari, or Microsoft Edge.
         </p>
       </div>
     );
@@ -387,21 +372,21 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
     <div className="space-y-4">
       {/* Visualizer Waveform */}
       <div className="space-y-1.5">
-        <label className="text-[10px] font-bold text-slate-500 dark:text-zinc-450 uppercase tracking-widest block">
+        <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
           Speech Capture visualizer
         </label>
         <AudioWaveform isRecording={isRecording} stream={stream} />
       </div>
 
       {/* Rec / Control Bar */}
-      <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-800/40 border border-slate-100 dark:border-zinc-800 p-3.5 rounded-2xl shadow-sm">
+      <div className="flex items-center justify-between bg-bg-card border border-border-card p-3.5 rounded-2xl shadow-sm">
         <div className="flex items-center gap-4">
           <button
             onClick={isRecording ? handleStopRecording : handleStartRecording}
-            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow border-0 ${
+            className={`w-12 h-12 rounded-full flex items-center justify-center transition-all cursor-pointer shadow btn-tactile ${
               isRecording 
-                ? 'bg-rose-550 hover:bg-rose-600 animate-pulse text-white' 
-                : 'bg-indigo-600 hover:bg-indigo-700 text-white'
+                ? 'bg-rose-500 hover:bg-rose-600 animate-pulse text-white' 
+                : 'bg-brand-primary hover:bg-brand-primary-hover text-white'
             }`}
           >
             {isRecording ? (
@@ -415,10 +400,10 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
           </button>
 
           <div>
-            <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+            <p className="text-xs font-bold text-text-main">
               {isRecording ? 'Listening...' : 'Ready for Spoken Mock'}
             </p>
-            <p className="text-[10px] text-slate-400 dark:text-zinc-500 font-mono mt-0.5">
+            <p className="text-[10px] text-text-muted font-mono mt-0.5">
               Duration: {formatTime(duration)}
             </p>
           </div>
@@ -427,7 +412,7 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
         {(transcript.trim() || isRecording) && (
           <button
             onClick={handleReset}
-            className="p-2 rounded-lg border border-slate-200 dark:border-zinc-700 hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-rose-500 dark:hover:text-rose-400 transition-colors cursor-pointer select-none"
+            className="p-2 rounded-lg border border-border-card hover:bg-bg-card-hover text-text-muted hover:text-rose-500 transition-colors btn-tactile"
             title="Reset practice"
           >
             <TrashIcon size={14} />
@@ -439,27 +424,27 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
       {duration > 0 && (
         <div className="grid grid-cols-2 gap-3.5 animate-fade-in">
           {/* Pacing WPM */}
-          <div className="p-3 border border-slate-100 dark:border-zinc-800 rounded-xl bg-slate-50/20 dark:bg-zinc-900/10">
-            <span className="text-[10px] text-slate-450 dark:text-zinc-550 uppercase font-bold tracking-wider">
+          <div className="p-3 border border-border-card rounded-xl bg-bg-card">
+            <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider">
               Speech Pacing (WPM)
             </span>
             <div className={`text-base font-extrabold font-mono mt-1 ${getPacingColor(pacingWpm)}`}>
               {pacingWpm} <span className="text-[9px] font-normal font-sans ml-0.5">wpm</span>
             </div>
-            <div className="text-[9px] text-slate-400 dark:text-zinc-500 mt-1">
+            <div className="text-[9px] text-text-muted mt-1">
               {getPacingLabel(pacingWpm)}
             </div>
           </div>
 
           {/* Filler Counters */}
-          <div className="p-3 border border-slate-100 dark:border-zinc-800 rounded-xl bg-slate-50/20 dark:bg-zinc-900/10">
-            <span className="text-[10px] text-slate-450 dark:text-zinc-550 uppercase font-bold tracking-wider">
+          <div className="p-3 border border-border-card rounded-xl bg-bg-card">
+            <span className="text-[10px] text-text-muted uppercase font-bold tracking-wider">
               Filler Words
             </span>
             <div className={`text-base font-extrabold font-mono mt-1 ${totalFillers > 4 ? 'text-rose-500' : 'text-emerald-500'}`}>
               {totalFillers} <span className="text-[9px] font-normal font-sans ml-0.5">detected</span>
             </div>
-            <div className="text-[9px] text-slate-400 dark:text-zinc-500 mt-1 truncate">
+            <div className="text-[9px] text-text-muted mt-1 truncate">
               uh: {fillers.uh} | um: {fillers.um} | like: {fillers.like} | so: {fillers.so}
             </div>
           </div>
@@ -469,10 +454,10 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
       {/* Live Transcript block */}
       {transcript.trim() && (
         <div className="space-y-1.5 animate-fade-in">
-          <label className="text-[10px] font-bold text-slate-450 dark:text-zinc-500 uppercase tracking-widest block">
+          <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest block">
             Real-Time Transcript Draft
           </label>
-          <div className="w-full p-3.5 bg-slate-50 dark:bg-zinc-950/20 border border-slate-200 dark:border-zinc-800 rounded-xl text-xs text-slate-700 dark:text-slate-350 leading-relaxed font-mono whitespace-pre-line max-h-40 overflow-y-auto">
+          <div className="w-full p-3.5 bg-bg-app border border-border-card rounded-xl text-xs text-text-main leading-relaxed font-mono whitespace-pre-line max-h-40 overflow-y-auto">
             {transcript}
           </div>
         </div>
@@ -484,7 +469,7 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
           <button
             onClick={handleSubmitMock}
             disabled={grading}
-            className="btn-primary w-full py-2.5 text-xs font-bold gap-1.5 flex items-center justify-center cursor-pointer select-none"
+            className="btn-primary w-full py-2.5 text-xs font-bold gap-1.5 flex items-center justify-center btn-tactile"
           >
             {grading ? (
               <>
@@ -494,7 +479,7 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
             ) : (
               <>
                 <SparkleIcon />
-                <span>Submit Spoken mock & Grade</span>
+                <span>Submit Spoken Mock & Grade</span>
               </>
             )}
           </button>
@@ -503,7 +488,7 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
 
       {/* Error feedback */}
       {error && (
-        <div className="p-3 rounded-lg bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 text-xs font-semibold text-red-700 dark:text-red-400 animate-fade-in flex items-center gap-1.5">
+        <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-xs font-semibold text-red-500 animate-fade-in flex items-center gap-1.5">
           <AlertIcon size={13} className="text-red-500 flex-shrink-0" />
           <span>{error}</span>
         </div>
@@ -511,59 +496,59 @@ const VoiceInterviewTab = ({ job, question, onSaved, toast }) => {
 
       {/* Mock Scoring Analytics display */}
       {feedback && (
-        <div className="p-4 rounded-xl border border-indigo-200 dark:border-indigo-500/25 bg-indigo-50/20 dark:bg-indigo-500/5 space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between border-b border-indigo-100/50 dark:border-indigo-500/10 pb-2">
+        <div className="p-4 rounded-xl border border-brand-primary/20 bg-brand-primary/5 space-y-4 animate-fade-in">
+          <div className="flex items-center justify-between border-b border-border-card pb-2">
             <div>
-              <p className="text-xs font-bold text-indigo-700 dark:text-indigo-400">AI Speech Grading</p>
-              <p className="text-[9px] text-slate-400 dark:text-zinc-500 mt-0.5">Comprehensive Delivery Audit</p>
+              <p className="text-xs font-bold text-brand-primary">AI Speech Grading</p>
+              <p className="text-[9px] text-text-muted mt-0.5">Comprehensive Delivery Audit</p>
             </div>
             
             {/* Score Ring */}
             <div className="flex items-center gap-1">
-              <span className="text-sm font-extrabold text-indigo-600 dark:text-indigo-400 font-mono">
+              <span className="text-sm font-extrabold text-brand-primary font-mono">
                 {feedback.score}
               </span>
-              <span className="text-[10px] text-slate-400">/10</span>
+              <span className="text-[10px] text-text-muted">/10</span>
             </div>
           </div>
 
           {/* Breakdown grids */}
           {feedback.breakdown && (
             <div className="grid grid-cols-3 gap-2">
-              <div className="bg-white dark:bg-zinc-800/80 border border-slate-100 dark:border-zinc-800 p-2.5 rounded-lg text-center">
-                <span className="text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase block">Content</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 font-mono mt-0.5 block">{feedback.breakdown.content}/10</span>
+              <div className="bg-bg-card border border-border-card p-2.5 rounded-lg text-center">
+                <span className="text-[9px] text-text-muted font-bold uppercase block">Content</span>
+                <span className="text-xs font-bold text-text-main font-mono mt-0.5 block">{feedback.breakdown.content}/10</span>
               </div>
-              <div className="bg-white dark:bg-zinc-800/80 border border-slate-100 dark:border-zinc-800 p-2.5 rounded-lg text-center">
-                <span className="text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase block">Structure</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 font-mono mt-0.5 block">{feedback.breakdown.structure}/10</span>
+              <div className="bg-bg-card border border-border-card p-2.5 rounded-lg text-center">
+                <span className="text-[9px] text-text-muted font-bold uppercase block">Structure</span>
+                <span className="text-xs font-bold text-text-main font-mono mt-0.5 block">{feedback.breakdown.structure}/10</span>
               </div>
-              <div className="bg-white dark:bg-zinc-800/80 border border-slate-100 dark:border-zinc-800 p-2.5 rounded-lg text-center">
-                <span className="text-[9px] text-slate-400 dark:text-zinc-500 font-bold uppercase block">Delivery</span>
-                <span className="text-xs font-bold text-slate-700 dark:text-zinc-300 font-mono mt-0.5 block">{feedback.breakdown.delivery}/10</span>
+              <div className="bg-bg-card border border-border-card p-2.5 rounded-lg text-center">
+                <span className="text-[9px] text-text-muted font-bold uppercase block">Delivery</span>
+                <span className="text-xs font-bold text-text-main font-mono mt-0.5 block">{feedback.breakdown.delivery}/10</span>
               </div>
             </div>
           )}
 
           {/* Critiques */}
           <div className="space-y-1">
-            <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-455 uppercase tracking-wider block">Critique</span>
-            <p className="text-xs text-slate-655 dark:text-zinc-300 leading-relaxed">{feedback.aiFeedback}</p>
+            <span className="text-[9px] font-bold text-brand-primary uppercase tracking-wider block">Critique</span>
+            <p className="text-xs text-text-main leading-relaxed">{feedback.aiFeedback}</p>
           </div>
 
           {/* Filler analysis */}
           {feedback.fillerAnalysis && (
             <div className="space-y-1">
-              <span className="text-[9px] font-bold text-indigo-600 dark:text-indigo-455 uppercase tracking-wider block">Speech Delivery Analysis</span>
-              <p className="text-xs text-slate-655 dark:text-zinc-300 leading-relaxed">{feedback.fillerAnalysis}</p>
+              <span className="text-[9px] font-bold text-brand-primary uppercase tracking-wider block">Speech Delivery Analysis</span>
+              <p className="text-xs text-text-main leading-relaxed">{feedback.fillerAnalysis}</p>
             </div>
           )}
 
           {/* Re-write draft */}
           {feedback.improvedVersion && (
-            <div className="space-y-1 bg-white/50 dark:bg-zinc-950/20 border border-indigo-100/30 dark:border-indigo-500/10 p-3 rounded-lg">
-              <span className="text-[9px] font-bold text-emerald-650 dark:text-emerald-450 uppercase tracking-wider block">Polished Mock Delivery Response</span>
-              <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed italic whitespace-pre-line mt-1">{feedback.improvedVersion}</p>
+            <div className="space-y-1 bg-bg-card border border-border-card p-3 rounded-lg">
+              <span className="text-[9px] font-bold text-emerald-500 uppercase tracking-wider block">Polished Mock Delivery Response</span>
+              <p className="text-xs text-text-muted leading-relaxed italic whitespace-pre-line mt-1">{feedback.improvedVersion}</p>
             </div>
           )}
         </div>

@@ -11,6 +11,7 @@ import {
 } from './Icons';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
+import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -95,8 +96,10 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
   const [uploadingFile, setUploadingFile] = useState(false);
   const [uploadedFileName, setUploadedFileName] = useState(job.jdFileName || '');
   const [saving, setSaving] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
   
   // Tab control when letter is generated: 'settings' or 'jd'
   const [leftTab, setLeftTab] = useState('settings');
@@ -157,7 +160,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
     try {
       const res = await axios.post(
         `${BACKEND}/jobs/${job._id}/generate-cover-letter`,
-        { wordCount, industry, tone, description, customInstructions },
+        { wordCount, industry, tone, description, customInstructions, aiModel: selectedAiModel },
         { withCredentials: true, timeout: 90000 }
       );
       setGeneratedLetter(res.data.coverLetter);
@@ -187,9 +190,72 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleExportPdf = async () => {
+    if (!job?._id || !generatedLetter) return;
+    setExporting(true);
+    setError('');
+    try {
+      await axios.patch(`${BACKEND}/jobs/${job._id}`, { coverLetter: generatedLetter }, { withCredentials: true });
+      const res = await axios.post(
+        `${BACKEND}/resume/cover-letter/export`,
+        { jobId: job._id, format: 'pdf' },
+        { responseType: 'blob', withCredentials: true }
+      );
+      const blob = new Blob([res.data], { type: 'application/pdf' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `cover_letter_${job.companyName || 'application'}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setError('Failed to export PDF: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleExportDocx = async () => {
+    if (!job?._id || !generatedLetter) return;
+    setExporting(true);
+    setError('');
+    try {
+      await axios.patch(`${BACKEND}/jobs/${job._id}`, { coverLetter: generatedLetter }, { withCredentials: true });
+      const res = await axios.post(
+        `${BACKEND}/resume/cover-letter/export`,
+        { jobId: job._id, format: 'docx' },
+        { responseType: 'blob', withCredentials: true }
+      );
+      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = `cover_letter_${job.companyName || 'application'}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      setError('Failed to export DOCX: ' + (err.response?.data?.error || err.message));
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const renderSettingsPanel = () => {
     return (
       <div className="space-y-4">
+        {/* AI Model selector */}
+        <div>
+          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
+            AI Engine Selection
+          </label>
+          <AiModelSelector 
+            selectedModel={selectedAiModel} 
+            onSelectModel={setSelectedAiModel} 
+            compact={true} 
+            currentUseCase="detailed-cover-letter" 
+          />
+        </div>
+
         {/* Word Count */}
         <div>
           <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-2.5">
@@ -561,11 +627,27 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                         </label>
                       </div>
 
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={handleExportPdf}
+                          disabled={exporting || !generatedLetter}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-xl bg-brand-primary hover:bg-brand-primary-hover text-white transition-all cursor-pointer disabled:opacity-50 btn-tactile whitespace-nowrap shadow-sm"
+                        >
+                          {exporting ? 'Exporting...' : 'Export PDF'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleExportDocx}
+                          disabled={exporting || !generatedLetter}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-xl border border-border-card bg-bg-app text-text-main hover:bg-bg-card-hover transition-all cursor-pointer disabled:opacity-50 btn-tactile whitespace-nowrap shadow-sm"
+                        >
+                          DOCX
+                        </button>
                         <button
                           type="button"
                           onClick={handleCopy}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold rounded-lg border border-slate-200 dark:border-zinc-800 text-slate-605 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-bold rounded-xl border border-border-card bg-bg-app text-text-muted hover:text-text-main hover:bg-bg-card-hover transition-all cursor-pointer btn-tactile whitespace-nowrap shadow-sm"
                           id="copy-cl-btn"
                         >
                           {copied ? <CheckIcon size={12} className="text-emerald-500" /> : <CopyIcon size={12} />}
@@ -623,7 +705,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
               {saving ? (
                 <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <span className="text-sm font-bold">✓</span>
+                <CheckCircleIcon size={13} />
               )}
               {saving ? 'Saving...' : 'Save Cover Letter'}
             </button>

@@ -124,14 +124,18 @@ const getValidMicrosoftToken = async (email, store, authStore) => {
 const sendEmailViaGraphAPI = async (to, subject, text, attachmentPath, accessToken) => {
   try {
     const attachments = [];
-    if (attachmentPath && fs.existsSync(attachmentPath)) {
-      const contentBytes = fs.readFileSync(attachmentPath).toString('base64');
-      attachments.push({
-        '@odata.type': '#microsoft.graph.fileAttachment',
-        name: path.basename(attachmentPath),
-        contentType: 'application/octet-stream',
-        contentBytes: contentBytes
-      });
+    const filePaths = Array.isArray(attachmentPath) ? attachmentPath : (attachmentPath ? [attachmentPath] : []);
+    
+    for (const filePath of filePaths) {
+      if (filePath && fs.existsSync(filePath)) {
+        const contentBytes = fs.readFileSync(filePath).toString('base64');
+        attachments.push({
+          '@odata.type': '#microsoft.graph.fileAttachment',
+          name: path.basename(filePath),
+          contentType: 'application/octet-stream',
+          contentBytes: contentBytes
+        });
+      }
     }
 
     // 1. Create a draft message to obtain a conversationId (thread ID equivalence)

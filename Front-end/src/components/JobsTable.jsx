@@ -9,6 +9,7 @@ import VoiceInterviewTab from './VoiceInterviewTab';
 import AutoFormFillPreview from './AutoFormFillPreview';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
+import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
@@ -120,6 +121,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
   const [jdFileName, setJdFileName] = useState('');
   const [extractError, setExtractError] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
   const fileInputRef = useRef(null);
 
   const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
@@ -138,6 +140,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
     try {
       const formData = new FormData();
       formData.append('jdFile', file);
+      formData.append('aiModel', selectedAiModel);
       const res = await axios.post(`${BACKEND}/jobs/extract-jd`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
@@ -209,7 +212,15 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
             {/* JD File Upload — only on Add mode */}
             {!isEdit && (
               <div className="space-y-2">
-                <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Upload JD File (auto-fills fields)</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Upload JD File (auto-fills fields)</label>
+                  <AiModelSelector 
+                    selectedModel={selectedAiModel} 
+                    onSelectModel={setSelectedAiModel} 
+                    compact={true} 
+                    currentUseCase="ats" 
+                  />
+                </div>
 
                 <div
                   onDrop={handleDrop}
@@ -329,6 +340,7 @@ const InterviewPrepTab = ({ job, toast }) => {
   const [gradeFeedback, setGradeFeedback] = useState(null);
   const [savingNotes, setSavingNotes] = useState(false);
   const [practiceMode, setPracticeMode] = useState('written');
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
 
   const typeColors = {
     Technical: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
@@ -339,7 +351,7 @@ const InterviewPrepTab = ({ job, toast }) => {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const res = await axios.post(`${BACKEND}/jobs/${job._id}/interview-prep`);
+      const res = await axios.post(`${BACKEND}/jobs/${job._id}/interview-prep`, { aiModel: selectedAiModel });
       setQuestions(res.data.interviewQuestions || []);
       setSelected(null);
       toast.success('Interview questions generated!');
@@ -379,7 +391,7 @@ const InterviewPrepTab = ({ job, toast }) => {
     setGradeFeedback(null);
     try {
       await handleSaveNotes();
-      const res = await axios.post(`${BACKEND}/jobs/${job._id}/grade-answer`, { questionId: selected._id });
+      const res = await axios.post(`${BACKEND}/jobs/${job._id}/grade-answer`, { questionId: selected._id, aiModel: selectedAiModel });
       setGradeFeedback(res.data);
       setQuestions(qs => qs.map(q => q._id === selected._id ? { ...q, score: res.data.score, aiFeedback: res.data.aiFeedback } : q));
       toast.success('Answer graded!');
@@ -417,9 +429,17 @@ const InterviewPrepTab = ({ job, toast }) => {
           <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Interview Prep</h3>
           <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Tailored questions based on this job & your resume</p>
         </div>
-        <button onClick={handleGenerate} disabled={generating} className="btn-primary text-xs gap-1.5 py-1.5">
-          {generating ? <><Spinner size={12} /> Generating...</> : <><RefreshIcon /> {questions.length ? 'Regenerate' : 'Generate Questions'}</>}
-        </button>
+        <div className="flex items-center gap-2">
+          <AiModelSelector 
+            selectedModel={selectedAiModel} 
+            onSelectModel={setSelectedAiModel} 
+            compact={true} 
+            currentUseCase="ats" 
+          />
+          <button onClick={handleGenerate} disabled={generating} className="btn-primary text-xs gap-1.5 py-1.5 cursor-pointer">
+            {generating ? <><Spinner size={12} /> Generating...</> : <><RefreshIcon /> {questions.length ? 'Regenerate' : 'Generate Questions'}</>}
+          </button>
+        </div>
       </div>
 
       {questions.length === 0 ? (
@@ -568,6 +588,7 @@ const MessagesTab = ({ job, user, toast }) => {
   const [suggesting, setSuggesting] = useState(false);
   const [addingManual, setAddingManual] = useState(false);
   const [manualMsg, setManualMsg] = useState({ from: '', subject: '', body: '' });
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
   const messagesEndRef = useRef(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -602,7 +623,7 @@ const MessagesTab = ({ job, user, toast }) => {
   const handleSuggestReply = async () => {
     setSuggesting(true);
     try {
-      const res = await axios.post(`${BACKEND}/jobs/${job._id}/suggest-reply`);
+      const res = await axios.post(`${BACKEND}/jobs/${job._id}/suggest-reply`, { aiModel: selectedAiModel });
       setNewMsg(res.data.suggestedReply || '');
       toast.info('AI draft ready — review and send!');
     } catch (err) {
@@ -704,11 +725,17 @@ const MessagesTab = ({ job, user, toast }) => {
           className="input resize-none text-xs"
           onKeyDown={e => e.key === 'Enter' && e.metaKey && handleSendReply()}
         />
-        <div className="flex gap-2">
-          <button onClick={handleSuggestReply} disabled={suggesting} className="btn-ghost text-xs py-1.5 flex-1">
+        <div className="flex gap-2 items-center">
+          <AiModelSelector 
+            selectedModel={selectedAiModel} 
+            onSelectModel={setSelectedAiModel} 
+            compact={true} 
+            currentUseCase="email-outreach" 
+          />
+          <button onClick={handleSuggestReply} disabled={suggesting} className="btn-ghost text-xs py-1.5 flex-1 cursor-pointer">
             {suggesting ? <><Spinner size={12} /> Thinking...</> : <><SparkleIcon /> AI Draft</>}
           </button>
-          <button onClick={handleSendReply} disabled={sending || !newMsg.trim()} className="btn-primary text-xs py-1.5 flex-1">
+          <button onClick={handleSendReply} disabled={sending || !newMsg.trim()} className="btn-primary text-xs py-1.5 flex-1 cursor-pointer">
             {sending ? <><Spinner size={12} /> Sending...</> : <><SendIcon /> Send Reply</>}
           </button>
         </div>
@@ -839,6 +866,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
 const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
   const [activeTab, setActiveTab] = useState('overview');
   const [outreachOpen, setOutreachOpen] = useState(false);
+  const [outreachStep, setOutreachStep] = useState('edit');
   const [coverOpen, setCoverOpen] = useState(false);
   const [negotiationOpen, setNegotiationOpen] = useState(false);
   const [autofillOpen, setAutofillOpen] = useState(false);
@@ -890,77 +918,80 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
         {/* Tab Content */}
         <div className="flex-1 overflow-hidden p-6">
           {activeTab === 'overview' && (
-            <div className="h-full overflow-y-auto space-y-5">
-              {/* Status & ATS */}
-              <div className="flex items-center justify-between">
-                <StatusBadge sent={job.isEmailSent} opened={job.isOpened} clicked={job.linkClicksCount > 0} hasReply={job.hasReply} />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-slate-500 dark:text-zinc-400">ATS Score</span>
-                  <AtsRing score={job.atsAnalysis?.score} />
-                </div>
-              </div>
-
-              {/* Tracking */}
-              {job.isEmailSent && (
-                <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 space-y-2">
-                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Outreach Engagement</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className={`p-2 rounded text-center ${job.isEmailSent ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
-                      <div className="flex justify-center mb-1 text-indigo-500"><MailIcon /></div>
-                      <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">Sent</p>
-                    </div>
-                    <div className={`p-2 rounded text-center ${job.isOpened ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
-                      <div className={`flex justify-center mb-1 ${job.isOpened ? 'text-emerald-500' : 'text-slate-400 dark:text-zinc-500'}`}><EyeIcon /></div>
-                      <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">{job.isOpened ? 'Opened' : 'Not Opened'}</p>
-                    </div>
-                    <div className={`p-2 rounded text-center ${job.linkClicksCount > 0 ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
-                      <div className={`flex justify-center mb-1 ${job.linkClicksCount > 0 ? 'text-amber-500' : 'text-slate-400 dark:text-zinc-500'}`}><LinkIcon /></div>
-                      <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">{job.linkClicksCount > 0 ? `${job.linkClicksCount} Click(s)` : 'No Clicks'}</p>
-                    </div>
+            <div className="h-full flex flex-col min-h-0">
+              {/* Scrollable details */}
+              <div className="flex-1 overflow-y-auto space-y-5 pr-1 pb-4">
+                {/* Status & ATS */}
+                <div className="flex items-center justify-between">
+                  <StatusBadge sent={job.isEmailSent} opened={job.isOpened} clicked={job.linkClicksCount > 0} hasReply={job.hasReply} />
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 dark:text-zinc-400">ATS Score</span>
+                    <AtsRing score={job.atsAnalysis?.score} />
                   </div>
                 </div>
-              )}
 
-              {/* ATS Keywords */}
-              {job.atsAnalysis?.matchingKeywords?.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Keyword Match</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {job.atsAnalysis.matchingKeywords.map((kw, i) => (
-                      <span key={i} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">{kw}</span>
-                    ))}
+                {/* Tracking */}
+                {job.isEmailSent && (
+                  <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 space-y-2">
+                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Outreach Engagement</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      <div className={`p-2 rounded text-center ${job.isEmailSent ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                        <div className="flex justify-center mb-1 text-indigo-500"><MailIcon /></div>
+                        <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">Sent</p>
+                      </div>
+                      <div className={`p-2 rounded text-center ${job.isOpened ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                        <div className={`flex justify-center mb-1 ${job.isOpened ? 'text-emerald-500' : 'text-slate-400 dark:text-zinc-500'}`}><EyeIcon /></div>
+                        <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">{job.isOpened ? 'Opened' : 'Not Opened'}</p>
+                      </div>
+                      <div className={`p-2 rounded text-center ${job.linkClicksCount > 0 ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                        <div className={`flex justify-center mb-1 ${job.linkClicksCount > 0 ? 'text-amber-500' : 'text-slate-400 dark:text-zinc-500'}`}><LinkIcon /></div>
+                        <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">{job.linkClicksCount > 0 ? `${job.linkClicksCount} Click(s)` : 'No Clicks'}</p>
+                      </div>
+                    </div>
                   </div>
-                  {job.atsAnalysis.missingKeywords?.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mt-1">
-                      {job.atsAnalysis.missingKeywords.map((kw, i) => (
-                        <span key={i} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20">{kw}</span>
+                )}
+
+                {/* ATS Keywords */}
+                {job.atsAnalysis?.matchingKeywords?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Keyword Match</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {job.atsAnalysis.matchingKeywords.map((kw, i) => (
+                        <span key={i} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-500/20">{kw}</span>
                       ))}
                     </div>
-                  )}
+                    {job.atsAnalysis.missingKeywords?.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mt-1">
+                        {job.atsAnalysis.missingKeywords.map((kw, i) => (
+                          <span key={i} className="px-2 py-0.5 rounded-full text-[11px] font-medium bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border border-red-200 dark:border-red-500/20">{kw}</span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Status Timeline */}
+                <div className="p-4 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/20 space-y-3">
+                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Status History & Timeline</p>
+                  <JobTimeline statusHistory={job.statusHistory} />
                 </div>
-              )}
 
-              {/* Status Timeline */}
-              <div className="p-4 rounded-lg border border-slate-200/60 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-800/20 space-y-3">
-                <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Status History & Timeline</p>
-                <JobTimeline statusHistory={job.statusHistory} />
+                {/* Follow-up Scheduler */}
+                <FollowUpScheduler job={job} onRefresh={onRefresh} toast={toast} />
+
+                {/* Description */}
+                <div className="space-y-1">
+                  <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Job Description</p>
+                  <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line line-clamp-10">{job.description}</p>
+                </div>
               </div>
 
-              {/* Follow-up Scheduler */}
-              <FollowUpScheduler job={job} onRefresh={onRefresh} toast={toast} />
-
-              {/* Description */}
-              <div className="space-y-1">
-                <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Job Description</p>
-                <p className="text-xs text-slate-600 dark:text-zinc-400 leading-relaxed whitespace-pre-line line-clamp-10">{job.description}</p>
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-col gap-2 pt-1">
+              {/* Sticky Action Footer */}
+              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-2 shrink-0 bg-white dark:bg-zinc-900">
                 {job.status === 'offer' && (
                   <button 
                     onClick={() => setNegotiationOpen(true)} 
-                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] transition-all text-white font-bold text-xs shadow-md shadow-emerald-500/10 hover:shadow-lg hover:shadow-emerald-500/20 flex items-center justify-center gap-2 cursor-pointer border-0"
+                    className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 active:scale-[0.99] transition-all text-white font-bold text-xs shadow-md flex items-center justify-center gap-2 cursor-pointer border-0 btn-tactile"
                   >
                     <SparkleIcon /> Negotiate Offer (AI Benchmark)
                   </button>
@@ -968,14 +999,28 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
 
                 <button 
                   onClick={() => setAutofillOpen(true)} 
-                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-650 to-violet-650 hover:from-indigo-700 hover:to-violet-750 active:scale-[0.99] transition-all text-white font-bold text-xs shadow-md shadow-indigo-500/10 hover:shadow-lg hover:shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer border-0"
+                  className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-600 hover:from-indigo-700 hover:to-purple-700 active:scale-[0.99] transition-all text-white font-bold text-xs shadow-md shadow-indigo-500/20 flex items-center justify-center gap-2 cursor-pointer border-0 btn-tactile"
                 >
                   <SparkleIcon /> Autofill Application Form (AI Agent)
                 </button>
 
-                <div className="flex gap-2">
-                  <button onClick={() => setCoverOpen(true)} className="btn-ghost text-xs flex-1">Cover Letter</button>
-                  <button onClick={() => setOutreachOpen(true)} className="btn-primary text-xs flex-1"><SparkleIcon /> Optimize & Outreach</button>
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => {
+                      setOutreachStep('review');
+                      setOutreachOpen(true);
+                    }} 
+                    disabled={job.isEmailSent}
+                    className="w-full py-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 font-bold text-xs flex items-center justify-center gap-2 cursor-pointer btn-tactile disabled:opacity-50"
+                  >
+                    <MailIcon />
+                    {job.isEmailSent ? 'Application Already Dispatched' : 'Direct Apply (Inspect & Send Builder Resume)'}
+                  </button>
+
+                  <div className="flex gap-2">
+                    <button onClick={() => setCoverOpen(true)} className="btn-ghost text-xs flex-1">Cover Letter Studio</button>
+                    <button onClick={() => { setOutreachStep('edit'); setOutreachOpen(true); }} className="btn-primary text-xs flex-1"><SparkleIcon /> AI Optimize & Outreach</button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1000,6 +1045,7 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
         <OutreachModal
           job={job}
           user={user}
+          initialStep={outreachStep}
           onClose={() => setOutreachOpen(false)}
           onSuccess={() => { setOutreachOpen(false); onRefresh(); }}
         />
@@ -1046,6 +1092,8 @@ const JobsTable = ({ user }) => {
   const [loading, setLoading] = useState(true);
   const [sortConfig, setSortConfig] = useState({ key: 'createdAt', dir: 'desc' });
   const [drawerJob, setDrawerJob] = useState(null);
+  const [tableOutreachJob, setTableOutreachJob] = useState(null);
+  const [tableOutreachStep, setTableOutreachStep] = useState('edit');
   const [formJob, setFormJob] = useState(null); // null = closed, {} = new, job = edit
   const [formOpen, setFormOpen] = useState(false);
 
@@ -1299,19 +1347,46 @@ const JobsTable = ({ user }) => {
                     <td className="px-4 py-3 text-xs text-slate-400 dark:text-zinc-500 whitespace-nowrap">
                       {new Date(job.createdAt).toLocaleDateString()}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
                         <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTableOutreachJob(job);
+                            setTableOutreachStep('review');
+                          }}
+                          disabled={job.isEmailSent}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-bold border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 transition-all btn-tactile disabled:opacity-40 whitespace-nowrap cursor-pointer"
+                          title="Direct Send using Active Builder Resume"
+                        >
+                          {job.isEmailSent ? 'Applied' : 'Direct Send'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setTableOutreachJob(job);
+                            setTableOutreachStep('edit');
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[10px] font-bold bg-brand-primary hover:bg-brand-primary-hover text-white transition-all btn-tactile whitespace-nowrap shadow-xs cursor-pointer"
+                          title="AI Outreach & Optimization Studio"
+                        >
+                          Outreach
+                        </button>
+                        <button
+                          type="button"
                           onClick={e => handleEdit(job, e)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                           title="Edit job"
                           id={`edit-job-${job._id}`}
                         >
                           <EditIcon />
                         </button>
                         <button
+                          type="button"
                           onClick={e => handleDelete(job._id, e)}
-                          className="p-1.5 rounded-md text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
                           title="Delete job"
                           id={`delete-job-${job._id}`}
                         >
@@ -1403,6 +1478,20 @@ const JobsTable = ({ user }) => {
           onClose={() => setDrawerJob(null)}
           onRefresh={fetchJobs}
           toast={toast}
+        />
+      )}
+
+      {/* Table Row Direct Outreach Modal */}
+      {tableOutreachJob && (
+        <OutreachModal
+          job={tableOutreachJob}
+          user={user}
+          initialStep={tableOutreachStep}
+          onClose={() => setTableOutreachJob(null)}
+          onSuccess={() => {
+            setTableOutreachJob(null);
+            fetchJobs(page, search, status, sortConfig);
+          }}
         />
       )}
 

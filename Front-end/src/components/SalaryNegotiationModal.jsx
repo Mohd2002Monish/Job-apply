@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import axios from 'axios';
-import { XIcon, WandIcon, GlobeIcon, LinkIcon } from './Icons';
+import { XIcon, WandIcon, GlobeIcon, LinkIcon, CheckCircleIcon, AlertTriangleIcon } from './Icons';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
+import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -50,6 +51,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [negotiationData, setNegotiationData] = useState(null);
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
 
   // Initialize values
   useEffect(() => {
@@ -89,7 +91,8 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
           offeredSalary: offeredSalary ? Number(offeredSalary) : null,
           targetSalary: targetSalary ? Number(targetSalary) : null,
           currency,
-          location
+          location,
+          aiModel: selectedAiModel
         },
         { withCredentials: true, timeout: 90000 }
       );
@@ -226,7 +229,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
           {offer > 0 && (
             <div className="absolute -top-7 flex flex-col items-center -translate-x-1/2 z-10" style={{ left: `${getPct(offer)}%` }}>
               <span className="text-[10px] font-extrabold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 px-2 py-0.5 rounded shadow-sm whitespace-nowrap">
-                🎁 Offered: {formatVal(offer)}
+                Offered: {formatVal(offer)}
               </span>
               <div className="w-2 h-2 bg-emerald-500 rotate-45 mt-0.5" />
             </div>
@@ -292,6 +295,19 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
               <h4 className="text-xs font-bold text-slate-700 dark:text-zinc-300 uppercase tracking-wider">
                 Offer Parameters
               </h4>
+
+              {/* AI Engine Selection */}
+              <div>
+                <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5">
+                  AI Model Engine
+                </label>
+                <AiModelSelector 
+                  selectedModel={selectedAiModel} 
+                  onSelectModel={setSelectedAiModel} 
+                  compact={true} 
+                  currentUseCase="salary-negotiation" 
+                />
+              </div>
 
               {/* Currency */}
               <div>
@@ -487,14 +503,14 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
         {/* Global Feedback Banner */}
         {error && (
           <div className="mx-6 mb-4 p-3 bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-xs font-semibold text-red-700 dark:text-red-400 animate-fade-in flex items-center gap-2">
-            <span className="text-red-500 text-sm">⚠</span>
+            <AlertTriangleIcon size={14} className="text-red-500 shrink-0" />
             <span>{error}</span>
           </div>
         )}
 
         {success && (
           <div className="mx-6 mb-4 p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-400 animate-fade-in flex items-center gap-2">
-            <span className="text-emerald-500 text-sm">✓</span>
+            <CheckCircleIcon size={14} className="text-emerald-500 shrink-0" />
             <span>{success}</span>
           </div>
         )}
@@ -524,7 +540,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
               {saving ? (
                 <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
-                <span className="text-sm font-bold">✓</span>
+                <CheckCircleIcon size={13} />
               )}
               {saving ? 'Saving...' : 'Save Strategy'}
             </button>

@@ -9,6 +9,7 @@ import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
 import { setResumesInfo, setAuth } from '../store/authSlice';
 import InlineCVEditor, { useDebounce } from './InlineCVEditor.jsx';
+import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -73,6 +74,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false);
   const [savingCoverLetter, setSavingCoverLetter] = useState(false);
   const [exportingCoverLetter, setExportingCoverLetter] = useState(null);
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
 
   const saveTimer = useRef(null);
 
@@ -245,7 +247,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
     if (!selectedJobId) return;
     setGeneratingCoverLetter(true);
     try {
-      const res = await axios.post(`${BACKEND}/resume/cover-letter`, { jobId: selectedJobId });
+      const res = await axios.post(`${BACKEND}/resume/cover-letter`, { jobId: selectedJobId, aiModel: selectedAiModel });
       setCoverLetterText(res.data.coverLetter);
       setJobs(prev => prev.map(j => j._id === selectedJobId ? { ...j, coverLetter: res.data.coverLetter } : j));
     } catch (err) {
@@ -486,7 +488,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
         {saveStatus && (
           <span className={`text-[10px] font-medium flex-shrink-0 flex items-center gap-1 ${saveStatus === 'saved' ? 'text-emerald-500' : saveStatus === 'saving' ? 'text-amber-500' : 'text-red-500'}`}>
             {saveStatus === 'saving' && <div className="w-2.5 h-2.5 border border-amber-500 border-t-transparent rounded-full animate-spin" />}
-            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : '⚠ Save failed'}
+            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save failed'}
           </span>
         )}
 
@@ -596,6 +598,17 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
               <button onClick={() => setCoverLetterOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 transition-colors"><XIcon size={13} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* AI Model selector */}
+              <div>
+                <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">AI Engine</label>
+                <AiModelSelector 
+                  selectedModel={selectedAiModel} 
+                  onSelectModel={setSelectedAiModel} 
+                  compact={true} 
+                  currentUseCase="detailed-cover-letter" 
+                />
+              </div>
+
               {/* Job selector */}
               <div>
                 <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Target Job</label>

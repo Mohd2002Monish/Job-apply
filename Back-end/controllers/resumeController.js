@@ -315,7 +315,8 @@ const updateResumeData = async (req, res) => {
 };
 
 const exportCoverLetterDoc = async (req, res) => {
-  const { jobId, format = 'pdf' } = req.body;
+  const { jobId, format = 'pdf', templateId } = req.body;
+  const user = req.user;
 
   try {
     const job = await Job.findById(jobId);
@@ -323,8 +324,20 @@ const exportCoverLetterDoc = async (req, res) => {
       return res.status(404).json({ error: 'Cover letter not found. Generate it first.' });
     }
 
-    console.log(`Exporting cover letter for Job ${job.job} as ${format}...`);
-    const { buffer, mime, ext } = await exportCoverLetter(job.coverLetter, format);
+    const templateToUse = templateId || job.templateId || 'classic';
+    const activeResume = user?.resumes?.find(r => r.id === user.activeResumeId) || user?.resumes?.[0] || null;
+    const candidateInfo = {
+      name: activeResume?.resumeData?.personalInfo?.name || user?.name || 'Applicant Name',
+      email: activeResume?.resumeData?.personalInfo?.email || user?.email || '',
+      phone: activeResume?.resumeData?.personalInfo?.phone || ''
+    };
+    const jobInfo = {
+      job: job.job,
+      companyName: job.companyName
+    };
+
+    console.log(`Exporting cover letter for Job ${job.job} as ${format} with template ${templateToUse}...`);
+    const { buffer, mime, ext } = await exportCoverLetter(job.coverLetter, format, templateToUse, candidateInfo, jobInfo);
     const filename = `cover_letter_${Date.now()}.${ext}`;
 
     res.setHeader('Content-Type', mime);

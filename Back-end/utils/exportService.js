@@ -941,20 +941,130 @@ const exportResume = async (resumeData, templateId = 'classic', format = 'pdf', 
   }
 };
 
-const exportCoverLetterAsPdf = async (text) => {
-  const html = `<!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="UTF-8">
-    <style>
-      body { font-family: 'Georgia', serif; font-size: 11pt; color: ${t.primary || '#1a1a1a'}; padding: 50px 60px; line-height: 1.6; max-width: 800px; margin: 0 auto; }
-      p { margin-bottom: 15px; white-space: pre-line; }
-    </style>
-  </head>
-  <body>
-    <p>${text}</p>
-  </body>
-  </html>`;
+const buildCoverLetterHTML = (text, templateId = 'classic', candidateInfo = {}, jobInfo = {}) => {
+  const name = candidateInfo.name || 'Applicant Name';
+  const email = candidateInfo.email || '';
+  const phone = candidateInfo.phone || '';
+  const jobTitle = jobInfo.job || '';
+  const company = jobInfo.companyName || '';
+
+  const cleanText = text || '';
+  const paragraphs = cleanText.split('\n\n').map(p => `<p>${p.replace(/\n/g, '<br/>')}</p>`).join('');
+
+  switch (templateId) {
+    case 'modern':
+      return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10.5pt; color: #1e293b; background: #fff; padding: 0; border-top: 8px solid #4f46e5; }
+  .wrapper { padding: 48px 56px; max-width: 800px; margin: 0 auto; }
+  .name { font-size: 22pt; font-weight: 800; color: #4f46e5; letter-spacing: -0.5px; }
+  .contact { font-size: 9pt; color: #64748b; margin-top: 6px; display: flex; gap: 12px; flex-wrap: wrap; }
+  .job-badge { font-size: 8.5pt; color: #4f46e5; font-weight: 700; background: #e0e7ff; padding: 3px 10px; border-radius: 4px; margin-top: 8px; display: inline-block; }
+  .divider { border: none; border-top: 1px solid #e2e8f0; margin: 20px 0 24px; }
+  .body-content { font-size: 10pt; color: #334155; }
+  .body-content p { margin-bottom: 16px; line-height: 1.7; }
+</style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="name">${name}</div>
+    <div class="contact">
+      ${email ? `<span>✉ ${email}</span>` : ''}
+      ${phone ? `<span>📞 ${phone}</span>` : ''}
+    </div>
+    ${jobTitle ? `<div class="job-badge">Job Application: ${jobTitle} ${company ? `@ ${company}` : ''}</div>` : ''}
+    <hr class="divider"/>
+    <div class="body-content">${paragraphs}</div>
+  </div>
+</body>
+</html>`;
+
+    case 'minimal':
+      return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 10pt; color: #374151; background: #fff; padding: 56px 64px; max-width: 800px; margin: 0 auto; }
+  .header-left { border-left: 2px solid #9ca3af; padding-left: 14px; margin-bottom: 28px; }
+  .name { font-size: 18pt; font-weight: 600; text-transform: uppercase; letter-spacing: 2px; color: #4b5563; }
+  .contact { font-size: 8.5pt; color: #6b7280; margin-top: 4px; }
+  .job-info { font-size: 8.5pt; color: #9ca3af; margin-top: 4px; }
+  .body-content { font-size: 9.5pt; line-height: 1.8; color: #4b5563; font-weight: 300; }
+  .body-content p { margin-bottom: 18px; }
+</style>
+</head>
+<body>
+  <div class="header-left">
+    <div class="name">${name}</div>
+    <div class="contact">${[email, phone].filter(Boolean).join(' · ')}</div>
+    ${jobTitle ? `<div class="job-info">Application: ${jobTitle} ${company ? `at ${company}` : ''}</div>` : ''}
+  </div>
+  <div class="body-content">${paragraphs}</div>
+</body>
+</html>`;
+
+    case 'executive':
+      return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Georgia', serif; font-size: 10.5pt; color: #18181b; background: #fff; padding: 48px 56px; max-width: 800px; margin: 0 auto; border-left: 6px solid #18181b; }
+  .name { font-size: 20pt; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: #18181b; }
+  .contact { font-size: 9pt; color: #71717a; margin-top: 4px; }
+  .job-info { font-size: 9pt; color: #27272a; font-weight: 600; font-family: sans-serif; margin-top: 6px; }
+  .divider { border: none; border-top: 1px solid #e4e4e7; margin: 18px 0 24px; }
+  .body-content { font-size: 10pt; line-height: 1.7; color: #27272a; }
+  .body-content p { margin-bottom: 16px; }
+</style>
+</head>
+<body>
+  <div class="name">${name}</div>
+  <div class="contact">${[email, phone].filter(Boolean).join(' | ')}</div>
+  ${jobTitle ? `<div class="job-info">RE: Application for ${jobTitle} ${company ? `at ${company}` : ''}</div>` : ''}
+  <hr class="divider"/>
+  <div class="body-content">${paragraphs}</div>
+</body>
+</html>`;
+
+    case 'classic':
+    default:
+      return `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Georgia', serif; font-size: 10.5pt; color: #1a1a1a; background: #fff; padding: 48px 56px; max-width: 800px; margin: 0 auto; }
+  .header { text-align: center; border-bottom: 1px solid #e5e7eb; padding-bottom: 16px; margin-bottom: 24px; }
+  .name { font-size: 22pt; font-weight: bold; color: #111827; }
+  .contact { font-size: 9pt; color: #6b7280; margin-top: 6px; }
+  .job-info { font-size: 9.5pt; color: #4f46e5; font-weight: 600; margin-top: 4px; }
+  .body-content { font-size: 10pt; line-height: 1.7; color: #1f2937; }
+  .body-content p { margin-bottom: 16px; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="name">${name}</div>
+    <div class="contact">${[email, phone].filter(Boolean).join(' · ')}</div>
+    ${jobTitle ? `<div class="job-info">Job Application: ${jobTitle} ${company ? `@ ${company}` : ''}</div>` : ''}
+  </div>
+  <div class="body-content">${paragraphs}</div>
+</body>
+</html>`;
+  }
+};
+
+const exportCoverLetterAsPdf = async (text, templateId = 'classic', candidateInfo = {}, jobInfo = {}) => {
+  const html = buildCoverLetterHTML(text, templateId, candidateInfo, jobInfo);
 
   const browser = await puppeteer.launch({
     headless: 'new',
@@ -974,26 +1084,73 @@ const exportCoverLetterAsPdf = async (text) => {
   }
 };
 
-const exportCoverLetterAsDocx = async (text) => {
-  const paragraphs = text.split('\n').map(p => new Paragraph({
-    children: [new TextRun({ text: p, size: 22 })],
-    spacing: { after: 120 }
+const exportCoverLetterAsDocx = async (text, templateId = 'classic', candidateInfo = {}, jobInfo = {}) => {
+  const name = candidateInfo.name || 'Applicant Name';
+  const email = candidateInfo.email || '';
+  const phone = candidateInfo.phone || '';
+  const jobTitle = jobInfo.job || '';
+  const company = jobInfo.companyName || '';
+
+  const fontName = (templateId === 'classic' || templateId === 'executive') ? 'Georgia' : 'Calibri';
+  let primaryHex = '111827';
+  if (templateId === 'modern') primaryHex = '4f46e5';
+  if (templateId === 'executive') primaryHex = '18181b';
+  if (templateId === 'minimal') primaryHex = '4b5563';
+
+  const paragraphs = [];
+
+  // Candidate Name
+  paragraphs.push(new Paragraph({
+    children: [new TextRun({ text: name, bold: true, size: 36, color: primaryHex, font: fontName })],
+    alignment: templateId === 'classic' ? AlignmentType.CENTER : AlignmentType.LEFT,
+    spacing: { after: 60 }
   }));
+
+  // Contact Info
+  const contactParts = [email, phone].filter(Boolean).join(' · ');
+  if (contactParts) {
+    paragraphs.push(new Paragraph({
+      children: [new TextRun({ text: contactParts, size: 18, color: '6b7280', font: fontName })],
+      alignment: templateId === 'classic' ? AlignmentType.CENTER : AlignmentType.LEFT,
+      spacing: { after: 60 }
+    }));
+  }
+
+  // Job Application Subtitle
+  if (jobTitle) {
+    paragraphs.push(new Paragraph({
+      children: [new TextRun({ text: `Job Application: ${jobTitle}${company ? ` @ ${company}` : ''}`, bold: true, size: 18, color: '4f46e5', font: fontName })],
+      alignment: templateId === 'classic' ? AlignmentType.CENTER : AlignmentType.LEFT,
+      spacing: { after: 180 },
+      border: { bottom: { color: 'e5e7eb', size: 6, style: BorderStyle.SINGLE } }
+    }));
+  }
+
+  // Cover Letter Text Paragraphs
+  const textParas = (text || '').split('\n\n');
+  for (const pText of textParas) {
+    if (!pText.trim()) continue;
+    paragraphs.push(new Paragraph({
+      children: [new TextRun({ text: pText.trim(), size: 22, font: fontName, color: '1f2937' })],
+      spacing: { after: 140 },
+      lineSpacing: 280
+    }));
+  }
 
   const doc = new Document({
     sections: [{ children: paragraphs }],
     styles: {
-      default: { document: { run: { font: 'Calibri', size: 22 } } },
+      default: { document: { run: { font: fontName, size: 22 } } },
     },
   });
 
   return Packer.toBuffer(doc);
 };
 
-const exportCoverLetter = async (text, format = 'pdf') => {
+const exportCoverLetter = async (text, format = 'pdf', templateId = 'classic', candidateInfo = {}, jobInfo = {}) => {
   switch (format) {
-    case 'pdf': return { buffer: await exportCoverLetterAsPdf(text), mime: 'application/pdf', ext: 'pdf' };
-    case 'docx': return { buffer: await exportCoverLetterAsDocx(text), mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' };
+    case 'pdf': return { buffer: await exportCoverLetterAsPdf(text, templateId, candidateInfo, jobInfo), mime: 'application/pdf', ext: 'pdf' };
+    case 'docx': return { buffer: await exportCoverLetterAsDocx(text, templateId, candidateInfo, jobInfo), mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' };
     default: throw new Error(`Unsupported cover letter format: ${format}`);
   }
 };

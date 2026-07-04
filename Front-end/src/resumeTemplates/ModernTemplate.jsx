@@ -92,11 +92,11 @@ const ModernTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: raw
           {/* Contact */}
           <div style={s.sidebarSection}>
             <div style={s.sidebarTitle}>Contact</div>
-            {(p.email || editMode) && <div style={s.contactRow}>✉ <T value={p.email || ''} onChange={updPI('email')} placeholder="email@example.com" /></div>}
-            {(p.phone || editMode) && <div style={s.contactRow}>📞 <T value={p.phone || ''} onChange={updPI('phone')} placeholder="+1 555 000" /></div>}
-            {(p.location || editMode) && <div style={s.contactRow}>📍 <T value={p.location || ''} onChange={updPI('location')} placeholder="City" /></div>}
-            {(p.linkedin || editMode) && <div style={s.contactRow}>in <T value={p.linkedin || ''} onChange={updPI('linkedin')} placeholder="LinkedIn" /></div>}
-            {(p.github || editMode) && <div style={s.contactRow}>⌥ <T value={p.github || ''} onChange={updPI('github')} placeholder="GitHub" /></div>}
+            {(p.email || editMode) && <div style={s.contactRow}>Email: <T value={p.email || ''} onChange={updPI('email')} placeholder="email@example.com" /></div>}
+            {(p.phone || editMode) && <div style={s.contactRow}>Phone: <T value={p.phone || ''} onChange={updPI('phone')} placeholder="+1 555 000" /></div>}
+            {(p.location || editMode) && <div style={s.contactRow}>Location: <T value={p.location || ''} onChange={updPI('location')} placeholder="City" /></div>}
+            {(p.linkedin || editMode) && <div style={s.contactRow}>LinkedIn: <T value={p.linkedin || ''} onChange={updPI('linkedin')} placeholder="LinkedIn" /></div>}
+            {(p.github || editMode) && <div style={s.contactRow}>GitHub: <T value={p.github || ''} onChange={updPI('github')} placeholder="GitHub" /></div>}
           </div>
 
           {/* Skills in sidebar */}

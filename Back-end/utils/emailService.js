@@ -47,6 +47,13 @@ const sendEmailViaGmailAPI = async (to, subject, text, attachmentPath, tokens, t
     const oAuth2Client = getAuthenticatedClient(tokens);
     const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
 
+    let attachments = [];
+    if (Array.isArray(attachmentPath)) {
+      attachments = attachmentPath.filter(Boolean).map(p => (typeof p === 'string' ? { path: p } : p));
+    } else if (attachmentPath) {
+      attachments = [{ path: attachmentPath }];
+    }
+
     // Build MIME using nodemailer stream transport (handles attachments cleanly)
     const streamTransport = nodemailer.createTransport({
       streamTransport: true,
@@ -61,7 +68,7 @@ const sendEmailViaGmailAPI = async (to, subject, text, attachmentPath, tokens, t
       text: text.replace(/<[^>]*>/g, ''), // Plain text fallback
       html: text, // HTML body for tracking pixel support
       ...(threadId ? { headers: { 'In-Reply-To': threadId, 'References': threadId } } : {}),
-      ...(attachmentPath ? { attachments: [{ path: attachmentPath }] } : {}),
+      ...(attachments.length > 0 ? { attachments } : {}),
     });
 
     // Convert Buffer → base64url for Gmail API

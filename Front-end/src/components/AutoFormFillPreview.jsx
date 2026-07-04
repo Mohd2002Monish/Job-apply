@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
+import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -67,6 +68,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(0); // 0: Review fields, 1: Screenshot & complete
   const [loadingMessage, setLoadingMessage] = useState('Initializing scanning agent...');
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
 
   // Step messages sequence for autofilling
   const fillProgressMessages = [
@@ -143,7 +145,8 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
 
     try {
       const res = await axios.post(`${BACKEND}/jobs/${job._id}/form-fill`, {
-        mappings: fields
+        mappings: fields,
+        aiModel: selectedAiModel
       }, {
         withCredentials: true,
         timeout: 90000 // Extended timeout for Puppeteer + file uploads
@@ -189,45 +192,54 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md overflow-y-auto">
-      <div className="relative w-full max-w-4xl bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm overflow-y-auto">
+      <div className="relative w-full max-w-4xl bg-bg-card border border-border-card rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden text-text-main origin-aware-popover">
         
         {/* Modal Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-slate-900/50">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border-card bg-bg-card">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+            <div className="p-2 rounded-xl bg-brand-primary/10 text-brand-primary border border-brand-primary/20">
               <CpuIcon size={18} />
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white leading-tight">
-                AI Application Autofill Wizard
+              <h3 className="text-sm font-extrabold text-text-main leading-tight flex items-center gap-2">
+                AI Application Autofill Agent
               </h3>
-              <p className="text-[11px] text-slate-400 font-medium">
-                {job.companyName} — {job.job}
+              <p className="text-[11px] text-text-muted font-medium mt-0.5">
+                Target: <strong className="text-text-main">{job.job}</strong> @ <span className="font-bold text-brand-primary">{job.companyName || 'Recruiter'}</span>
               </p>
             </div>
           </div>
           
-          <button
-            onClick={onClose}
-            disabled={loading || submitting}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <CloseIcon size={18} />
-          </button>
+          <div className="flex items-center gap-3">
+            <AiModelSelector 
+              selectedModel={selectedAiModel} 
+              onSelectModel={setSelectedAiModel} 
+              compact={true} 
+              currentUseCase="autofill" 
+            />
+
+            <button
+              onClick={onClose}
+              disabled={loading || submitting}
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-card-hover transition-colors cursor-pointer border-0 bg-transparent disabled:opacity-50 disabled:cursor-not-allowed btn-tactile"
+            >
+              <CloseIcon size={18} />
+            </button>
+          </div>
         </div>
 
         {/* Wizard Steps indicator */}
-        <div className="flex items-center justify-center border-b border-slate-800/40 bg-slate-900/30 px-6 py-3">
+        <div className="flex items-center justify-center border-b border-border-card bg-bg-app px-6 py-3">
           <div className="flex items-center gap-8 text-xs font-bold font-mono">
-            <div className={`flex items-center gap-2 ${activeStep === 0 ? 'text-indigo-400' : 'text-slate-500'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center border text-[10px] ${activeStep === 0 ? 'border-indigo-400 bg-indigo-500/10' : 'border-slate-700 bg-slate-800'}`}>1</span>
-              <span>Review AI Mappings</span>
+            <div className={`flex items-center gap-2 ${activeStep === 0 ? 'text-brand-primary' : 'text-text-muted'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center border text-[10px] ${activeStep === 0 ? 'border-brand-primary bg-brand-primary/10' : 'border-border-card bg-bg-card'}`}>1</span>
+              <span>1. Review AI Mappings</span>
             </div>
-            <div className="w-12 h-px bg-slate-800" />
-            <div className={`flex items-center gap-2 ${activeStep === 1 ? 'text-indigo-400' : 'text-slate-500'}`}>
-              <span className={`w-5 h-5 rounded-full flex items-center justify-center border text-[10px] ${activeStep === 1 ? 'border-indigo-400 bg-indigo-500/10' : 'border-slate-700 bg-slate-800'}`}>2</span>
-              <span>Verification Screenshot</span>
+            <div className="w-12 h-px bg-border-card" />
+            <div className={`flex items-center gap-2 ${activeStep === 1 ? 'text-brand-primary' : 'text-text-muted'}`}>
+              <span className={`w-5 h-5 rounded-full flex items-center justify-center border text-[10px] ${activeStep === 1 ? 'border-brand-primary bg-brand-primary/10' : 'border-border-card bg-bg-card'}`}>2</span>
+              <span>2. Verification Screenshot</span>
             </div>
           </div>
         </div>
@@ -273,7 +285,11 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
               {/* Sandbox URL Indicator */}
               <div className="p-3.5 rounded-2xl bg-slate-800/40 border border-slate-800/80 flex items-center justify-between gap-4 text-xs font-semibold">
                 <div className="flex items-center gap-2 text-slate-450 min-w-0">
-                  <span className="flex-shrink-0">🌐</span>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-indigo-400">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
                   <span className="text-[11px] font-mono truncate">{urlUsed}</span>
                 </div>
                 {urlUsed.includes('mock-application-form.html') && (

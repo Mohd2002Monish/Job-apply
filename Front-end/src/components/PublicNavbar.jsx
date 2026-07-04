@@ -8,7 +8,7 @@ const Logo = () => (
     <defs>
       <linearGradient id="logoGradNav" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
         <stop stopColor="#6366f1"/>
-        <stop offset="1" stopColor="#a855f7"/>
+        <stop offset="1" stopColor="#10b981"/>
       </linearGradient>
     </defs>
   </svg>
@@ -71,19 +71,19 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'neo-surface shadow-[0_4px_20px_rgba(0,0,0,0.07)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.28)]'
+            ? 'bg-bg-app/80 backdrop-blur-md border-b border-border-card shadow-sm'
             : 'bg-transparent'
         }`}
       >
         <div className="max-w-6xl mx-auto px-5 py-3.5 flex items-center justify-between gap-6">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2.5 group shrink-0">
+          <Link to="/" className="flex items-center gap-2.5 group shrink-0 btn-tactile">
             <div className="transition-transform duration-300 group-hover:scale-105">
               <Logo />
             </div>
-            <span className="font-extrabold text-base tracking-tight text-slate-800 dark:text-slate-100">
+            <span className="font-extrabold text-base tracking-tight text-text-main">
               Reco<span className="text-gradient">Career</span>
-              <span className="text-slate-400 dark:text-slate-500 font-medium">.ai</span>
+              <span className="text-text-muted font-medium">.ai</span>
             </span>
           </Link>
 
@@ -93,10 +93,10 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
               <Link
                 key={to}
                 to={to}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                className={`px-4 py-2 rounded-xl text-sm font-medium btn-tactile transition-all duration-150 ${
                   isActive(to)
-                    ? 'neo-card-inset text-indigo-600 dark:text-indigo-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100'
+                    ? 'bg-brand-primary/10 text-brand-primary font-bold border border-brand-primary/20'
+                    : 'text-text-muted hover:text-text-main hover:bg-bg-card-hover'
                 }`}
               >
                 {label}
@@ -108,7 +108,7 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
           <div className="flex items-center gap-2.5 shrink-0">
             <button
               onClick={onToggleTheme}
-              className="neo-btn p-2.5 text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+              className="p-2.5 rounded-xl border border-border-card bg-bg-card text-text-muted hover:text-brand-primary hover:bg-bg-card-hover transition-colors btn-tactile"
               aria-label="Toggle theme"
             >
               {isDark ? <SunIcon /> : <MoonIcon />}
@@ -116,14 +116,14 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
 
             <Link
               to="/"
-              className="hidden md:flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-lg shadow-indigo-500/20 transition-all duration-200 hover:-translate-y-0.5"
+              className="hidden md:flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary-hover shadow-md shadow-brand-primary/20 transition-all btn-tactile"
             >
               Get Started
             </Link>
 
             <button
               onClick={() => setMenuOpen(o => !o)}
-              className="md:hidden neo-btn p-2.5 text-slate-600 dark:text-slate-400"
+              className="md:hidden p-2.5 rounded-xl border border-border-card bg-bg-card text-text-muted btn-tactile"
               aria-label="Menu"
             >
               {menuOpen ? <XIcon /> : <MenuIcon />}
@@ -134,16 +134,16 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="fixed inset-x-0 top-[62px] z-40 neo-surface shadow-xl animate-fade-in md:hidden">
+        <div className="fixed inset-x-0 top-[62px] z-40 bg-bg-card/95 backdrop-blur-lg border-b border-border-card shadow-xl animate-fade-in md:hidden">
           <div className="max-w-6xl mx-auto px-5 py-4 flex flex-col gap-1">
             {navLinks.map(({ label, to }) => (
               <Link
                 key={to}
                 to={to}
-                className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                className={`px-4 py-3 rounded-xl text-sm font-medium btn-tactile ${
                   isActive(to)
-                    ? 'neo-card-inset text-indigo-600 dark:text-indigo-400 font-semibold'
-                    : 'text-slate-600 dark:text-slate-400'
+                    ? 'bg-brand-primary/10 text-brand-primary font-bold'
+                    : 'text-text-muted hover:text-text-main'
                 }`}
               >
                 {label}
@@ -151,7 +151,7 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
             ))}
             <Link
               to="/"
-              className="mt-2 px-4 py-3 rounded-xl text-sm font-bold text-white text-center bg-gradient-to-r from-indigo-500 to-purple-600"
+              className="mt-2 px-4 py-3 rounded-xl text-sm font-bold text-white text-center bg-brand-primary shadow-md btn-tactile"
             >
               Get Started Free
             </Link>

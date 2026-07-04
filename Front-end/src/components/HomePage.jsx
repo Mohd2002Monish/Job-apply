@@ -24,31 +24,21 @@ const MicrosoftIcon = () => (
 );
 
 const FeatureCard = ({ icon, title, description, badge }) => (
-  <div className="group neo-card p-6 flex flex-col gap-4 cursor-default">
-    <div className="w-12 h-12 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-600 dark:text-indigo-400 group-hover:scale-110 transition-transform duration-300">
+  <div className="group bg-bg-card border border-border-card rounded-2xl p-6 flex flex-col gap-4 transition-all duration-200 hover:border-brand-primary/40 shadow-sm hover:shadow-md">
+    <div className="w-12 h-12 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform duration-300">
       {icon}
     </div>
     <div>
       <div className="flex items-center gap-2 mb-1.5">
-        <h3 className="font-semibold text-slate-800 dark:text-slate-100 text-base">{title}</h3>
+        <h3 className="font-bold text-text-main text-base">{title}</h3>
         {badge && (
-          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold neo-card-inset text-indigo-600 dark:text-indigo-400">
+          <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-brand-primary/10 border border-brand-primary/20 text-brand-primary">
             {badge}
           </span>
         )}
       </div>
-      <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">{description}</p>
+      <p className="text-sm text-text-muted leading-relaxed">{description}</p>
     </div>
-  </div>
-);
-
-const StepBubble = ({ number, title, desc, active }) => (
-  <div className={`flex flex-col items-center text-center p-5 rounded-2xl transition-all duration-300 ${active ? 'neo-card scale-105' : 'neo-card-inset opacity-70 hover:opacity-100'}`}>
-    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm mb-3 ${active ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-md shadow-indigo-500/30' : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'}`}>
-      {number}
-    </div>
-    <h4 className="font-semibold text-slate-800 dark:text-slate-200 text-sm mb-1">{title}</h4>
-    <p className="text-xs text-slate-500 dark:text-slate-400 max-w-[160px]">{desc}</p>
   </div>
 );
 
@@ -56,11 +46,10 @@ const HomePage = ({ isDark, onToggleTheme }) => {
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
 
-  // Auto cycling how-it-works tabs for demonstration micro-animation
   React.useEffect(() => {
     const interval = setInterval(() => {
       setActiveStep((prev) => (prev % 4) + 1);
-    }, 4005);
+    }, 4000);
     return () => clearInterval(interval);
   }, []);
 
@@ -68,40 +57,36 @@ const HomePage = ({ isDark, onToggleTheme }) => {
     <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
       <div className="relative overflow-x-hidden">
 
-      {/* Decorative Blob Elements */}
-      <div className="absolute top-[-5%] left-[5%] w-[35rem] h-[35rem] rounded-full bg-indigo-500/10 dark:bg-indigo-500/8 blur-[130px] pointer-events-none" />
-      <div className="absolute top-[30%] right-[-5%] w-[40rem] h-[40rem] rounded-full bg-purple-500/8 dark:bg-purple-500/10 blur-[150px] pointer-events-none" />
-      <div className="absolute bottom-[5%] left-[-10%] w-[35rem] h-[35rem] rounded-full bg-cyan-500/6 dark:bg-cyan-500/8 blur-[130px] pointer-events-none" />
+      {/* Decorative Blur Blobs */}
+      <div className="absolute top-[-5%] left-[5%] w-[35rem] h-[35rem] rounded-full bg-brand-primary/10 blur-[130px] pointer-events-none" />
+      <div className="absolute top-[30%] right-[-5%] w-[40rem] h-[40rem] rounded-full bg-purple-500/10 blur-[150px] pointer-events-none" />
+      <div className="absolute bottom-[5%] left-[-10%] w-[35rem] h-[35rem] rounded-full bg-brand-accent/10 blur-[130px] pointer-events-none" />
 
-      {/* Main Content Container */}
+      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 pt-14 pb-24 relative z-10">
         
         {/* HERO SECTION */}
         <section className="text-center max-w-4xl mx-auto mb-24">
-          {/* Version Capsule Pill */}
-          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 dark:bg-indigo-400/10 text-indigo-600 dark:text-indigo-400 mb-6 border border-indigo-500/20 animate-pulse">
-            <span className="w-2 h-2 rounded-full bg-indigo-500 dark:bg-indigo-400 shrink-0" />
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold bg-brand-primary/10 text-brand-primary mb-6 border border-brand-primary/20 animate-pulse">
+            <span className="w-2 h-2 rounded-full bg-brand-primary shrink-0" />
             <span>AI Outreach Engine v2.0 is Live</span>
           </div>
 
-          {/* Headline */}
-          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight">
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight mb-6 leading-tight text-text-main">
             Hack your job applications. <br className="hidden md:block"/>
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500">
+            <span className="text-gradient">
               No cap, just interviews.
             </span>
           </h1>
 
-          {/* Subheading */}
-          <p className="text-base md:text-xl text-slate-600 dark:text-slate-300 mb-10 max-w-2xl mx-auto leading-relaxed">
+          <p className="text-base md:text-xl text-text-muted mb-10 max-w-2xl mx-auto leading-relaxed">
             Upload your resume once. Let AI match requirements, build optimized resumes, write custom cover letters, and send direct outreach from your own inbox.
           </p>
 
-          {/* Hero CTAs */}
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-16">
             <button 
               onClick={() => setLoginModalOpen(true)}
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-white bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-95 shadow-xl shadow-indigo-500/25 hover:scale-103 active:scale-97 transition-all duration-200"
+              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-bold text-white bg-brand-primary hover:bg-brand-primary-hover shadow-lg shadow-brand-primary/25 btn-tactile text-sm"
             >
               Get Started for Free
             </button>
@@ -109,26 +94,26 @@ const HomePage = ({ isDark, onToggleTheme }) => {
               href="https://github.com/Mohd2002Monish/Job-apply"
               target="_blank"
               rel="noreferrer"
-              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-semibold border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm hover:bg-slate-100 dark:hover:bg-slate-800 hover:scale-103 active:scale-97 transition-all duration-200 flex items-center justify-center gap-2"
+              className="w-full sm:w-auto px-8 py-4 rounded-2xl font-semibold border border-border-card bg-bg-card text-text-main hover:bg-bg-card-hover btn-tactile text-sm flex items-center justify-center gap-2"
             >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5 text-text-main" fill="currentColor" viewBox="0 0 24 24">
                 <path fillRule="evenodd" d="M12 2C6.477 2 2 6.477 2 12c0 4.42 2.865 8.166 6.839 9.489.5.092.682-.217.682-.482 0-.237-.008-.866-.013-1.7-2.782.603-3.369-1.34-3.369-1.34-.454-1.156-1.11-1.464-1.11-1.464-.908-.62.069-.608.069-.608 1.003.07 1.531 1.03 1.531 1.03.892 1.529 2.341 1.087 2.91.831.092-.646.35-1.086.636-1.336-2.22-.253-4.555-1.11-4.555-4.943 0-1.091.39-1.984 1.029-2.683-.103-.253-.446-1.27.098-2.647 0 0 .84-.269 2.75 1.025A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.294 2.747-1.025 2.747-1.025.546 1.377.203 2.394.1 2.647.64.699 1.028 1.592 1.028 2.683 0 3.842-2.339 4.687-4.566 4.935.359.309.678.919.678 1.852 0 1.336-.012 2.415-.012 2.743 0 .267.18.577.688.479C19.138 20.162 22 16.418 22 12c0-5.523-4.477-10-10-10z" clipRule="evenodd" />
               </svg>
               Star on GitHub
             </a>
           </div>
 
-          {/* Social Proof/Metrics Grid */}
+          {/* Social Proof */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-3xl mx-auto">
             {[
-              { num: '10k+', label: 'Outreach Emails Sent', from: 'from-indigo-500', to: 'to-purple-500' },
-              { num: '85%', label: 'Response Rate Uplift', from: 'from-purple-500', to: 'to-pink-500' },
-              { num: '350+', label: 'Pro Members', from: 'from-pink-500', to: 'to-cyan-500' },
-              { num: '4.9/5', label: 'User Satisfaction', from: 'from-cyan-500', to: 'to-indigo-500' },
-            ].map(({ num, label, from, to }) => (
-              <div key={label} className="neo-card p-4 text-center">
-                <div className={`text-2xl font-bold bg-clip-text text-transparent bg-gradient-to-r ${from} ${to}`}>{num}</div>
-                <div className="text-[11px] font-medium text-slate-500 dark:text-slate-400 mt-1">{label}</div>
+              { num: '10k+', label: 'Outreach Emails Sent' },
+              { num: '85%', label: 'Response Rate Uplift' },
+              { num: '350+', label: 'Pro Members' },
+              { num: '4.9/5', label: 'User Satisfaction' },
+            ].map(({ num, label }) => (
+              <div key={label} className="bg-bg-card border border-border-card rounded-2xl p-4 text-center shadow-sm">
+                <div className="text-2xl font-extrabold text-brand-primary">{num}</div>
+                <div className="text-[11px] font-bold text-text-muted mt-1">{label}</div>
               </div>
             ))}
           </div>
@@ -137,9 +122,9 @@ const HomePage = ({ isDark, onToggleTheme }) => {
         {/* HOW IT WORKS */}
         <section className="mb-28">
           <div className="text-center mb-14">
-            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold text-indigo-600 dark:text-indigo-400 neo-card-inset mb-4">Step-by-step</span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 dark:text-slate-50 mb-3">How it works</h2>
-            <p className="text-base text-slate-500 dark:text-slate-400 max-w-lg mx-auto leading-relaxed">
+            <span className="inline-block px-4 py-1.5 rounded-full text-xs font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 mb-4">Step-by-step</span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-text-main mb-3">How it works</h2>
+            <p className="text-base text-text-muted max-w-lg mx-auto leading-relaxed">
               Our end-to-end pipeline handles everything from tracking to landing your dream interview.
             </p>
           </div>
@@ -155,7 +140,6 @@ const HomePage = ({ isDark, onToggleTheme }) => {
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
                   </svg>
                 ),
-                gradient: 'from-indigo-500 to-blue-500',
                 active: activeStep === 1,
               },
               {
@@ -167,7 +151,6 @@ const HomePage = ({ isDark, onToggleTheme }) => {
                     <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
                   </svg>
                 ),
-                gradient: 'from-violet-500 to-purple-500',
                 active: activeStep === 2,
               },
               {
@@ -179,7 +162,6 @@ const HomePage = ({ isDark, onToggleTheme }) => {
                     <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 12a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.6 1.09h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 8.69A16 16 0 0 0 16 16.73l.91-.91a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 23.73 18z"/>
                   </svg>
                 ),
-                gradient: 'from-pink-500 to-rose-500',
                 active: activeStep === 3,
               },
               {
@@ -191,52 +173,28 @@ const HomePage = ({ isDark, onToggleTheme }) => {
                     <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
                   </svg>
                 ),
-                gradient: 'from-cyan-500 to-teal-500',
                 active: activeStep === 4,
               },
-            ].map(({ num, title, desc, icon, gradient, active }) => (
+            ].map(({ num, title, desc, icon, active }) => (
               <div
                 key={num}
                 onClick={() => setActiveStep(parseInt(num))}
-                className={`neo-card p-6 flex gap-5 items-start cursor-pointer transition-all duration-300 ${active ? 'ring-2 ring-indigo-400/40 dark:ring-indigo-500/30' : 'opacity-75 hover:opacity-100'}`}
+                className={`bg-bg-card border rounded-2xl p-6 flex gap-5 items-start cursor-pointer transition-all duration-200 btn-tactile ${
+                  active ? 'border-brand-primary ring-2 ring-brand-primary/20 shadow-md' : 'border-border-card opacity-80 hover:opacity-100'
+                }`}
               >
-                {/* Icon circle */}
-                <div className={`flex-shrink-0 w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center text-white shadow-lg`}>
+                <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-brand-primary text-white flex items-center justify-center shadow-md">
                   {icon}
                 </div>
 
-                {/* Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`text-xs font-extrabold bg-clip-text text-transparent bg-gradient-to-r ${gradient}`}>{num}</span>
-                    <h3 className="font-bold text-slate-800 dark:text-slate-100 text-base leading-tight">{title}</h3>
+                    <span className="text-xs font-bold text-brand-primary">{num}</span>
+                    <h3 className="font-bold text-text-main text-base leading-tight">{title}</h3>
                   </div>
-                  <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{desc}</p>
-
-                  {active && (
-                    <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-400 animate-fade-in">
-                      <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
-                      Active step
-                    </div>
-                  )}
+                  <p className="text-sm text-text-muted leading-relaxed">{desc}</p>
                 </div>
               </div>
-            ))}
-          </div>
-
-          {/* Progress dots */}
-          <div className="flex items-center justify-center gap-2 mt-8">
-            {[1, 2, 3, 4].map(i => (
-              <button
-                key={i}
-                onClick={() => setActiveStep(i)}
-                className={`rounded-full transition-all duration-300 ${
-                  activeStep === i
-                    ? 'w-6 h-2.5 bg-gradient-to-r from-indigo-500 to-purple-500'
-                    : 'w-2.5 h-2.5 neo-card-inset hover:opacity-80'
-                }`}
-                aria-label={`Step ${i}`}
-              />
             ))}
           </div>
         </section>
@@ -244,8 +202,8 @@ const HomePage = ({ isDark, onToggleTheme }) => {
         {/* FEATURES GRID SECTION */}
         <section className="mb-28">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-3">Core Features Built for Speed</h2>
-            <p className="text-sm text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-text-main mb-3">Core Features Built for Speed</h2>
+            <p className="text-sm text-text-muted max-w-md mx-auto">
               Skip the manual application grind. RecoCareer.ai packages everything you need.
             </p>
           </div>
@@ -290,7 +248,7 @@ const HomePage = ({ isDark, onToggleTheme }) => {
                 </svg>
               }
               title="Open & Click Tracking"
-              description="A invisible tracking pixel tells you exactly when the recruiter opens your application or clicks on your portfolio link."
+              description="An invisible tracking pixel tells you exactly when the recruiter opens your application or clicks on your portfolio link."
               badge="Real-time"
             />
 
@@ -318,16 +276,16 @@ const HomePage = ({ isDark, onToggleTheme }) => {
 
         {/* BOTTOM FINAL CTA CARD */}
         <section className="max-w-4xl mx-auto">
-          <div className="neo-card p-8 md:p-12 text-center">
-            <h2 className="text-2xl md:text-4xl font-extrabold mb-4 text-slate-900 dark:text-slate-50">
+          <div className="bg-bg-card border border-border-card rounded-2xl p-8 md:p-12 text-center shadow-sm">
+            <h2 className="text-2xl md:text-4xl font-extrabold mb-4 text-text-main">
               Stop applying manually. <br /> Start landing offers.
             </h2>
-            <p className="text-sm md:text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto mb-8 leading-relaxed">
+            <p className="text-sm md:text-base text-text-muted max-w-xl mx-auto mb-8 leading-relaxed">
               Join hundreds of job seekers who streamlined their applications, boosted their response rates, and secured more interviews.
             </p>
             <button 
               onClick={() => setLoginModalOpen(true)}
-              className="px-8 py-4 rounded-xl font-bold text-white bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 shadow-xl shadow-indigo-500/20 hover:-translate-y-0.5 transition-all duration-200"
+              className="px-8 py-4 rounded-xl font-bold text-white bg-brand-primary hover:bg-brand-primary-hover shadow-lg shadow-brand-primary/20 btn-tactile text-sm"
             >
               Sign Up For Free Now
             </button>
@@ -339,14 +297,14 @@ const HomePage = ({ isDark, onToggleTheme }) => {
       {loginModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div 
-            className="absolute inset-0 bg-slate-950/40 dark:bg-black/60 backdrop-blur-[6px] transition-opacity duration-300"
+            className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity duration-300"
             onClick={() => setLoginModalOpen(false)}
           />
           
-          <div className="relative w-full max-w-md neo-card p-8 z-10 animate-fade-in">
+          <div className="relative w-full max-w-md bg-bg-card border border-border-card rounded-2xl p-8 z-10 animate-fade-in shadow-2xl">
             <button 
               onClick={() => setLoginModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-card-hover transition-all btn-tactile"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
@@ -354,13 +312,8 @@ const HomePage = ({ isDark, onToggleTheme }) => {
             </button>
 
             <div className="flex flex-col items-center text-center mb-8">
-              <img 
-                src={isDark ? '/logo_desktop_dark.png' : '/logo_desktop.png'} 
-                alt="RecoCareer.ai" 
-                className="h-9 w-auto object-contain mb-4" 
-              />
-              <h3 className="text-xl font-bold text-slate-800 dark:text-white">Let's lock in.</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-[260px]">
+              <h3 className="text-xl font-bold text-text-main">Let's lock in.</h3>
+              <p className="text-xs text-text-muted mt-1 max-w-[260px]">
                 Sign in using your Google or Microsoft email to begin parsing resumes &amp; tracking outreaches.
               </p>
             </div>
@@ -368,7 +321,7 @@ const HomePage = ({ isDark, onToggleTheme }) => {
             <div className="space-y-3">
               <button
                 onClick={() => { window.location.href = `${BACKEND}/auth/google`; }}
-                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-2xl neo-btn text-slate-800 dark:text-slate-100 text-sm font-semibold cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl border border-border-card bg-bg-app text-text-main text-sm font-bold btn-tactile"
               >
                 <GoogleIcon />
                 Continue with Google
@@ -376,7 +329,7 @@ const HomePage = ({ isDark, onToggleTheme }) => {
 
               <button
                 onClick={() => { window.location.href = `${BACKEND}/auth/microsoft`; }}
-                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-2xl neo-btn text-slate-800 dark:text-slate-100 text-sm font-semibold cursor-pointer"
+                className="w-full flex items-center justify-center gap-3 px-5 py-3.5 rounded-xl border border-border-card bg-bg-app text-text-main text-sm font-bold btn-tactile"
               >
                 <MicrosoftIcon />
                 Continue with Microsoft
@@ -384,8 +337,8 @@ const HomePage = ({ isDark, onToggleTheme }) => {
             </div>
 
             <div className="mt-6 text-center">
-              <p className="text-[10px] leading-relaxed text-slate-400 dark:text-slate-500">
-                RecoCareer.ai securely requests <span className="font-semibold text-slate-500 dark:text-slate-450">gmail.send</span> / <span className="font-semibold text-slate-500 dark:text-slate-450">Mail.Send</span> to send customized outreach directly from your inbox. We never save your passwords.
+              <p className="text-[10px] leading-relaxed text-text-muted">
+                RecoCareer.ai securely requests <span className="font-bold text-text-main">gmail.send</span> / <span className="font-bold text-text-main">Mail.Send</span> to send customized outreach directly from your inbox. We never save your passwords.
               </p>
             </div>
           </div>

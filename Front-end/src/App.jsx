@@ -518,7 +518,7 @@ const Dashboard = () => {
         </header>
 
         {/* Page Content area */}
-        <main className="flex-1 p-5 lg:p-8 max-w-5xl w-full mx-auto">
+        <main className="flex-1 p-5 lg:p-8 max-w-7xl w-full mx-auto">
           {!resumeName && activeTab !== 'admin' && (
             <ResumeUpload
               user={user}

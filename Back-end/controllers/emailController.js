@@ -9,7 +9,7 @@ const {
   sendOutlookFollowUp
 } = require('../utils/microsoftService');
 const { generateEmailContent, generateFollowUpEmail } = require('../utils/geminiService');
-const { exportResume } = require('../utils/exportService');
+const { exportResume, exportCoverLetter } = require('../utils/exportService');
 
 const wrapLinksWithTracking = (text, jobId) => {
   const trackingBaseUrl = process.env.TRACKING_BASE_URL || 'http://localhost:3000';
@@ -21,7 +21,7 @@ const wrapLinksWithTracking = (text, jobId) => {
 };
 
 const apply = async (req, res) => {
-  const { jobIds } = req.body;
+  const { jobIds, attachCoverLetter = false } = req.body;
   const user = req.user;
 
   if (!jobIds || !Array.isArray(jobIds) || jobIds.length === 0) {
@@ -37,6 +37,7 @@ const apply = async (req, res) => {
 
   for (const jobId of jobIds) {
     let tempResumePath = null;
+    let tempCoverLetterPath = null;
     try {
       const job = await Job.findById(jobId);
       if (!job) { results.push({ jobId, success: false, error: 'Job not found' }); continue; }
@@ -89,6 +90,39 @@ const apply = async (req, res) => {
         attachmentPath = path.join(__dirname, '..', 'public', 'Mohd_Monish.docx');
       }
 
+      const finalAttachments = [];
+      if (attachmentPath && fs.existsSync(attachmentPath)) {
+        finalAttachments.push(attachmentPath);
+      }
+
+      // Dynamic Cover Letter PDF compilation if attachCoverLetter is requested
+      if (attachCoverLetter && emailText) {
+        try {
+          console.log(`Compiling Cover Letter PDF for ${user.email} applying to ${job.job}...`);
+          const templateToUse = job.templateId || 'classic';
+          const candidateInfo = {
+            name: activeResume?.resumeData?.personalInfo?.name || user?.name || 'Applicant Name',
+            email: activeResume?.resumeData?.personalInfo?.email || user?.email || '',
+            phone: activeResume?.resumeData?.personalInfo?.phone || ''
+          };
+          const jobInfo = {
+            job: job.job,
+            companyName: job.companyName
+          };
+
+          const { buffer: clBuffer } = await exportCoverLetter(emailText, 'pdf', templateToUse, candidateInfo, jobInfo);
+          const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+          if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+          tempCoverLetterPath = path.join(uploadsDir, `temp_cover_letter_${user._id}_${Date.now()}.pdf`);
+          fs.writeFileSync(tempCoverLetterPath, clBuffer);
+          finalAttachments.push(tempCoverLetterPath);
+          console.log(`Cover Letter PDF attachment added: ${tempCoverLetterPath}`);
+        } catch (clErr) {
+          console.error(`Error compiling Cover Letter PDF attachment: ${clErr.message}`);
+        }
+      }
+
       let result;
       if (provider === 'microsoft') {
         if (!user.microsoftTokens) {
@@ -109,7 +143,7 @@ const apply = async (req, res) => {
           job.email,
           `Job Application: ${job.job}`,
           emailHtml, // Send HTML formatted body
-          attachmentPath,
+          finalAttachments,
           token
         );
       } else {
@@ -121,7 +155,7 @@ const apply = async (req, res) => {
           job.email,
           `Job Application: ${job.job}`,
           emailHtml, // Send HTML formatted body
-          attachmentPath,
+          finalAttachments,
           user.googleTokens
         );
       }
@@ -149,6 +183,14 @@ const apply = async (req, res) => {
           console.log(`Cleaned up temp tailored resume: ${tempResumePath}`);
         } catch (cleanupErr) {
           console.error(`Failed to clean up temp resume at ${tempResumePath}:`, cleanupErr.message);
+        }
+      }
+      if (tempCoverLetterPath && fs.existsSync(tempCoverLetterPath)) {
+        try {
+          fs.unlinkSync(tempCoverLetterPath);
+          console.log(`Cleaned up temp cover letter: ${tempCoverLetterPath}`);
+        } catch (cleanupErr) {
+          console.error(`Failed to clean up temp cover letter at ${tempCoverLetterPath}:`, cleanupErr.message);
         }
       }
     }

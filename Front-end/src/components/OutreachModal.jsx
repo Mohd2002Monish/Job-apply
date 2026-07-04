@@ -11,6 +11,7 @@ import {
   ClockIcon
 } from './Icons';
 import ResumeDiffViewer from './ResumeDiffViewer';
+import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -32,19 +33,20 @@ const MicrosoftIcon = () => (
   </svg>
 );
 
-export default function OutreachModal({ job, user, onClose, onSuccess }) {
-  // Local States
+export default function OutreachModal({ job, user, onClose, onSuccess, initialStep = 'edit' }) {
+  const [step, setStep] = useState(initialStep || 'edit');
+  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
   const [coverLetter, setCoverLetter] = useState(job.coverLetter || '');
   const [atsScore, setAtsScore] = useState(job.atsAnalysis?.score ?? null);
   const [atsAnalysis, setAtsAnalysis] = useState(job.atsAnalysis || null);
-  const [atsScoreBefore, setAtsScoreBefore] = useState(null); // score snapshot before tailoring
-  const [atsScoreAfter, setAtsScoreAfter] = useState(null);  // score after tailoring
+  const [atsScoreBefore, setAtsScoreBefore] = useState(null);
+  const [atsScoreAfter, setAtsScoreAfter] = useState(null);
   const [showAnalysis, setShowAnalysis] = useState(false);
   const [tailoredResumeData, setTailoredResumeData] = useState(job.tailoredResume?.json || null);
   const [keywordSuggestions, setKeywordSuggestions] = useState(null);
-  const [gapAnalysisResult, setGapAnalysisResult] = useState(null);
   const [templateId, setTemplateId] = useState(job.templateId || 'classic');
   const [wordCount, setWordCount] = useState(150);
+  const [attachCoverLetter, setAttachCoverLetter] = useState(false);
 
   const [savingCL, setSavingCL] = useState(false);
   const [regeneratingCL, setRegeneratingCL] = useState(false);
@@ -52,31 +54,73 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
   const [tailoring, setTailoring] = useState(false);
   const [sending, setSending] = useState(false);
   
-  const [clStatus, setClStatus] = useState(''); // 'saved', 'dirty', etc.
+  const [clStatus, setClStatus] = useState('');
   const [modalError, setModalError] = useState('');
   const [modalSuccess, setModalSuccess] = useState('');
+  const [previewingResume, setPreviewingResume] = useState(false);
+  const [previewingCL, setPreviewingCL] = useState(false);
+  const [pdfViewerOpen, setPdfViewerOpen] = useState(false);
+  const [pdfViewerTitle, setPdfViewerTitle] = useState('');
+  const [pdfViewerUrl, setPdfViewerUrl] = useState('');
+
+  const handlePreviewResumePdf = async (e) => {
+    if (e) e.stopPropagation();
+    setPreviewingResume(true);
+    setModalError('');
+    try {
+      const res = await axios.post(
+        `${BACKEND}/export-resume`,
+        { templateId, format: 'pdf' },
+        { responseType: 'blob' }
+      );
+      const file = new Blob([res.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      setPdfViewerUrl(fileURL);
+      setPdfViewerTitle(`Active Resume Preview (${templateId.toUpperCase()} Style)`);
+      setPdfViewerOpen(true);
+    } catch (err) {
+      console.error(err);
+      setModalError('Failed to generate resume PDF preview.');
+    } finally {
+      setPreviewingResume(false);
+    }
+  };
+
+  const handlePreviewCoverLetterPdf = async (e) => {
+    if (e) e.stopPropagation();
+    setPreviewingCL(true);
+    setModalError('');
+    try {
+      const res = await axios.post(
+        `${BACKEND}/resume/cover-letter/export`,
+        { jobId: job._id, templateId, format: 'pdf' },
+        { responseType: 'blob' }
+      );
+      const file = new Blob([res.data], { type: 'application/pdf' });
+      const fileURL = URL.createObjectURL(file);
+      setPdfViewerUrl(fileURL);
+      setPdfViewerTitle(`Cover Letter PDF (${job.job} @ ${job.companyName || 'Recruiter'})`);
+      setPdfViewerOpen(true);
+    } catch (err) {
+      console.error(err);
+      setModalError('Failed to generate cover letter PDF preview.');
+    } finally {
+      setPreviewingCL(false);
+    }
+  };
 
   const [tailoringProgress, setTailoringProgress] = useState(0);
   const [tailoringLog, setTailoringLog] = useState('');
   const tailorEsRef = React.useRef(null);
 
-  // Active Resume details
   const activeResumeId = user?.activeResumeId;
   const activeResume = user?.resumes?.find(r => r.id === activeResumeId) || user?.resumes?.[0] || null;
   const resumeName = activeResume?.resumeFileName || user?.resumeFileName || 'Default Resume';
 
-  // Check auth provider
   const provider = user?.activeProvider || 'google';
   const isAuthenticated = provider === 'microsoft' ? !!user?.hasMicrosoftTokens : !!user?.hasGoogleTokens;
 
-  // Auto calculate ATS score and auto-generate cover letter on load if not present
   useEffect(() => {
-    if (atsScore === null) {
-      handleCalculateAts();
-    }
-    if (!job.coverLetter && !coverLetter) {
-      handleRegenerateCoverLetter(120);
-    }
     return () => {
       if (tailorEsRef.current) {
         tailorEsRef.current.close();
@@ -84,19 +128,17 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     };
   }, []);
 
-  // Update cover letter state if prop updates
   useEffect(() => {
     if (job.coverLetter && !coverLetter) {
       setCoverLetter(job.coverLetter);
     }
   }, [job.coverLetter]);
 
-  // Calculate ATS Match Score
   const handleCalculateAts = async () => {
     setCalculatingAts(true);
     setModalError('');
     try {
-      const res = await axios.post(`${BACKEND}/resume/ats-score`, { jobId: job._id });
+      const res = await axios.post(`${BACKEND}/resume/ats-score`, { jobId: job._id, aiModel: selectedAiModel });
       if (res.data.atsAnalysis) {
         setAtsScore(res.data.atsAnalysis.score);
         setAtsAnalysis(res.data.atsAnalysis);
@@ -117,7 +159,6 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     }
   };
 
-  // Tailor Resume JSON for 100% match — saves per-job, does NOT overwrite primary resume
   const handleTailorResume = async () => {
     setTailoring(true);
     setModalError('');
@@ -125,16 +166,14 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     setTailoringProgress(0);
     setTailoringLog('');
 
-    // Snapshot the current score before tailoring
     if (atsScore !== null) setAtsScoreBefore(atsScore);
 
     try {
-      const res = await axios.post(`${BACKEND}/resume/tailor`, { jobId: job._id });
+      const res = await axios.post(`${BACKEND}/resume/tailor`, { jobId: job._id, aiModel: selectedAiModel });
       if (res.data.success) {
         setTailoringLog('Background tailoring task enqueued...');
       }
 
-      // Extract token for SSE auth fallback
       const token = document.cookie
         .split('; ')
         .find(row => row.startsWith('jaa_session_token='))
@@ -169,7 +208,6 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
           setAtsAnalysis(data.atsAnalysis);
           setTailoredResumeData(data.tailoredResumeData);
           if (data.keywordSuggestions) setKeywordSuggestions(data.keywordSuggestions);
-          if (data.gapAnalysis) setGapAnalysisResult(data.gapAnalysis);
           setModalSuccess('Resume optimized for this job! Your primary resume is unchanged.');
         } else if (data.status === 'failed') {
           es.close();
@@ -200,7 +238,6 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     }
   };
 
-  // Save Cover Letter changes
   const handleSaveCoverLetter = async () => {
     setSavingCL(true);
     setModalError('');
@@ -224,7 +261,6 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     }
   };
 
-  // Regenerate Cover Letter dynamically
   const handleRegenerateCoverLetter = async (targetWords = wordCount) => {
     setRegeneratingCL(true);
     setModalError('');
@@ -232,7 +268,8 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
       const res = await axios.post(`${BACKEND}/jobs/${job._id}/generate-cover-letter`, { 
         wordCount: targetWords,
         tone: 'Professional',
-        description: job.description
+        description: job.description,
+        aiModel: selectedAiModel
       });
       if (res.data.coverLetter) {
         setCoverLetter(res.data.coverLetter);
@@ -256,18 +293,24 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     }
   };
 
-  // Send application
+  useEffect(() => {
+    if (initialStep === 'review') {
+      setAttachCoverLetter(false);
+    }
+  }, [initialStep]);
+
   const handleSend = async () => {
     setSending(true);
     setModalError('');
     try {
-      // First save the current cover letter and templateId to the database
       await axios.patch(`${BACKEND}/jobs/${job._id}`, { coverLetter, templateId });
       
-      // Send application
+      // Direct Send forces attachCoverLetter to false (only CV goes out)
+      const isDirect = initialStep === 'review';
       const res = await axios.post(`${BACKEND}/apply`, { 
         jobIds: [job._id], 
-        email: user.email 
+        email: user.email,
+        attachCoverLetter: isDirect ? false : attachCoverLetter 
       });
 
       const result = res.data.results?.[0];
@@ -295,12 +338,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     }
   };
 
-  // Status mapping
   const scoreColor = atsScore >= 85 ? 'text-emerald-500 stroke-emerald-500' : atsScore >= 60 ? 'text-amber-500 stroke-amber-500' : 'text-rose-500 stroke-rose-500';
-  const scoreBg = atsScore >= 85 ? 'bg-emerald-500/5 border-emerald-500/10' : atsScore >= 60 ? 'bg-amber-500/5 border-amber-500/10' : 'bg-rose-500/5 border-rose-500/10';
-
-  // SVG Circular Dash offset math
-  // Radius = 16, Circumference = 2 * PI * 16 = 100.5
   const circ = 100.5;
   const strokeDashoffset = circ - ((atsScore || 0) / 100) * circ;
 
@@ -308,51 +346,246 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       {/* Backdrop */}
       <div 
-        className="absolute inset-0 bg-slate-900/60 dark:bg-black/75 backdrop-blur-sm transition-opacity animate-fade-in" 
+        className="absolute inset-0 bg-black/60 backdrop-blur-sm transition-opacity animate-fade-in" 
         onClick={onClose} 
       />
 
       {/* Modal Card */}
-      <div className="relative w-full max-w-5xl bg-white/95 dark:bg-zinc-900/95 backdrop-blur-md border border-slate-200/80 dark:border-zinc-800 rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.2)] flex flex-col max-h-[85vh] overflow-hidden transform transition-all duration-300 scale-100 animate-fade-in">
+      <div className="relative w-full max-w-5xl bg-bg-card border border-border-card rounded-2xl shadow-2xl flex flex-col max-h-[85vh] overflow-hidden origin-aware-popover">
         
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4.5 border-b border-slate-100 dark:border-zinc-800 shrink-0">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between px-6 py-4 border-b border-border-card shrink-0 gap-3">
           <div>
-            <h3 className="text-base font-bold text-slate-900 dark:text-slate-100 flex items-center gap-2">
-              <SendIcon size={16} className="text-indigo-600 dark:text-indigo-400" />
-              Apply & Optimize Outreach
+            <h3 className="text-base font-extrabold text-text-main flex items-center gap-2">
+              <SendIcon size={16} className="text-brand-primary" />
+              Application Dispatch & Outreach Studio
             </h3>
-            <p className="text-xs text-slate-500 dark:text-zinc-400 mt-1">
-              Review and tailor your documents before emailing recruiter at <span className="font-semibold text-slate-700 dark:text-slate-200">{job.companyName || 'Unknown Company'}</span>
+            <p className="text-xs text-text-muted mt-0.5">
+              Target Job: <strong className="text-text-main">{job.job}</strong> @ <span className="font-bold text-brand-primary">{job.companyName || 'Recruiter'}</span>
             </p>
           </div>
-          <button 
-            onClick={onClose} 
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-650 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
-          >
-            <XIcon size={16} />
-          </button>
+
+          <div className="flex items-center gap-2">
+            <AiModelSelector 
+              selectedModel={selectedAiModel} 
+              onSelectModel={setSelectedAiModel} 
+              compact={true} 
+              currentUseCase={step === 'review' ? 'email-outreach' : 'tailoring'}
+            />
+
+            <div className="flex items-center bg-bg-app border border-border-card rounded-xl p-1 text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => setStep('edit')}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  step === 'edit'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : 'text-text-muted hover:text-text-main'
+                }`}
+              >
+                1. Edit & Tailor
+              </button>
+              <button
+                type="button"
+                onClick={() => setStep('review')}
+                className={`px-3 py-1 rounded-lg transition-all ${
+                  step === 'review'
+                    ? 'bg-brand-primary text-white shadow-sm'
+                    : 'text-text-muted hover:text-text-main'
+                }`}
+              >
+                2. Pre-Send Inspection
+              </button>
+            </div>
+
+            <button 
+              onClick={onClose} 
+              className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-card-hover transition-colors btn-tactile ml-1"
+            >
+              <XIcon size={16} />
+            </button>
+          </div>
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0">
+        {step === 'review' ? (
+          <div className="flex-1 overflow-y-auto p-6 space-y-6 text-text-main">
+            <div className="bg-brand-primary/10 border border-brand-primary/20 rounded-2xl p-4 flex items-center justify-between text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-brand-primary text-white flex items-center justify-center font-bold">
+                  <CheckCircleIcon size={16} />
+                </div>
+                <div>
+                  <h4 className="font-bold text-text-main text-sm">Final Pre-Send Application Inspection</h4>
+                  <p className="text-text-muted text-[11px]">Review your recruiter email details, attached resume profile, and outreach text below before sending.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStep('edit')}
+                className="px-3 py-1.5 rounded-xl border border-brand-primary/30 text-brand-primary font-bold hover:bg-brand-primary/10 transition-all btn-tactile shrink-0"
+              >
+                ← Edit Content
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* CARD 1: Recruiter Email Details */}
+              <div className="bg-bg-card border border-border-card rounded-2xl p-4.5 space-y-3 shadow-sm flex flex-col justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider block mb-2">
+                    1. Recruiter Email Details
+                  </span>
+                  <div className="space-y-2 text-xs">
+                    <div>
+                      <span className="text-[10px] text-text-muted block font-medium">Recipient:</span>
+                      <p className="font-bold text-text-main font-mono text-[11px] truncate">{job.email || 'No email specified'}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-text-muted block font-medium">Hiring Manager:</span>
+                      <p className="font-bold text-text-main text-[11px]">{job.hrName || 'Hiring Team'}</p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-text-muted block font-medium">Subject Line:</span>
+                      <p className="font-semibold text-brand-primary text-[11px] bg-brand-primary/10 border border-brand-primary/20 p-2 rounded-xl">
+                        Job Application: {job.job} {job.companyName ? `@ ${job.companyName}` : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-border-card text-[10px] text-text-muted">
+                  Sending via: <strong className="text-text-main capitalize">{provider} ({user?.email})</strong>
+                </div>
+              </div>
+
+              {/* CARD 2: Active Resume Document */}
+              <div className="bg-bg-card border border-border-card rounded-2xl p-4.5 space-y-3 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+                      2. Attached Resume Profile
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handlePreviewResumePdf}
+                      disabled={previewingResume}
+                      className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      {previewingResume ? 'Loading PDF...' : 'View PDF ↗'}
+                    </button>
+                  </div>
+                  <div className="space-y-2.5 text-xs">
+                    <div 
+                      onClick={handlePreviewResumePdf}
+                      className="p-3 rounded-xl bg-bg-app border border-border-card hover:border-brand-primary/50 flex items-center gap-2.5 cursor-pointer transition-all btn-tactile group"
+                      title="Click to view/download PDF version of selected resume"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs shrink-0">
+                        PDF
+                      </div>
+                      <div className="overflow-hidden">
+                        <p className="font-bold text-text-main truncate text-xs group-hover:text-brand-primary transition-colors">{resumeName}</p>
+                        <p className="text-[10px] text-text-muted truncate">{activeResume?.title || 'Active Resume Builder'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-muted text-[11px]">Export Style:</span>
+                      <span className="font-bold text-text-main bg-bg-app border border-border-card px-2 py-0.5 rounded-lg capitalize text-[11px]">
+                        {templateId}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-text-muted text-[11px]">ATS Match Score:</span>
+                      <span className="font-bold text-emerald-500 font-mono text-[11px]">
+                        {atsScore ? `${atsScore}%` : 'Standard Match'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-border-card text-[10px] text-text-muted flex items-center justify-between">
+                  <span>Status: <strong className="text-emerald-500">{tailoredResumeData ? 'AI Tailored PDF' : 'Active Builder Resume'}</strong></span>
+                  <button type="button" onClick={handlePreviewResumePdf} className="text-brand-primary font-bold hover:underline cursor-pointer">
+                    View PDF ↗
+                  </button>
+                </div>
+              </div>
+
+              {/* CARD 3: Dispatch Attachment Details */}
+              <div className="bg-bg-card border border-border-card rounded-2xl p-4.5 space-y-3 shadow-sm flex flex-col justify-between">
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
+                      3. Dispatch Attachment Details
+                    </span>
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    <div 
+                      onClick={handlePreviewResumePdf}
+                      className="p-2.5 rounded-xl bg-bg-app border border-border-card hover:border-brand-primary/50 space-y-1 cursor-pointer transition-all btn-tactile group"
+                      title="Click to view/download Resume PDF"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-text-muted font-medium block">Email Attachment:</span>
+                        <span className="text-[10px] font-bold text-brand-primary group-hover:underline">View PDF ↗</span>
+                      </div>
+                      <p className="font-bold text-text-main text-[11px] group-hover:text-brand-primary transition-colors">
+                        1 PDF (Resume PDF Only — Direct Send)
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-text-muted block font-medium mb-1">Outreach Email Length:</span>
+                      <span className="font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-2 py-0.5 rounded-full font-mono text-[10px]">
+                        {coverLetter ? coverLetter.trim().split(/\s+/).filter(Boolean).length : 0} words
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-border-card text-[10px] font-bold text-emerald-500 flex items-center justify-between">
+                  <span>Direct resume attachment verified</span>
+                  <button type="button" onClick={handlePreviewResumePdf} className="text-brand-primary font-bold hover:underline cursor-pointer">
+                    View Resume PDF ↗
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Email Body Full Preview Sheet */}
+            <div className="bg-bg-card border border-border-card rounded-2xl p-5 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between border-b border-border-card pb-2.5">
+                <h5 className="text-xs font-bold text-text-main uppercase tracking-wider flex items-center gap-2">
+                  Full Email Outreach Content Preview
+                </h5>
+                <button
+                  type="button"
+                  onClick={() => setStep('edit')}
+                  className="text-[11px] font-bold text-brand-primary hover:underline"
+                >
+                  Edit Email Text
+                </button>
+              </div>
+              <div className="p-4 rounded-xl bg-bg-app border border-border-card text-xs font-mono leading-relaxed text-text-main min-h-[160px] max-h-[260px] overflow-y-auto whitespace-pre-line">
+                {coverLetter || 'No email text content generated.'}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 text-text-main">
           
           {/* Left: Cover Letter Editor */}
           <div className="lg:col-span-7 flex flex-col gap-3 min-h-[300px]">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider flex items-center gap-1.5">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
                 Outreach Cover Letter / Email Body
-                {clStatus === 'dirty' && <span className="text-[10px] text-amber-500 font-semibold font-mono">(Unsaved changes)</span>}
-                {clStatus === 'saved' && <span className="text-[10px] text-emerald-500 font-semibold font-mono">✓ Saved draft</span>}
+                {clStatus === 'dirty' && <span className="text-[10px] text-amber-500 font-bold font-mono">(Unsaved)</span>}
+                {clStatus === 'saved' && <span className="text-[10px] text-emerald-500 font-bold font-mono">Saved draft</span>}
               </label>
               
               <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={handleRegenerateCoverLetter}
+                  onClick={() => handleRegenerateCoverLetter()}
                   disabled={regeneratingCL}
-                  title="Regenerate Cover Letter using AI"
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg border border-slate-200 dark:border-zinc-800 text-indigo-600 dark:text-indigo-400 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-all cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg border border-border-card text-brand-primary hover:bg-bg-card-hover transition-all btn-tactile"
                 >
                   <WandIcon size={12} className={regeneratingCL ? "animate-spin" : ""} />
                   {regeneratingCL ? 'Generating...' : 'Regenerate'}
@@ -361,7 +594,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                   type="button"
                   onClick={handleSaveCoverLetter}
                   disabled={savingCL || regeneratingCL}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-semibold rounded-lg bg-slate-50 hover:bg-slate-100 dark:bg-zinc-800 dark:hover:bg-zinc-700 text-slate-700 dark:text-slate-300 transition-all border border-slate-200 dark:border-zinc-800 cursor-pointer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-bold rounded-lg bg-bg-app border border-border-card text-text-main hover:bg-bg-card-hover transition-all btn-tactile"
                 >
                   {savingCL ? 'Saving...' : 'Save Draft'}
                 </button>
@@ -369,8 +602,8 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
             </div>
 
             {/* Word Length Selector */}
-            <div className="flex items-center gap-3 py-1.5 px-3 bg-slate-50/80 dark:bg-zinc-900/20 border border-slate-100 dark:border-zinc-800/80 rounded-xl mb-2 shrink-0">
-              <span className="text-[10px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider">Email Length:</span>
+            <div className="flex items-center gap-3 py-1.5 px-3 bg-bg-app border border-border-card rounded-xl mb-2 shrink-0">
+              <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Email Length:</span>
               <div className="flex gap-1.5">
                 {[
                   { id: 50, label: 'Pitch (50w)' },
@@ -385,10 +618,11 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                       setWordCount(preset.id);
                       handleRegenerateCoverLetter(preset.id);
                     }}
-                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition-all border cursor-pointer ${
+                    disabled={regeneratingCL}
+                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all border cursor-pointer btn-tactile ${
                       wordCount === preset.id
-                        ? 'bg-brand-primary text-white border-brand-primary shadow-sm shadow-brand-primary/20'
-                        : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-brand-primary hover:text-brand-primary'
+                        ? 'bg-brand-primary text-white border-brand-primary shadow-xs'
+                        : 'bg-bg-card text-text-muted border-border-card hover:border-brand-primary hover:text-brand-primary'
                     }`}
                   >
                     {preset.label}
@@ -397,23 +631,23 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
               </div>
             </div>
 
-            <div className="flex-1 relative flex flex-col min-h-0">
+            {/* Cover Letter Text Area */}
+            <div className="flex-1 flex flex-col relative min-h-[300px]">
               {regeneratingCL ? (
-                <div className="w-full flex-1 border border-slate-200 dark:border-zinc-700 rounded-xl bg-slate-50/50 dark:bg-zinc-950/30 flex flex-col items-center justify-center p-6 text-sm text-slate-400 dark:text-zinc-550 leading-normal min-h-[350px]">
-                  <div className="w-6 h-6 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin mb-3" />
-                  Generating personalized cover letter...
+                <div className="absolute inset-0 bg-bg-card/80 backdrop-blur-xs rounded-xl flex flex-col items-center justify-center gap-2 z-10">
+                  <div className="w-5 h-5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs font-bold text-brand-primary animate-pulse">Drafting Email Outreach...</span>
                 </div>
-              ) : (
-                <textarea
-                  value={coverLetter}
-                  onChange={(e) => {
-                    setCoverLetter(e.target.value);
-                    setClStatus('dirty');
-                  }}
-                  className="w-full flex-1 p-4 text-xs font-mono border border-slate-250 dark:border-zinc-700 rounded-xl bg-slate-50 dark:bg-zinc-950/40 text-slate-800 dark:text-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 resize-none overflow-y-auto leading-relaxed min-h-[350px]"
-                  placeholder="Write or generate your cover letter/email outreach content here..."
-                />
-              )}
+              ) : null}
+              <textarea
+                value={coverLetter}
+                onChange={e => {
+                  setCoverLetter(e.target.value);
+                  setClStatus('dirty');
+                }}
+                className="w-full flex-1 p-4 text-xs font-mono border border-border-card rounded-xl bg-bg-app text-text-main focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary resize-none overflow-y-auto leading-relaxed min-h-[350px]"
+                placeholder="Write or generate your cover letter/email outreach content here..."
+              />
             </div>
           </div>
 
@@ -421,30 +655,42 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
           <div className="lg:col-span-5 flex flex-col gap-4">
             
             {/* Active Resume Card */}
-            <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl">
-              <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
-                Active Resume Profile
-              </span>
-              <div className="flex items-center gap-3 mt-2">
-                <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 text-indigo-650 dark:text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-100/50 dark:border-indigo-500/15">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                  </svg>
+            <div className="bg-bg-card p-4 border border-border-card rounded-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">
+                  Active Resume Profile
+                </span>
+                <button
+                  type="button"
+                  onClick={handlePreviewResumePdf}
+                  disabled={previewingResume}
+                  className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1 cursor-pointer"
+                >
+                  {previewingResume ? 'Loading...' : 'View PDF ↗'}
+                </button>
+              </div>
+
+              <div 
+                onClick={handlePreviewResumePdf}
+                className="flex items-center gap-3 mt-2 p-2.5 rounded-xl bg-bg-app border border-border-card hover:border-brand-primary/50 cursor-pointer transition-all btn-tactile group"
+                title="Click to view/download PDF version of selected resume"
+              >
+                <div className="w-9 h-9 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center shrink-0 border border-brand-primary/20 font-bold text-xs">
+                  PDF
                 </div>
-                <div className="overflow-hidden">
-                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 truncate">
+                <div className="overflow-hidden flex-1 min-w-0">
+                  <h4 className="text-xs font-bold text-text-main truncate group-hover:text-brand-primary transition-colors">
                     {resumeName}
                   </h4>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">
+                  <p className="text-[10px] text-text-muted truncate mt-0.5">
                     {activeResume?.title || 'Active Resume Document'}
                   </p>
                 </div>
               </div>
 
               {/* Template Selector */}
-              <div className="mt-3 pt-3 border-t border-slate-200/40 dark:border-zinc-800/60">
-                <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block mb-2">Export Template</span>
+              <div className="mt-3 pt-3 border-t border-border-card">
+                <span className="text-[9px] font-bold text-text-muted uppercase tracking-wider block mb-2">Export Template</span>
                 <div className="grid grid-cols-4 gap-1.5">
                   {[
                     { id: 'classic', label: 'Classic' },
@@ -456,10 +702,10 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                       key={t.id}
                       type="button"
                       onClick={() => setTemplateId(t.id)}
-                      className={`px-1.5 py-1.5 rounded-lg text-[9.5px] font-bold transition-all border cursor-pointer select-none ${
+                      className={`px-1.5 py-1.5 rounded-lg text-[9.5px] font-bold transition-all border cursor-pointer btn-tactile ${
                         templateId === t.id
-                          ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/25'
-                          : 'bg-white dark:bg-zinc-900 text-slate-600 dark:text-zinc-400 border-slate-200 dark:border-zinc-700 hover:border-indigo-400 hover:text-indigo-600'
+                          ? 'bg-brand-primary text-white border-brand-primary shadow-sm'
+                          : 'bg-bg-app text-text-muted border-border-card hover:border-brand-primary hover:text-brand-primary'
                       }`}
                     >
                       {t.label}
@@ -468,26 +714,48 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                 </div>
               </div>
 
-              {/* Tailored resume badge */}
+              {/* Attach Cover Letter PDF Switch */}
+              <div className="mt-3 pt-3 border-t border-border-card flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-bold text-text-main block">
+                    Attach Cover Letter PDF
+                  </span>
+                  <span className="text-[9px] text-text-muted block mt-0.5">
+                    {attachCoverLetter
+                      ? 'Sends 2 PDFs: Resume PDF + Cover Letter PDF'
+                      : 'Sends 1 PDF: Resume PDF only'}
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={attachCoverLetter}
+                    onChange={(e) => setAttachCoverLetter(e.target.checked)}
+                    className="sr-only peer"
+                    id="attach-cl-toggle"
+                  />
+                  <div className="w-9 h-5 bg-bg-app border border-border-card peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-text-muted peer-checked:after:bg-white after:border-border-card after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-primary" />
+                </label>
+              </div>
+
               {tailoredResumeData && (
-                <div className="mt-2 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200/50 dark:border-emerald-500/20 text-[9.5px] font-bold text-emerald-600 dark:text-emerald-400">
-                  <CheckCircleIcon size={10} className="shrink-0" />
+                <div className="mt-2.5 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[9.5px] font-bold text-emerald-500">
                   Tailored version ready for this job
                 </div>
               )}
             </div>
 
             {/* ATS Match Score */}
-            <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-3">
+            <div className="bg-bg-card p-4 border border-border-card rounded-xl flex flex-col gap-3">
               <div className="flex items-center justify-between">
-                <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
+                <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">
                   ATS Compatibility Match
                 </span>
                 {atsScore !== null && !calculatingAts && (
                   <button
                     type="button"
                     onClick={handleCalculateAts}
-                    className="text-[10px] flex items-center gap-1 text-slate-400 hover:text-indigo-600 transition-colors"
+                    className="text-[10px] flex items-center gap-1 text-text-muted hover:text-brand-primary transition-colors btn-tactile"
                     title="Recalculate ATS Score"
                   >
                     <RefreshIcon size={10} /> Recalculate
@@ -495,42 +763,39 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                 )}
               </div>
               
-              {/* ATS Score — Before / After comparison */}
               <div className="flex items-center gap-4">
                 {calculatingAts ? (
-                  <div className="flex items-center gap-2 py-2.5 text-xs text-slate-500 font-medium">
-                    <div className="w-3.5 h-3.5 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center gap-2 py-2.5 text-xs text-text-muted font-medium">
+                    <div className="w-3.5 h-3.5 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
                     Calculating ATS Score...
                   </div>
                 ) : atsScore !== null ? (
                   <div className="flex items-center gap-3.5 w-full">
 
-                    {/* Before score */}
                     {atsScoreBefore !== null && atsScoreAfter !== null && (
                       <div className="flex flex-col items-center">
-                        <span className="text-[8.5px] text-slate-400 dark:text-zinc-500 font-bold uppercase tracking-wider mb-1">Before</span>
+                        <span className="text-[8.5px] text-text-muted font-bold uppercase tracking-wider mb-1">Before</span>
                         <div className="relative flex items-center justify-center w-10 h-10">
                           <svg className="w-10 h-10 transform -rotate-90">
-                            <circle cx="20" cy="20" r="14" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="3" fill="transparent" />
-                            <circle cx="20" cy="20" r="14" className="stroke-slate-400" strokeWidth="3" fill="transparent" strokeDasharray="88" strokeDashoffset={88 - (atsScoreBefore / 100) * 88} strokeLinecap="round" />
+                            <circle cx="20" cy="20" r="14" className="stroke-border-card" strokeWidth="3" fill="transparent" />
+                            <circle cx="20" cy="20" r="14" className="stroke-text-muted" strokeWidth="3" fill="transparent" strokeDasharray="88" strokeDashoffset={88 - (atsScoreBefore / 100) * 88} strokeLinecap="round" />
                           </svg>
-                          <span className="absolute text-[9px] font-bold text-slate-500 dark:text-slate-400 font-mono">{atsScoreBefore}%</span>
+                          <span className="absolute text-[9px] font-bold text-text-muted font-mono">{atsScoreBefore}%</span>
                         </div>
                       </div>
                     )}
 
                     {atsScoreBefore !== null && atsScoreAfter !== null && (
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-indigo-500 shrink-0">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="text-brand-primary shrink-0">
                         <polyline points="9 18 15 12 9 6" />
                       </svg>
                     )}
 
-                    {/* Current / After score */}
                     <div className="flex flex-col items-center">
-                      {atsScoreAfter !== null && <span className="text-[8.5px] text-emerald-500 font-bold uppercase tracking-wider mb-1">After ✓</span>}
+                      {atsScoreAfter !== null && <span className="text-[8.5px] text-emerald-500 font-bold uppercase tracking-wider mb-1">After</span>}
                       <div className="relative flex items-center justify-center w-12 h-12">
                         <svg className="w-12 h-12 transform -rotate-90">
-                          <circle cx="24" cy="24" r="16" className="stroke-slate-200 dark:stroke-zinc-800" strokeWidth="3.5" fill="transparent" />
+                          <circle cx="24" cy="24" r="16" className="stroke-border-card" strokeWidth="3.5" fill="transparent" />
                           <circle
                             cx="24" cy="24" r="16"
                             className={`transition-all duration-700 ease-out ${scoreColor}`}
@@ -540,23 +805,18 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                             strokeLinecap="round"
                           />
                         </svg>
-                        <span className="absolute text-xs font-bold text-slate-800 dark:text-slate-200 font-mono">{atsScore}%</span>
+                        <span className="absolute text-[11px] font-extrabold font-mono text-text-main">{atsScore}%</span>
                       </div>
                     </div>
 
-                    <div className="flex-1">
-                      <div className="text-xs font-bold text-slate-850 dark:text-slate-200">
-                        {atsScore >= 85 ? 'Excellent compatibility' : atsScore >= 60 ? 'Moderate compatibility' : 'Needs improvement'}
-                      </div>
-                      {atsAnalysis?.scoreBreakdown && (
-                        <div className="text-[9px] text-slate-400 dark:text-zinc-500 mt-0.5">
-                          Skills {atsAnalysis.scoreBreakdown.skills || 0} · Exp {atsAnalysis.scoreBreakdown.experience || 0} · KW {atsAnalysis.scoreBreakdown.keywords || 0} · Edu {atsAnalysis.scoreBreakdown.education || 0}
-                        </div>
-                      )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-text-main">
+                        {atsScore >= 85 ? 'Strong ATS Alignment' : atsScore >= 60 ? 'Moderate ATS Alignment' : 'Low ATS Alignment'}
+                      </p>
                       <button
                         type="button"
                         onClick={() => setShowAnalysis(!showAnalysis)}
-                        className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold hover:underline mt-1 flex items-center gap-1 cursor-pointer"
+                        className="text-[10px] text-brand-primary font-bold hover:underline mt-1 flex items-center gap-1 cursor-pointer btn-tactile"
                       >
                         {showAnalysis ? 'Hide Analysis ▲' : 'Show Keyword Analysis ▼'}
                       </button>
@@ -566,7 +826,7 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                   <button
                     type="button"
                     onClick={handleCalculateAts}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-500/10 dark:hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 transition-all border border-indigo-100 dark:border-indigo-500/25 cursor-pointer"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 btn-tactile cursor-pointer"
                   >
                     <RefreshIcon size={12} />
                     Calculate ATS Match Score
@@ -574,95 +834,19 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                 )}
               </div>
 
-              {showAnalysis && atsAnalysis && (
-                <div className="mt-1 pt-3 border-t border-slate-200/50 dark:border-zinc-800/80 space-y-3 animate-fade-in">
-                  {/* Matching Keywords */}
-                  <div>
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block mb-1.5">
-                      Matching Keywords ({atsAnalysis.matchingKeywords?.length || 0})
-                    </span>
-                    <div className="flex flex-wrap gap-1 max-h-[100px] overflow-y-auto pr-1">
-                      {atsAnalysis.matchingKeywords && atsAnalysis.matchingKeywords.length > 0 ? (
-                        atsAnalysis.matchingKeywords.map((kw, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-150/40 dark:border-emerald-500/20"
-                          >
-                            ✓ {kw}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px] text-slate-400 dark:text-zinc-550 italic">No matching keywords found.</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Missing Keywords */}
-                  <div>
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block mb-1.5">
-                      Missing Keywords ({atsAnalysis.missingKeywords?.length || 0})
-                    </span>
-                    <div className="flex flex-wrap gap-1 max-h-[100px] overflow-y-auto pr-1">
-                      {atsAnalysis.missingKeywords && atsAnalysis.missingKeywords.length > 0 ? (
-                        atsAnalysis.missingKeywords.map((kw, i) => (
-                          <span
-                            key={i}
-                            className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-150/40 dark:border-rose-500/20"
-                          >
-                            ✗ {kw}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="text-[10px] text-emerald-605 dark:text-emerald-400 font-bold">100% Match! No missing keywords.</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Suggestions */}
-                  {atsAnalysis.suggestions && atsAnalysis.suggestions.length > 0 && (
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block mb-1.5">
-                        Optimization Suggestions
-                      </span>
-                      <ul className="list-disc list-inside text-[10px] text-slate-655 dark:text-zinc-400 space-y-1 pl-0.5 font-medium leading-relaxed">
-                        {atsAnalysis.suggestions.map((sug, i) => (
-                          <li key={i} className="text-slate-600 dark:text-zinc-400">{sug}</li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Optimize Resume (ATS tailoring) Button */}
               {atsScore !== null && atsScore < 85 && (
-                <div className="mt-1.5 pt-3 border-t border-slate-200/50 dark:border-zinc-800/80 space-y-3">
-                  <div className="flex gap-2 p-2.5 rounded-lg bg-rose-500/5 dark:bg-rose-500/10 text-rose-600 dark:text-rose-450 text-[10.5px] border border-rose-500/10 mb-2 leading-relaxed animate-pulse-slow">
+                <div className="mt-1.5 pt-3 border-t border-border-card space-y-3">
+                  <div className="flex gap-2 p-2.5 rounded-lg bg-rose-500/10 text-rose-500 text-[10.5px] border border-rose-500/20 mb-2 leading-relaxed animate-pulse">
                     <AlertTriangleIcon size={13} className="shrink-0 mt-0.5" />
                     <span>
-                      ATS score is lower than recommended (85%). Tailor keywords and project highlights using AI to maximize recruiters response.
+                      ATS score is lower than recommended (85%). Tailor keywords and project highlights using AI to maximize recruiter response.
                     </span>
                   </div>
-
-                  {tailoring && (
-                    <div className="space-y-1.5 p-3 rounded-xl bg-slate-50 dark:bg-zinc-900/30 border border-slate-100 dark:border-zinc-800 animate-fade-in">
-                      <div className="flex justify-between text-[10px] font-bold text-slate-500 dark:text-zinc-400">
-                        <span className="truncate">{tailoringLog || 'Preparing optimization...'}</span>
-                        <span>{tailoringProgress}%</span>
-                      </div>
-                      <div className="w-full bg-slate-250 dark:bg-zinc-800 h-1.5 rounded-full overflow-hidden relative">
-                        <div 
-                          className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_8px_#6366f1]"
-                          style={{ width: `${tailoringProgress}%` }}
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   <button
                     onClick={handleTailorResume}
                     disabled={tailoring || calculatingAts}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-indigo-600 to-violet-650 hover:from-indigo-700 hover:to-violet-700 text-white font-semibold text-xs shadow-md shadow-indigo-500/15 disabled:opacity-50 transition-all cursor-pointer select-none border-0"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-brand-primary hover:bg-brand-primary-hover text-white font-bold text-xs shadow-md shadow-brand-primary/20 transition-all cursor-pointer btn-tactile"
                   >
                     {tailoring ? (
                       <>
@@ -678,175 +862,166 @@ export default function OutreachModal({ job, user, onClose, onSuccess }) {
                   </button>
                 </div>
               )}
-
-              {atsScore >= 85 && atsScore !== null && (
-                <div className="mt-1 flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-405 text-xs border border-emerald-500/10">
-                  <CheckCircleIcon size={13} className="shrink-0 mt-0.5" />
-                  <span>Great match! {tailoredResumeData ? 'Tailored version saved for this job.' : 'Resume is well-aligned for this role.'}</span>
-                </div>
-              )}
             </div>
 
-            {/* Keyword Suggestions Panel & Diff Viewer — appears after tailoring */}
-            {tailoredResumeData && (
-              <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-4 animate-fade-in">
-                
-                <ResumeDiffViewer originalResume={activeResume?.resumeData} tailoredResume={tailoredResumeData} />
-
-                {keywordSuggestions && (
-                  <div className="flex flex-col gap-3 pt-4 border-t border-slate-200/60 dark:border-zinc-800/80">
-                    <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
-                      Keyword Suggestions
-                    </span>
-
-                    {keywordSuggestions.strongKeywords?.length > 0 && (
-                      <div>
-                        <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1.5">Strong Keywords</span>
-                        <div className="flex flex-wrap gap-1">
-                          {keywordSuggestions.strongKeywords.slice(0, 8).map((kw, i) => (
-                            <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-150/40 dark:border-emerald-500/20">✓ {kw}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {keywordSuggestions.missingKeywords?.length > 0 && (
-                      <div>
-                        <span className="text-[9px] font-bold text-rose-500 uppercase tracking-wider block mb-1.5">Still Missing</span>
-                        <div className="flex flex-wrap gap-1">
-                          {keywordSuggestions.missingKeywords.slice(0, 8).map((kw, i) => (
-                            <span key={i} className="px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-50 dark:bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-150/40 dark:border-rose-500/20">✗ {kw}</span>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {keywordSuggestions.recommendations?.length > 0 && (
-                      <div>
-                        <span className="text-[9px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block mb-1.5">Recommendations</span>
-                        <ul className="space-y-1">
-                          {keywordSuggestions.recommendations.slice(0, 3).map((rec, i) => (
-                            <li key={i} className="text-[10px] text-slate-600 dark:text-zinc-400 leading-snug flex gap-1.5">
-                              <span className="text-amber-500 shrink-0">→</span> {rec}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Email Provider Auth */}
-            <div className="bg-slate-50/50 dark:bg-zinc-950/30 p-4 border border-slate-200/60 dark:border-zinc-800/80 rounded-xl flex flex-col gap-2.5">
-              <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-bold uppercase tracking-wider block">
+            <div className="bg-bg-card p-4 border border-border-card rounded-xl flex flex-col gap-2.5">
+              <span className="text-[10px] text-text-muted font-bold uppercase tracking-wider block">
                 Auth Status & Dispatch Provider
               </span>
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200/80 dark:border-zinc-800 flex items-center justify-center shadow-sm shrink-0">
+                  <div className="w-7 h-7 rounded-lg bg-bg-app border border-border-card flex items-center justify-center shadow-sm shrink-0">
                     {provider === 'microsoft' ? <MicrosoftIcon /> : <GoogleIcon />}
                   </div>
                   <div>
-                    <h5 className="text-xs font-bold text-slate-800 dark:text-slate-250 capitalize">
+                    <h5 className="text-xs font-bold text-text-main capitalize">
                       {provider === 'microsoft' ? 'Microsoft Outlook' : 'Google Gmail'}
                     </h5>
-                    <p className="text-[9.5px] text-slate-400 dark:text-zinc-500 font-medium">
+                    <p className="text-[9.5px] text-text-muted font-medium">
                       Sending from: {user?.email}
                     </p>
                   </div>
                 </div>
 
                 {isAuthenticated ? (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-100/80 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-200/50 dark:border-emerald-500/20">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
                     Connected
                   </span>
                 ) : (
-                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-100/85 dark:bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-200/50 dark:border-rose-500/20 animate-pulse">
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-bold bg-rose-500/10 text-rose-500 border border-rose-500/20 animate-pulse">
                     Disconnected
                   </span>
                 )}
               </div>
-
-              {!isAuthenticated && (
-                <div className="mt-1 p-2.5 bg-rose-500/5 dark:bg-rose-500/10 border border-rose-500/15 rounded-lg flex flex-col gap-2">
-                  <p className="text-[10px] text-rose-600 dark:text-rose-400 leading-relaxed font-medium">
-                    Credentials required to send applications. Click below to log in.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      window.location.href = `${BACKEND}/auth/${provider}`;
-                    }}
-                    className="w-fit flex items-center gap-1 px-2.5 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-[10px] font-bold shadow-sm transition-colors cursor-pointer select-none"
-                  >
-                    Authenticate Account
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Follow-up Note */}
-            <div className="bg-slate-50/30 dark:bg-zinc-950/15 p-3.5 border border-slate-200/40 dark:border-zinc-800/50 rounded-xl flex gap-2.5 text-[11px] text-slate-550 dark:text-zinc-400 leading-normal">
-              <ClockIcon size={14} className="shrink-0 text-slate-400 dark:text-zinc-550 mt-0.5" />
-              <div>
-                <span className="font-bold text-slate-700 dark:text-slate-300 block mb-0.5">
-                  Automated Follow-up Scheduled
-                </span>
-                An automated follow-up email will be sent in 7 days if no reply is detected.
-              </div>
             </div>
 
           </div>
-
         </div>
+      )}
 
         {/* Global Error/Success inside modal */}
         {modalError && (
-          <div className="mx-6 mb-4 p-3 bg-rose-50 dark:bg-rose-500/10 border border-rose-200 dark:border-rose-500/25 rounded-xl text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2">
+          <div className="mx-6 mb-4 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs font-bold text-red-500 flex items-center gap-2">
             <AlertTriangleIcon size={14} className="shrink-0 animate-bounce" />
             {modalError}
           </div>
         )}
         {modalSuccess && (
-          <div className="mx-6 mb-4 p-3 bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-250 dark:border-emerald-500/20 rounded-xl text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-2">
+          <div className="mx-6 mb-4 p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-xs font-bold text-emerald-500 flex items-center gap-2">
             <CheckCircleIcon size={14} className="shrink-0" />
             {modalSuccess}
           </div>
         )}
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 px-6 py-4.5 border-t border-slate-100 dark:border-zinc-800 bg-slate-50/50 dark:bg-zinc-900/40 shrink-0">
-          <button
-            onClick={onClose}
-            disabled={sending}
-            className="px-4 py-2 border border-slate-200 dark:border-zinc-700 rounded-xl text-xs font-bold text-slate-650 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-zinc-805 transition-colors disabled:opacity-50 cursor-pointer select-none"
-          >
-            Cancel
-          </button>
-          
-          <button
-            onClick={handleSend}
-            disabled={sending || !isAuthenticated || tailoring || regeneratingCL}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md bg-indigo-600 hover:bg-indigo-700 text-white disabled:opacity-50 cursor-pointer select-none"
-          >
-            {sending ? (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-6 py-4 border-t border-border-card bg-bg-card shrink-0">
+          <p className="text-[10.5px] text-text-muted font-medium flex items-center gap-1">
+            <strong className="text-text-main">Pre-Send Verification:</strong> {step === 'review' ? 'Inspect all 3 items (Resume, Cover Letter, Recruiter Email) before final send.' : 'Edit email text or ATS score, then proceed to inspection.'}
+          </p>
+
+          <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
+            {step === 'review' ? (
               <>
-                <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                Sending Application...
+                <button
+                  onClick={() => setStep('edit')}
+                  disabled={sending}
+                  className="px-4 py-2 border border-border-card rounded-xl text-xs font-bold text-text-muted hover:bg-bg-card-hover transition-colors btn-tactile"
+                >
+                  ← Back to Edit
+                </button>
+                
+                <button
+                  onClick={handleSend}
+                  disabled={sending || !isAuthenticated || tailoring || regeneratingCL}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md bg-emerald-600 hover:bg-emerald-500 text-white btn-tactile"
+                >
+                  {sending ? (
+                    <>
+                      <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Dispatching Application...
+                    </>
+                  ) : (
+                    <>
+                      <SendIcon size={12} />
+                      Confirm & Dispatch Application
+                    </>
+                  )}
+                </button>
               </>
             ) : (
               <>
-                <SendIcon size={12} />
-                Send Application to Recruiter
+                <button
+                  onClick={onClose}
+                  disabled={sending}
+                  className="px-4 py-2 border border-border-card rounded-xl text-xs font-bold text-text-muted hover:bg-bg-card-hover transition-colors btn-tactile"
+                >
+                  Cancel
+                </button>
+                
+                <button
+                  onClick={() => setStep('review')}
+                  disabled={tailoring || regeneratingCL}
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all shadow-md bg-brand-primary hover:bg-brand-primary-hover text-white btn-tactile"
+                >
+                  Proceed to Review & Confirm →
+                </button>
               </>
             )}
-          </button>
+          </div>
         </div>
 
       </div>
+
+      {/* In-Page PDF Modal Viewer */}
+      {pdfViewerOpen && (
+        <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-4xl h-[90vh] bg-bg-card border border-border-card rounded-2xl shadow-2xl flex flex-col overflow-hidden origin-aware-popover">
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border-card bg-bg-card shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center font-bold text-xs">
+                  PDF
+                </div>
+                <div>
+                  <h4 className="text-sm font-extrabold text-text-main">{pdfViewerTitle}</h4>
+                  <p className="text-[11px] text-text-muted">Live PDF document generated in application context</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <a
+                  href={pdfViewerUrl}
+                  download={`${pdfViewerTitle.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`}
+                  className="px-3.5 py-1.5 rounded-xl border border-border-card text-xs font-bold text-text-main hover:bg-bg-app transition-all btn-tactile flex items-center gap-1.5"
+                >
+                  Download PDF ⤓
+                </a>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPdfViewerOpen(false);
+                    if (pdfViewerUrl) URL.revokeObjectURL(pdfViewerUrl);
+                  }}
+                  className="p-1.5 rounded-lg text-text-muted hover:text-text-main hover:bg-bg-card-hover transition-colors btn-tactile"
+                >
+                  <XIcon size={18} />
+                </button>
+              </div>
+            </div>
+
+            {/* PDF Viewer Frame */}
+            <div className="flex-1 bg-slate-900 overflow-hidden relative">
+              <iframe
+                src={`${pdfViewerUrl}#toolbar=1&navpanes=0&scrollbar=1`}
+                className="w-full h-full border-0"
+                title={pdfViewerTitle}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>,
     document.body
   );

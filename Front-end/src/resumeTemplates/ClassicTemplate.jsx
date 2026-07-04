@@ -103,11 +103,11 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
             </div>
           )}
           <div style={s.contact}>
-            {(p.email || editMode) && <span>✉ <T value={p.email || ''} onChange={updPI('email')} placeholder="email@example.com" /></span>}
-            {(p.phone || editMode) && <span>📞 <T value={p.phone || ''} onChange={updPI('phone')} placeholder="+1 555 000" /></span>}
-            {(p.location || editMode) && <span>📍 <T value={p.location || ''} onChange={updPI('location')} placeholder="City" /></span>}
-            {(p.linkedin || editMode) && <span>🔗 <T value={p.linkedin || ''} onChange={updPI('linkedin')} placeholder="LinkedIn URL" /></span>}
-            {(p.github || editMode) && <span>⌥ <T value={p.github || ''} onChange={updPI('github')} placeholder="GitHub URL" /></span>}
+            {(p.email || editMode) && <span>Email: <T value={p.email || ''} onChange={updPI('email')} placeholder="email@example.com" /></span>}
+            {(p.phone || editMode) && <span>Phone: <T value={p.phone || ''} onChange={updPI('phone')} placeholder="+1 555 000" /></span>}
+            {(p.location || editMode) && <span>Location: <T value={p.location || ''} onChange={updPI('location')} placeholder="City" /></span>}
+            {(p.linkedin || editMode) && <span>LinkedIn: <T value={p.linkedin || ''} onChange={updPI('linkedin')} placeholder="LinkedIn URL" /></span>}
+            {(p.github || editMode) && <span>GitHub: <T value={p.github || ''} onChange={updPI('github')} placeholder="GitHub URL" /></span>}
           </div>
         </div>
       </div>
