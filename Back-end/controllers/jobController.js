@@ -13,12 +13,9 @@ const getJobs = async (req, res) => {
 
     const query = {};
 
-    // Scope queries to current user, falling back to legacy jobs without userId
+    // Scope strictly to the authenticated user — no legacy fallback
     if (req.user) {
-      query.$or = [
-        { userId: req.user._id },
-        { userId: { $exists: false } }
-      ];
+      query.userId = req.user._id;
     }
 
     // Status filter
@@ -87,16 +84,17 @@ const createJob = async (req, res) => {
 
 const getAnalytics = async (req, res) => {
   try {
-    const total = await Job.countDocuments({});
-    const applied = await Job.countDocuments({ isEmailSent: true });
+    const userId = req.user._id;
+    const total = await Job.countDocuments({ userId });
+    const applied = await Job.countDocuments({ userId, isEmailSent: true });
     const pending = total - applied;
-    const replied = await Job.countDocuments({ hasReply: true });
+    const replied = await Job.countDocuments({ userId, hasReply: true });
 
     // Funnel calculations
     const responseRate = applied > 0 ? Math.round((replied / applied) * 100) : 0;
 
-    // Average time to reply (in hours)
-    const jobsWithReplies = await Job.find({ hasReply: true, repliedAt: { $ne: null } });
+    // Average time to reply (in hours) — scoped to this user only
+    const jobsWithReplies = await Job.find({ userId, hasReply: true, repliedAt: { $ne: null } });
     let avgReplyTimeHours = 0;
     if (jobsWithReplies.length > 0) {
       let totalDiffMs = 0;
@@ -131,6 +129,11 @@ const updateJob = async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    // Ownership check — only the job owner can update it
+    if (job.userId && req.user && job.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied. You do not own this job.' });
+    }
 
     // Track status transitions and push to timeline
     if (req.body.status && req.body.status !== job.status) {
@@ -196,6 +199,24 @@ const extractUrlInfo = async (req, res) => {
   const user = req.user;
 
   if (!url) return res.status(400).json({ error: 'URL is required' });
+
+  // ── SSRF protection: only allow public HTTP(S) URLs to known job boards ──
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch (_) {
+    return res.status(400).json({ error: 'Invalid URL format.' });
+  }
+
+  if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
+    return res.status(400).json({ error: 'Only http and https URLs are allowed.' });
+  }
+
+  // Block private/loopback IP ranges and internal hostnames
+  const blockedHostnames = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|::1|169\.254\.)/;
+  if (blockedHostnames.test(parsedUrl.hostname)) {
+    return res.status(400).json({ error: 'Requests to internal or private addresses are not allowed.' });
+  }
 
   let browser;
   try {
@@ -354,8 +375,15 @@ const generateCoverLetterCustom = async (req, res) => {
 const deleteJob = async (req, res) => {
   const { id } = req.params;
   try {
-    const job = await Job.findByIdAndDelete(id);
+    const job = await Job.findById(id);
     if (!job) return res.status(404).json({ error: 'Job not found' });
+
+    // Ownership check — only the job owner can delete it
+    if (job.userId && req.user && job.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ error: 'Access denied. You do not own this job.' });
+    }
+
+    await job.deleteOne();
     res.json({ message: 'Job deleted successfully' });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -393,22 +421,43 @@ const trackOpen = async (req, res) => {
 const trackClick = async (req, res) => {
   const { id } = req.params;
   const { url } = req.query;
+  const SAFE_FALLBACK = process.env.FRONTEND_URL || 'http://localhost:5173/';
+
+  // Validate the redirect target is a safe public http/https URL.
+  // This prevents open-redirect abuse where an attacker can craft a tracking URL
+  // that redirects victims to a phishing site.
+  const isValidRedirectUrl = (rawUrl) => {
+    if (!rawUrl) return false;
+    try {
+      const parsed = new URL(rawUrl);
+      if (!['http:', 'https:'].includes(parsed.protocol)) return false;
+      // Block private/loopback/link-local IP ranges
+      const blocked = /^(localhost|127\.|10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|0\.0\.0\.0|::1|169\.254\.)/;
+      if (blocked.test(parsed.hostname)) return false;
+      return true;
+    } catch (_) {
+      return false;
+    }
+  };
+
   try {
     const decodedUrl = url ? decodeURIComponent(url) : null;
+    const safeUrl = isValidRedirectUrl(decodedUrl) ? decodedUrl : null;
+
     const job = await Job.findById(id);
-    if (job && decodedUrl) {
+    if (job && safeUrl) {
       job.linkClicksCount += 1;
-      job.clicks.push({ url: decodedUrl, clickedAt: new Date() });
+      job.clicks.push({ url: safeUrl, clickedAt: new Date() });
       await job.save();
     }
 
-    if (decodedUrl) {
-      return res.redirect(302, decodedUrl);
+    if (safeUrl) {
+      return res.redirect(302, safeUrl);
     }
   } catch (err) {
     console.error('Click tracking error:', err.message);
   }
-  res.redirect(302, 'http://localhost:5173/');
+  res.redirect(302, SAFE_FALLBACK);
 };
 
 const importJobFromExtension = async (req, res) => {
@@ -615,11 +664,9 @@ const getDueFollowups = async (req, res) => {
       followUpStatus: 'pending',
       followUpDate: { $lte: today }
     };
+    // Always scope to the authenticated user — no legacy fallback
     if (req.user) {
-      query.$or = [
-        { userId: req.user._id },
-        { userId: { $exists: false } }
-      ];
+      query.userId = req.user._id;
     }
     const jobs = await Job.find(query).select('job companyName hrName email followUpDate');
     res.json({ jobs });
@@ -1018,6 +1065,68 @@ const fillJobForm = async (req, res) => {
   }
 };
 
+const getSharedJobsForFinder = async (req, res) => {
+  try {
+    const { search } = req.query;
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    let query = {
+      shareOnFinder: true,
+      createdAt: { $lte: oneWeekAgo }
+    };
+
+    if (search) {
+      const searchRegex = new RegExp(search, 'i');
+      query.$or = [
+        { job: searchRegex },
+        { companyName: searchRegex },
+        { description: searchRegex }
+      ];
+    }
+
+    // Find shared jobs, returning only public fields, not user specific tracking details
+    const jobs = await Job.find(query)
+      .select('job hrName companyName email description createdAt')
+      .sort({ createdAt: -1 });
+
+    res.json({ success: true, jobs });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+const importSharedJob = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const oneWeekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const sourceJob = await Job.findOne({
+      _id: id,
+      shareOnFinder: true,
+      createdAt: { $lte: oneWeekAgo }
+    });
+    if (!sourceJob) {
+      return res.status(404).json({ error: 'Shared job not found or not yet available.' });
+    }
+
+    // Clone job for the importing user
+    const clonedJob = new Job({
+      userId: req.user._id,
+      job: sourceJob.job,
+      companyName: sourceJob.companyName,
+      email: sourceJob.email,
+      hrName: sourceJob.hrName,
+      description: sourceJob.description,
+      status: 'saved',
+      statusHistory: [{ status: 'saved', changedAt: new Date() }],
+      shareOnFinder: false
+    });
+
+    await clonedJob.save();
+    res.status(201).json({ success: true, job: clonedJob });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   getJobs,
   createJob,
@@ -1041,5 +1150,7 @@ module.exports = {
   negotiateSalary,
   gradeVoiceAnswer,
   getJobFormFields,
-  fillJobForm
+  fillJobForm,
+  getSharedJobsForFinder,
+  importSharedJob
 };

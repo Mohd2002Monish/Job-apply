@@ -87,7 +87,9 @@ const apply = async (req, res) => {
       }
 
       if (!attachmentPath || !fs.existsSync(attachmentPath)) {
-        attachmentPath = path.join(__dirname, '..', 'public', 'Mohd_Monish.docx');
+        // No resume file available — skip attachment rather than sending a stranger's resume
+        console.warn(`No resume file found for user ${user.email}. Sending email without attachment.`);
+        attachmentPath = null;
       }
 
       const finalAttachments = [];
@@ -203,7 +205,8 @@ const checkReplies = async (req, res) => {
   const user = req.user;
 
   try {
-    const jobs = await Job.find({ isEmailSent: true, gmailThreadId: { $ne: null } });
+    // Scope to only the current user's jobs — never check cross-user threads
+    const jobs = await Job.find({ userId: user._id, isEmailSent: true, gmailThreadId: { $ne: null } });
     const updates = [];
 
     for (const job of jobs) {

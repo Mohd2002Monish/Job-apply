@@ -7,10 +7,20 @@ const { exportResume, exportCoverLetter, buildClassicHTML, buildModernHTML, buil
 const { generateAtsScore, analyzeJobDescription, analyzeResumeGap, generateKeywordSuggestions, calculateDeterministicAtsScore, generateCoverLetter, tailorResumeData } = require('../utils/geminiService');
 
 /**
- * Migration helper to ensure active resume profile is loaded.
- * Backwards compatible with legacy single resume properties.
+ * Pure helper — returns the active resume entry without mutating the user document.
+ * Migration of legacy single-resume data is handled separately in runMigrationIfNeeded().
  */
 const getActiveResume = (user) => {
+  if (user.resumes.length === 0) return null;
+  const activeId = user.activeResumeId || user.resumes[0].id;
+  return user.resumes.find(r => r.id === activeId) || user.resumes[0];
+};
+
+/**
+ * One-time migration: moves the legacy root-level resume fields into the resumes array.
+ * Saves the user document. Should be called explicitly where a write is already happening.
+ */
+const runMigrationIfNeeded = async (user) => {
   if (user.resumes.length === 0 && user.resumeFileName) {
     user.resumes.push({
       id: 'default',
@@ -22,19 +32,15 @@ const getActiveResume = (user) => {
       lastParsedAt: user.lastParsedAt
     });
     user.activeResumeId = 'default';
+    await user.save();
   }
-
-  if (user.resumes.length === 0) return null;
-
-  const activeId = user.activeResumeId || user.resumes[0].id;
-  return user.resumes.find(r => r.id === activeId) || user.resumes[0];
 };
 
 const listResumes = async (req, res) => {
   const user = req.user;
   try {
-    getActiveResume(user);
-    await user.save();
+    // Run migration only if needed (has legacy data but no resumes array yet)
+    await runMigrationIfNeeded(user);
     res.json({
       resumes: user.resumes.map(r => ({ id: r.id, title: r.title, resumeFileName: r.resumeFileName, lastParsedAt: r.lastParsedAt })),
       activeResumeId: user.activeResumeId
@@ -166,7 +172,6 @@ const getResumeData = async (req, res) => {
   const user = req.user;
   try {
     const active = getActiveResume(user);
-    await user.save();
     if (!active || !active.resumeData) {
       return res.json({ hasData: false, resumeData: null });
     }
@@ -187,7 +192,6 @@ const exportUserResume = async (req, res) => {
   
   try {
     const active = getActiveResume(user);
-    await user.save();
     let resumeData = clientData || (active ? active.resumeData : null);
 
     if (!resumeData) {
@@ -233,7 +237,6 @@ const calculateAtsScore = async (req, res) => {
 
   try {
     const active = getActiveResume(user);
-    await user.save();
 
     if (!active || !active.resumeData) {
       return res.status(400).json({ error: 'Please upload and parse a resume first.' });
@@ -273,7 +276,6 @@ const createCoverLetter = async (req, res) => {
 
   try {
     const active = getActiveResume(user);
-    await user.save();
 
     if (!active || !active.resumeData) {
       return res.status(400).json({ error: 'Please upload and parse a resume first.' });

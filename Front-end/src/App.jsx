@@ -11,6 +11,7 @@ import InteractiveBackground from './components/InteractiveBackground';
 import JobDiscoverer from './components/JobDiscoverer';
 import AdminPanel from './components/AdminPanel';
 import CoverLetterTab from './components/CoverLetterTab';
+import Finder from './components/Finder';
 import Select from 'react-select';
 import { getReactSelectStyles } from './utils/reactSelectStyles';
 import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon, FileTextIcon } from './components/Icons';
@@ -42,6 +43,14 @@ const TrendingUpIcon = ({ size = 15 }) => (
 const SearchIcon = ({ size = 15 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+  </svg>
+);
+
+const FinderIcon = ({ size = 15 }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 19h-6M2 6l10 7 10-7v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6z" />
+    <circle cx="18" cy="15" r="3" />
+    <line x1="22" y1="19" x2="20.2" y2="17.2" />
   </svg>
 );
 
@@ -386,6 +395,7 @@ const Dashboard = () => {
           <nav className="p-4 space-y-1">
             <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+            <NavTab id="finder" label="Finder" Icon={FinderIcon} active={activeTab === 'finder'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="cover-letter" label="Cover Letter" Icon={FileTextIcon} active={activeTab === 'cover-letter'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
             <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
@@ -519,7 +529,7 @@ const Dashboard = () => {
 
         {/* Page Content area */}
         <main className="flex-1 p-5 lg:p-8 max-w-7xl w-full mx-auto">
-          {!resumeName && activeTab !== 'admin' && (
+          {!resumeName && activeTab !== 'admin' && activeTab !== 'finder' && (
             <ResumeUpload
               user={user}
               resumeName={resumeName}
@@ -530,6 +540,7 @@ const Dashboard = () => {
 
           {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
           {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
+          {activeTab === 'finder' && <Finder toast={toast} />}
           {activeTab === 'cover-letter' && <CoverLetterTab user={user} />}
           {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
           {activeTab === 'analytics' && <AnalyticsDashboard />}

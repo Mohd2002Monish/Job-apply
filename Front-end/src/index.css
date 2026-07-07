@@ -118,7 +118,7 @@
            transition-colors duration-150;
   }
 
-  /* Tactile Button Base */
+  /* Tactile Button Base — apply this class directly in JSX for tactile press feedback */
   .btn-tactile {
     transition: transform 160ms var(--ease-out), background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
     cursor: pointer;
@@ -130,19 +130,33 @@
 
   /* Primary button */
   .btn-primary {
-    @apply btn-tactile inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
            bg-brand-primary hover:bg-brand-primary-hover
            text-white text-sm font-semibold
            shadow-md shadow-brand-primary/20
            disabled:opacity-40 disabled:cursor-not-allowed;
+    /* btn-tactile properties inlined (Tailwind v4: @apply cannot reference component classes) */
+    transition: transform 160ms var(--ease-out), background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn-primary:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   /* Secondary/ghost button */
   .btn-ghost {
-    @apply btn-tactile inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl
            bg-bg-card-hover hover:opacity-90 border border-border-card
            text-text-main text-sm font-medium
            disabled:opacity-40 disabled:cursor-not-allowed;
+    /* btn-tactile properties inlined (Tailwind v4: @apply cannot reference component classes) */
+    transition: transform 160ms var(--ease-out), background-color 160ms ease, box-shadow 160ms ease, opacity 160ms ease;
+    cursor: pointer;
+    user-select: none;
+  }
+  .btn-ghost:active:not(:disabled) {
+    transform: scale(0.97);
   }
 
   /* Badge */

@@ -22,7 +22,7 @@ router.get('/r/:code', async (req, res) => {
       res.cookie('jaa_referred_by', code.toUpperCase(), {
         httpOnly: true,
         maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
-        secure: false, // set to true in production
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         path: '/'
       });

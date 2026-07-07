@@ -37,7 +37,8 @@ const createJobSchema = z.object({
   hrName: z.string().trim().max(100).optional().default(''),
   companyName: z.string().trim().max(150).optional().default(''),
   emailProvider: z.enum(['google', 'microsoft']).optional().default('google'),
-  templateId: z.string().optional().default('classic')
+  templateId: z.string().optional().default('classic'),
+  shareOnFinder: z.boolean().optional().default(false)
 });
 
 const updateJobSchema = z.object({
@@ -50,6 +51,7 @@ const updateJobSchema = z.object({
   emailProvider: z.enum(['google', 'microsoft']).optional(),
   hasReply: z.boolean().optional(),
   templateId: z.string().optional(),
+  shareOnFinder: z.boolean().optional(),
   followUpDate: z.preprocess((val) => {
     if (val === null || val === 'null' || val === '') return null;
     if (typeof val === 'string') return new Date(val);

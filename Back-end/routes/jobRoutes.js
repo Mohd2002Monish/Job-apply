@@ -25,7 +25,9 @@ const {
   negotiateSalary,
   gradeVoiceAnswer,
   getJobFormFields,
-  fillJobForm
+  fillJobForm,
+  getSharedJobsForFinder,
+  importSharedJob
 } = require('../controllers/jobController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
 const { validate, createJobSchema, updateJobSchema, salaryNegotiationSchema } = require('../middlewares/validate');
@@ -66,6 +68,10 @@ router.get('/', authenticate, requireAuth, getJobs);
 router.post('/', authenticate, requireAuth, checkLimits('job'), validate(createJobSchema), createJob);
 router.get('/analytics', authenticate, requireAuth, getAnalytics);
 router.get('/due-followups', authenticate, requireAuth, getDueFollowups);
+
+// Finder Shared Jobs
+router.get('/finder', authenticate, requireAuth, getSharedJobsForFinder);
+router.post('/finder/import/:id', authenticate, requireAuth, checkLimits('job'), importSharedJob);
 
 // Import a job via the Chrome Extension
 router.post('/import', authenticate, requireAuth, checkLimits('job'), importJobFromExtension);

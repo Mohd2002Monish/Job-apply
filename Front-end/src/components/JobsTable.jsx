@@ -114,6 +114,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
     hrName: job?.hrName || '',
     description: job?.description || '',
     status: job?.status || 'saved',
+    shareOnFinder: job ? (job.shareOnFinder ?? false) : true,
   });
   const [saving, setSaving] = useState(false);
   const [extracting, setExtracting] = useState(false);
@@ -315,6 +316,33 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
                 styles={getReactSelectStyles()}
                 id="jobs-form-status-select"
               />
+            </div>
+
+            <div className="space-y-1.5 pt-1 pb-1">
+              <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-slate-105 dark:border-zinc-800">
+                <div>
+                  <label htmlFor="shareOnFinder" className="text-xs font-bold text-slate-700 dark:text-zinc-200 cursor-pointer select-none">
+                    Share on Finder
+                  </label>
+                  <p className="text-[11px] text-slate-400 dark:text-zinc-500 leading-normal mt-0.5">
+                    Share this job details and recruiter contact email with the community (shared after 7 days to give you a head start).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  id="shareOnFinder"
+                  onClick={() => setForm(f => ({ ...f, shareOnFinder: !f.shareOnFinder }))}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    form.shareOnFinder ? 'bg-brand-primary' : 'bg-slate-200 dark:bg-zinc-700'
+                  }`}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                      form.shareOnFinder ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
             </div>
 
             <div className="flex gap-3 pt-2">

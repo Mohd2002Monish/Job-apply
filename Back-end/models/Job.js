@@ -131,8 +131,11 @@ const jobSchema = new mongoose.Schema({
       url: { type: String }
     }],
     talkingPoints: [{ type: String }],
-    emailDraft: { type: String, default: '' },
     generatedAt: { type: Date, default: null }
+  },
+  shareOnFinder: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true

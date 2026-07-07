@@ -40,39 +40,71 @@ const getAdminStats = async (req, res) => {
 
 /**
  * Returns a list of all users and their metadata.
+ * Uses MongoDB aggregation to avoid N+1 queries and supports pagination.
  */
 const getAdminUsers = async (req, res) => {
   try {
-    const users = await User.find({}).sort({ createdAt: -1 });
-    const usersWithJobCount = await Promise.all(
-      users.map(async (u) => {
-        const jobCount = await Job.countDocuments({ userId: u._id });
-        const referralConversions = await User.countDocuments({
-          referredBy: u._id,
-          subscriptionTier: 'pro'
-        });
-        return {
-          _id: u._id,
-          name: u.name || '',
-          email: u.email,
-          picture: u.picture || '',
-          activeProvider: u.activeProvider || 'google',
-          subscriptionTier: u.subscriptionTier || 'free',
-          aiRequestCount: u.aiRequestCount || 0,
-          role: u.role || 'user',
-          tokenUsage: u.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
-          createdAt: u.createdAt,
-          jobCount,
-          referralCode: u.referralCode || '',
-          referralClicks: u.referralClicks || 0,
-          referralConversions
-        };
-      })
-    );
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    // Aggregate in MongoDB to get jobCount and referralConversions in one pass
+    const usersAggregation = await User.aggregate([
+      { $skip: skip },
+      { $limit: limit },
+      {
+        $lookup: {
+          from: 'jobs',
+          localField: '_id',
+          foreignField: 'userId',
+          as: 'userJobs'
+        }
+      },
+      {
+        $addFields: {
+          jobCount: { $size: '$userJobs' }
+        }
+      },
+      {
+        $lookup: {
+          from: 'users',
+          localField: '_id',
+          foreignField: 'referredBy',
+          as: 'referrals'
+        }
+      },
+      {
+        $addFields: {
+          referralConversions: {
+            $size: {
+              $filter: {
+                input: '$referrals',
+                as: 'ref',
+                cond: { $eq: ['$$ref.subscriptionTier', 'pro'] }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          userJobs: 0,
+          referrals: 0
+        }
+      }
+    ]);
+
+    const totalUsers = await User.countDocuments({});
 
     res.json({
       success: true,
-      users: usersWithJobCount
+      users: usersAggregation,
+      meta: {
+        total: totalUsers,
+        page,
+        limit,
+        totalPages: Math.ceil(totalUsers / limit)
+      }
     });
   } catch (err) {
     console.error('Failed to fetch admin users:', err.message);

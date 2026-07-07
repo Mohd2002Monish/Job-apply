@@ -1,3 +1,10 @@
+// ── Backend URL ────────────────────────────────────────────────────────────────
+// IMPORTANT: Chrome extensions cannot read environment variables at runtime.
+// Change this constant to your production API URL before publishing the extension.
+// Example: 'https://api.yourapp.com'
+const BACKEND_URL = 'http://localhost:3000';
+// ──────────────────────────────────────────────────────────────────────────────
+
 document.addEventListener('DOMContentLoaded', async () => {
   const domainBadge  = document.getElementById('domainBadge');
   const alertSuccess = document.getElementById('alertSuccess');
@@ -210,7 +217,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     };
 
     try {
-      const response = await fetch('http://localhost:3000/jobs/import', {
+      const response = await fetch(`${BACKEND_URL}/jobs/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

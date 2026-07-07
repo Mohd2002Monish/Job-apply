@@ -10,8 +10,45 @@ const {
   getMicrosoftUserInfo
 } = require('../utils/microsoftService');
 
+if (!process.env.JWT_SECRET && !process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET env variable is not set. Server cannot start in production without it.');
+  } else {
+    console.warn('⚠️  WARNING: JWT_SECRET is not set. Using insecure fallback key. Set JWT_SECRET in your .env file.');
+  }
+}
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'jaa-super-secret-key-1337';
-const FRONTEND_URL = 'http://localhost:5173';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+/**
+ * Validates that a redirect URI is an allowed origin.
+ * Prevents open-redirect attacks via the OAuth state parameter.
+ */
+const ALLOWED_REDIRECT_ORIGINS = (() => {
+  const base = [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173'];
+  // Also allow the mobile app scheme if configured
+  if (process.env.MOBILE_REDIRECT_SCHEME) base.push(process.env.MOBILE_REDIRECT_SCHEME);
+  return base;
+})();
+
+const isSafeRedirectUri = (uri) => {
+  if (!uri) return false;
+  try {
+    const parsed = new URL(uri);
+    return ALLOWED_REDIRECT_ORIGINS.some(allowed => {
+      try {
+        const allowedParsed = new URL(allowed);
+        // For custom schemes (mobile) match scheme only
+        if (allowedParsed.protocol !== 'http:' && allowedParsed.protocol !== 'https:') {
+          return parsed.protocol === allowedParsed.protocol;
+        }
+        return parsed.origin === allowedParsed.origin;
+      } catch (_) { return false; }
+    });
+  } catch (_) {
+    return false;
+  }
+};
 
 /**
  * Generate a secure JWT and attach it to an HTTP-only response cookie.
@@ -20,7 +57,7 @@ const generateTokenCookie = (res, email) => {
   const token = jwt.sign({ email }, JWT_SECRET, { expiresIn: '7d' });
   res.cookie('jaa_session_token', token, {
     httpOnly: true,
-    secure: false, // set to true in production with HTTPS
+    secure: process.env.NODE_ENV === 'production', // HTTPS only in production
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days (1 week)
     sameSite: 'lax',
     path: '/'
@@ -117,7 +154,7 @@ const handleUserSignIn = async (email, userInfo, tokens, provider, isOwner, req,
   if (req.cookies && req.cookies.jaa_referred_by) {
     res.clearCookie('jaa_referred_by', {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       path: '/'
     });
   }
@@ -128,7 +165,10 @@ const handleUserSignIn = async (email, userInfo, tokens, provider, isOwner, req,
 const googleCallback = async (req, res) => {
   const { code, error, state } = req.query;
 
-  const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
+  // Validate the state/redirect URI against the allowlist to prevent open redirect.
+  // Falls back to FRONTEND_URL if the state is missing or not in the allowlist.
+  const decodedState = state ? decodeURIComponent(state) : null;
+  const baseRedirect = (decodedState && isSafeRedirectUri(decodedState)) ? decodedState : FRONTEND_URL;
 
   if (error) return res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(error)}`);
   if (!code) return res.redirect(`${baseRedirect}?auth=error&reason=no_code`);
@@ -166,15 +206,16 @@ const googleCallback = async (req, res) => {
       provider: 'google',
     });
 
-    // If it's a mobile redirect, include the JWT token in the URL
-    if (state) {
+    // If it's a mobile redirect (state is a validated allowed URI), include the JWT in the URL.
+    // NOTE: Tokens in URLs land in server access logs and browser history. This is an accepted
+    // tradeoff for mobile deep-link auth flows. Only do this when state passed allowlist validation.
+    if (decodedState && isSafeRedirectUri(decodedState)) {
       params.append('token', token);
     }
 
     res.redirect(`${baseRedirect}?${params.toString()}`);
   } catch (err) {
     console.error('Google OAuth callback error:', err.message);
-    const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
     res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(err.message)}`);
   }
 };
@@ -195,7 +236,10 @@ const microsoftAuth = (req, res) => {
 const microsoftCallback = async (req, res) => {
   const { code, error, state } = req.query;
 
-  const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
+  // Validate the state/redirect URI against the allowlist to prevent open redirect.
+  // Falls back to FRONTEND_URL if the state is missing or not in the allowlist.
+  const decodedState = state ? decodeURIComponent(state) : null;
+  const baseRedirect = (decodedState && isSafeRedirectUri(decodedState)) ? decodedState : FRONTEND_URL;
 
   if (error) return res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(error)}`);
   if (!code) return res.redirect(`${baseRedirect}?auth=error&reason=no_code`);
@@ -232,14 +276,16 @@ const microsoftCallback = async (req, res) => {
       provider: 'microsoft',
     });
 
-    if (state) {
+    // If it's a mobile redirect (state is a validated allowed URI), include the JWT in the URL.
+    // NOTE: Tokens in URLs land in server access logs and browser history. This is an accepted
+    // tradeoff for mobile deep-link auth flows. Only do this when state passed allowlist validation.
+    if (decodedState && isSafeRedirectUri(decodedState)) {
       params.append('token', token);
     }
 
     res.redirect(`${baseRedirect}?${params.toString()}`);
   } catch (err) {
     console.error('Microsoft OAuth callback error:', err.message);
-    const baseRedirect = state ? decodeURIComponent(state) : FRONTEND_URL;
     res.redirect(`${baseRedirect}?auth=error&reason=${encodeURIComponent(err.message)}`);
   }
 };

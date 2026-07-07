@@ -9,12 +9,12 @@ const jobRoutes = require("./routes/jobRoutes");
 const emailRoutes = require("./routes/emailRoutes");
 const resumeRoutes = require("./routes/resumeRoutes");
 const scrapedJobRoutes = require("./routes/scrapedJobRoutes");
-const stripeRoutes = require("./routes/stripeRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const referralRoutes = require("./routes/referralRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 
 const { startCronJob } = require("./utils/cronService");
+const { authenticate, requireOwner } = require("./middlewares/authMiddleware");
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -82,16 +82,15 @@ app.get("/api-docs", (req, res) => {
 
 app.use("/auth", authRoutes);
 app.use("/jobs", jobRoutes);
-app.use("/", emailRoutes); // Mounts /apply and /emails/replies
-app.use("/", resumeRoutes); // Mounts /upload-resume, /resume-data, /export-resume, /preview-template
+app.use("/", emailRoutes);       // Mounts /apply and /emails/replies
+app.use("/", resumeRoutes);      // Mounts /upload-resume, /resume-data, /export-resume
 app.use("/scraped-jobs", scrapedJobRoutes);
-app.use("/", stripeRoutes);
-app.use("/", paymentRoutes);
+app.use("/", paymentRoutes);     // Mounts /packages, /payment/*, /payment/webhook/*
 app.use("/admin", adminRoutes);
 app.use("/", referralRoutes);
 
-// ─── Legacy cron route ─────────────────────────────────────────────────────────
-app.get("/start-cron", (req, res) => {
+// ─── Legacy cron route — owner only ───────────────────────────────────────────
+app.get("/start-cron", authenticate, requireOwner, (req, res) => {
   try {
     startCronJob();
     res.status(200).send({ message: "Cron job started." });

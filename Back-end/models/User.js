@@ -101,7 +101,8 @@ const userSchema = new mongoose.Schema({
     },
     subscriptionTier: { type: String, enum: ['free', 'pro'], default: 'free' },
     stripeCustomerId: { type: String, default: '' },
-    stripeSubscriptionId: { type: String, default: '' },
+    stripeSubscriptionId: { type: String, default: '' },   // Stripe subscription ID
+    razorpaySubscriptionId: { type: String, default: '' }, // Razorpay subscription ID
     aiRequestCount: { type: Number, default: 0 },
     role: { type: String, enum: ['user', 'owner'], default: 'user' },
     tokenUsage: {

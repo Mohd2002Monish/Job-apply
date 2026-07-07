@@ -1,12 +1,22 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
+if (!process.env.JWT_SECRET && !process.env.SESSION_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('FATAL: JWT_SECRET env variable is not set. Cannot start in production without it.');
+  } else {
+    console.warn('⚠️  WARNING: JWT_SECRET is not set. Using insecure fallback key — set JWT_SECRET in your .env file.');
+  }
+}
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || 'jaa-super-secret-key-1337';
 
 /**
  * Non-strict authentication middleware.
- * Attempts to parse cookie JWT and bind the User document to req.user.
- * Does NOT block request if unauthenticated.
+ * Attempts to parse cookie or Bearer JWT and bind the User document to req.user.
+ * Does NOT block request if unauthenticated — use requireAuth for that.
+ *
+ * NOTE: Query-string token (?token=...) is intentionally NOT supported here.
+ * Tokens in URLs end up in server access logs, browser history, and referrer headers.
  */
 const authenticate = async (req, res, next) => {
   req.user = null;
@@ -14,10 +24,6 @@ const authenticate = async (req, res, next) => {
 
   if (!token && req.headers.authorization?.startsWith('Bearer ')) {
     token = req.headers.authorization.split(' ')[1];
-  }
-
-  if (!token && req.query.token) {
-    token = req.query.token;
   }
 
   if (token) {
@@ -29,7 +35,6 @@ const authenticate = async (req, res, next) => {
       }
     } catch (err) {
       console.log('JWT Verification failed:', err.message);
-      // Clean invalid cookie if expired to avoid header bloat
       if (err.name === 'TokenExpiredError') {
         res.clearCookie('jaa_session_token');
       }

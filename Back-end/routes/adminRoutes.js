@@ -17,6 +17,12 @@ const {
   toggleCouponActive,
   deleteCoupon
 } = require('../controllers/couponController');
+const {
+  getPaymentConfigs,
+  upsertPaymentConfig,
+  deletePaymentConfig,
+  testGatewayConnection,
+} = require('../controllers/paymentConfigController');
 const { authenticate, requireAuth, requireOwner } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -38,4 +44,11 @@ router.post('/coupons', authenticate, requireAuth, requireOwner, createCoupon);
 router.patch('/coupons/:id/toggle', authenticate, requireAuth, requireOwner, toggleCouponActive);
 router.delete('/coupons/:id', authenticate, requireAuth, requireOwner, deleteCoupon);
 
+// Payment Gateway Management (Owner Only)
+router.get('/payment-config', authenticate, requireAuth, requireOwner, getPaymentConfigs);
+router.post('/payment-config', authenticate, requireAuth, requireOwner, upsertPaymentConfig);
+router.delete('/payment-config/:id', authenticate, requireAuth, requireOwner, deletePaymentConfig);
+router.post('/payment-config/:id/test', authenticate, requireAuth, requireOwner, testGatewayConnection);
+
 module.exports = router;
+
