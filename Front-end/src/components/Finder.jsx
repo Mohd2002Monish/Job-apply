@@ -141,7 +141,7 @@ export default function Finder({ toast }) {
                     <h3 className="font-bold text-sm text-text-main">{job.job}</h3>
                     <p className="text-xs font-semibold text-brand-primary mt-0.5">{job.companyName}</p>
                   </div>
-                  <span className="text-[10px] font-bold text-text-muted bg-slate-100 dark:bg-zinc-800 border border-border-card px-2 py-0.5 rounded-full shrink-0">
+                  <span className="text-[10px] font-bold text-text-muted bg-slate-100/70 dark:bg-zinc-800/60 border border-border-card px-2 py-0.5 rounded-full shrink-0">
                     Shared {new Date(job.createdAt).toLocaleDateString()}
                   </span>
                 </div>

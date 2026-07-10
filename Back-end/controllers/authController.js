@@ -324,7 +324,24 @@ const status = async (req, res) => {
       jobCount: await Job.countDocuments({ userId: req.user._id }),
       referralCode: req.user.referralCode || '',
       referralClicks: req.user.referralClicks || 0,
-      referralConversions
+      referralConversions,
+      aiModelPreference: req.user.aiModelPreference || 'gemini-2.5-flash',
+      preferences: req.user.preferences || {
+        aiModelForResume: 'gemini-1.5-pro',
+        aiModelForCoverLetter: 'gemini-1.5-pro',
+        aiModelForOutreach: 'gpt-4o',
+        aiModelForInterview: 'gemini-2.5-flash',
+        defaultResumeTemplate: 'profile-classic',
+        defaultCoverLetterLength: 'medium',
+        defaultEmailWordCount: 100
+      },
+      onboardingCompleted: req.user.onboardingCompleted || (req.user.resumes && req.user.resumes.length > 0) || !!req.user.resumeFileName || false,
+      targetProfile: req.user.targetProfile || {
+        targetRole: '',
+        targetLocation: '',
+        workStyle: 'remote',
+        experienceLevel: 'fresher'
+      }
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -338,7 +355,7 @@ const logout = (req, res) => {
 
 const updateProfile = async (req, res) => {
   try {
-    const { name, email } = req.body;
+    const { name, email, aiModelPreference, preferences } = req.body;
     if (!name || !email) {
       return res.status(400).json({ error: 'Name and email are required fields.' });
     }
@@ -369,6 +386,23 @@ const updateProfile = async (req, res) => {
 
     // Update name
     req.user.name = name.trim();
+    if (aiModelPreference) {
+      req.user.aiModelPreference = aiModelPreference.trim();
+    }
+    if (preferences) {
+      let parsedPrefs = preferences;
+      if (typeof preferences === 'string') {
+        try {
+          parsedPrefs = JSON.parse(preferences);
+        } catch (e) {
+          console.error('Failed to parse preferences JSON string:', e.message);
+        }
+      }
+      req.user.preferences = {
+        ...(req.user.preferences || {}),
+        ...parsedPrefs
+      };
+    }
 
     // Update email and generate a new session cookie if email changed
     if (targetEmail !== currentEmail) {
@@ -400,7 +434,24 @@ const updateProfile = async (req, res) => {
         tokenUsage: req.user.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
         referralCode: req.user.referralCode || '',
         referralClicks: req.user.referralClicks || 0,
-        referralConversions
+        referralConversions,
+        aiModelPreference: req.user.aiModelPreference || 'gemini-2.5-flash',
+        preferences: req.user.preferences || {
+          aiModelForResume: 'gemini-1.5-pro',
+          aiModelForCoverLetter: 'gemini-1.5-pro',
+          aiModelForOutreach: 'gpt-4o',
+          aiModelForInterview: 'gemini-2.5-flash',
+          defaultResumeTemplate: 'profile-classic',
+          defaultCoverLetterLength: 'medium',
+          defaultEmailWordCount: 100
+        },
+        onboardingCompleted: req.user.onboardingCompleted || (req.user.resumes && req.user.resumes.length > 0) || !!req.user.resumeFileName || false,
+        targetProfile: req.user.targetProfile || {
+          targetRole: '',
+          targetLocation: '',
+          workStyle: 'remote',
+          experienceLevel: 'fresher'
+        }
       }
     });
   } catch (err) {
@@ -417,6 +468,104 @@ const getProfile = async (req, res) => {
   }
 };
 
+const onboard = async (req, res) => {
+  try {
+    const { name, experienceLevel, targetRole, workStyle, targetLocation } = req.body;
+    const user = req.user;
+
+    if (name) {
+      user.name = name.trim();
+    }
+
+    user.targetProfile = {
+      ...(user.targetProfile || {}),
+      targetRole: (targetRole || '').trim(),
+      targetLocation: (targetLocation || '').trim(),
+      workStyle: workStyle || 'remote',
+      experienceLevel: experienceLevel || 'fresher'
+    };
+
+    // Handle optional resume upload & parsing
+    if (req.file) {
+      const fs = require('fs');
+      const { parseResume } = require('../utils/resumeParser');
+      const { structureResume } = require('../utils/resumeStructurer');
+
+      let rawText = '';
+      try {
+        rawText = await parseResume(req.file.path);
+      } catch (parseErr) {
+        console.error('Onboarding resume parse error:', parseErr.message);
+        try { fs.unlinkSync(req.file.path); } catch (_) {}
+        return res.status(422).json({ error: `Could not parse resume: ${parseErr.message}` });
+      }
+
+      let resumeData = null;
+      try {
+        resumeData = await structureResume(rawText);
+      } catch (aiErr) {
+        console.error('Onboarding AI structuring error:', aiErr.message);
+        try { fs.unlinkSync(req.file.path); } catch (_) {}
+        return res.status(500).json({ error: `AI structuring failed: ${aiErr.message}` });
+      }
+
+      const newResume = {
+        id: Date.now().toString(),
+        title: req.file.originalname.split('.')[0] || "My Resume",
+        rawText,
+        resumeData,
+        resumeFileName: req.file.originalname,
+        resumePath: req.file.path,
+        lastParsedAt: new Date()
+      };
+
+      user.resumes.push(newResume);
+      user.activeResumeId = newResume.id;
+
+      // Sync root fields
+      user.rawText = rawText;
+      user.resumeData = resumeData;
+      user.resumeFileName = req.file.originalname;
+      user.resumePath = req.file.path;
+      user.lastParsedAt = newResume.lastParsedAt;
+    }
+
+    user.onboardingCompleted = true;
+    await user.save();
+
+    const referralConversions = await User.countDocuments({
+      referredBy: user._id,
+      subscriptionTier: 'pro'
+    });
+
+    res.json({
+      success: true,
+      message: 'Onboarding completed successfully',
+      user: {
+        name: user.name,
+        email: user.email,
+        picture: user.picture,
+        provider: user.activeProvider || 'google',
+        subscriptionTier: user.subscriptionTier || 'free',
+        stripeCustomerId: user.stripeCustomerId || '',
+        aiRequestCount: user.aiRequestCount || 0,
+        role: user.role || 'user',
+        tokenUsage: user.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+        referralCode: user.referralCode || '',
+        referralClicks: user.referralClicks || 0,
+        referralConversions,
+        aiModelPreference: user.aiModelPreference || 'gemini-2.5-flash',
+        preferences: user.preferences,
+        onboardingCompleted: user.onboardingCompleted,
+        targetProfile: user.targetProfile
+      }
+    });
+  } catch (err) {
+    console.error('Onboarding error:', err.message);
+    res.status(500).json({ error: 'Failed to save onboarding data: ' + err.message });
+  }
+};
+
 module.exports = {
   googleAuth,
   googleCallback,
@@ -425,5 +574,6 @@ module.exports = {
   status,
   logout,
   updateProfile,
-  getProfile
+  getProfile,
+  onboard
 };

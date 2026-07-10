@@ -4,10 +4,11 @@ const { requireOwner } = require('../middlewares/authMiddleware');
 const { getAdminStats, getAdminUsers, updateUserRole, updateUserSubscription } = require('../controllers/adminController');
 
 // Mock request and response
-const mockRequest = (params = {}, body = {}, user = {}) => ({
+const mockRequest = (params = {}, body = {}, user = {}, query = {}) => ({
   params,
   body,
   user,
+  query,
 });
 
 const mockResponse = () => {
@@ -84,32 +85,30 @@ test.describe('Admin Dashboard and RBAC Tests', () => {
     const res = mockResponse();
 
     const User = require('../models/User');
-    const Job = require('../models/Job');
 
-    const originalFind = User.find;
-    const originalCountJobs = Job.countDocuments;
+    const originalAggregate = User.aggregate;
+    const originalCount = User.countDocuments;
 
-    User.find = () => ({
-      sort: () => [
-        {
-          _id: 'user_1',
-          name: 'Alice',
-          email: 'alice@example.com',
-          subscriptionTier: 'pro',
-          aiRequestCount: 5,
-          role: 'user',
-          tokenUsage: { promptTokens: 80, completionTokens: 40, totalTokens: 120 },
-          createdAt: new Date()
-        }
-      ]
-    });
-    Job.countDocuments = async () => 3;
+    User.aggregate = async () => [
+      {
+        _id: 'user_1',
+        name: 'Alice',
+        email: 'alice@example.com',
+        subscriptionTier: 'pro',
+        aiRequestCount: 5,
+        role: 'user',
+        tokenUsage: { promptTokens: 80, completionTokens: 40, totalTokens: 120 },
+        createdAt: new Date(),
+        jobCount: 3
+      }
+    ];
+    User.countDocuments = async () => 1;
 
     await getAdminUsers(req, res);
 
     // Restore
-    User.find = originalFind;
-    Job.countDocuments = originalCountJobs;
+    User.aggregate = originalAggregate;
+    User.countDocuments = originalCount;
 
     assert.strictEqual(res.jsonData.success, true);
     assert.strictEqual(res.jsonData.users.length, 1);

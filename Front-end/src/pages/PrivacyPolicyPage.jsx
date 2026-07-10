@@ -4,44 +4,59 @@ import PublicLayout from '../components/PublicLayout';
 const sections = [
   {
     title: '1. Information We Collect',
-    content: `When you sign in with Google or Microsoft, we collect your name, email address, and profile picture from those services.
+    content: `When you sign in with Google or Microsoft, we collect your name, email address, and profile picture from those services. If you upload a custom profile picture, it is stored on our servers.
 
 We also collect the following information as you use RecoCareer.ai:
-• **Resume Data**: The content you enter into the resume builder, including work experience, education, skills, and personal information.
-• **Job Application Records**: Jobs you track, statuses, notes, and associated outreach emails you generate.
-• **Usage Data**: Pages visited, features used, and AI request counts for billing and improvement purposes.
-• **Device & Browser Data**: Browser type, operating system, IP address, and general location (country/city level) for security and analytics.`,
+• **Resume Data**: The content you upload or enter into the resume builder, including work experience, education, skills, and personal information. Uploaded documents (PDF, DOCX, images) are parsed by AI and OCR to extract this data.
+• **Job Application Records**: Jobs you track or import via the Chrome extension, statuses, notes, recruiter contact details, and the outreach emails and cover letters you generate.
+• **Email Engagement Data**: When you send outreach with tracking enabled, we log open events (via a tracking pixel) and link clicks (via redirect links) on those emails, including timestamps.
+• **Referral Data**: Clicks on your personal referral link and conversions attributed to it.
+• **Usage Data**: Features used, AI request counts, and AI token consumption for billing, plan limits, and abuse prevention.
+• **Device & Browser Data**: Browser type, operating system, IP address, and general location (country level) — used for security and to route you to the correct regional payment gateway.`,
   },
   {
     title: '2. How We Use Your Information',
     content: `We use collected data for the following purposes:
-• **Provide the Service**: Your resume data powers AI-generated emails, cover letters, and form fills.
+• **Provide the Service**: Your resume and job data power AI-generated emails, cover letters, ATS match scores, interview questions, and form fills.
+• **Email Sending on Your Behalf**: With your consent we hold OAuth tokens scoped to sending mail (gmail.send / Mail.Send) so outreach and follow-ups go out from your own inbox. These tokens cannot read your mailbox, and we only send when you trigger it (or when you enable automated follow-ups).
 • **Personalization**: We tailor suggestions and AI outputs to your profile and job history.
-• **Billing & Subscriptions**: We use Stripe to process payments. We never store your card details directly.
-• **Security**: We monitor usage for fraud, abuse, and unauthorized access.
+• **Billing & Subscriptions**: Payments are processed by Razorpay (India/INR) or Stripe (international/USD) depending on your region. We never store your card details.
+• **Security**: We monitor usage for fraud, abuse, and unauthorized access, and enforce plan limits.
 • **Improvement**: Aggregate, anonymized usage data helps us improve product features.
 
-We do NOT use your data to train external AI models without your explicit consent.`,
+We do NOT use your data to train AI models.`,
   },
   {
     title: '3. Data Sharing & Third Parties',
     content: `We do not sell your personal data. We share your data only with:
-• **Authentication Providers**: Google and Microsoft receive authentication requests only. We receive your profile info from them.
-• **Stripe**: Payment processing. Subject to Stripe's Privacy Policy.
-• **Google Gemini / OpenAI**: AI-generated content is processed via API. Inputs may be sent to their servers. We do not share personal identifiers with AI providers.
-• **Hosting**: Our servers are hosted on secure cloud infrastructure (AWS/GCP). Data is encrypted at rest and in transit.
+• **Authentication Providers**: Google and Microsoft handle sign-in; we receive your basic profile from them.
+• **Payment Gateways**: Razorpay (for Indian customers) and Stripe (for international customers) process payments and subscription lifecycle events via webhooks. Subject to their respective privacy policies.
+• **Google Gemini**: AI features send relevant inputs (resume content, job descriptions, your prompts) to the Gemini API to generate outputs for you. We do not send more than the feature requires.
+• **Email Delivery**: Outreach is dispatched through your own connected Google/Microsoft account or our SMTP relay. The recipient recruiter receives only what you choose to send.
+• **Hosting**: Our servers run on secure cloud infrastructure. Data is encrypted in transit (TLS) and sensitive credentials are encrypted at rest (AES-256-GCM).
 • **Legal Compliance**: We may disclose data to law enforcement if required by valid legal process.`,
   },
   {
-    title: '4. Data Retention',
-    content: `We retain your account data for as long as your account is active. If you delete your account:
-• Your personal profile, resume data, and job records are permanently deleted within 30 days.
-• Anonymized, aggregated analytics data may be retained indefinitely.
-• Backup copies may persist for up to 90 days before complete purge.`,
+    title: '4. Email Tracking Disclosure',
+    content: `Outreach emails you send through RecoCareer.ai may include a 1×1 tracking pixel and wrapped redirect links so you can see when your email is opened and which links are clicked.
+
+• The data collected from recipients is limited to open/click events and timestamps tied to that specific email.
+• You are responsible for ensuring your use of tracking complies with the laws applicable to you and your recipients.
+• We do not build profiles of email recipients or use their data for any other purpose.`,
   },
   {
-    title: '5. Your Rights',
-    content: `Depending on your jurisdiction, you may have the right to:
+    title: '5. Data Retention',
+    content: `We retain your account data for as long as your account is active. If you delete your account:
+• Your personal profile, resume data, uploaded documents, and job records are permanently deleted within 30 days.
+• Payment records may be retained as required by tax and accounting law.
+• Anonymized, aggregated analytics data may be retained indefinitely.
+• Backup copies may persist for up to 90 days before complete purge.
+
+You can also revoke our email-sending access at any time from your Google or Microsoft account security settings — the rest of the service keeps working.`,
+  },
+  {
+    title: '6. Your Rights',
+    content: `Depending on your jurisdiction (including GDPR and India's DPDP Act), you may have the right to:
 • **Access**: Request a copy of all personal data we hold about you.
 • **Correction**: Correct inaccurate data via your profile settings or by contacting us.
 • **Deletion**: Request deletion of your account and all associated data.
@@ -51,31 +66,31 @@ We do NOT use your data to train external AI models without your explicit consen
 To exercise any of these rights, email privacy@recocareer.ai or use the Contact page.`,
   },
   {
-    title: '6. Cookies & Tracking',
-    content: `We use session cookies for authentication. We do not use third-party advertising cookies or behavioral tracking pixels.
+    title: '7. Cookies & Tracking',
+    content: `We use a session cookie (HTTP-only, containing a signed JWT) for authentication, and a short-lived cookie to attribute referral link visits. We do not use third-party advertising cookies.
 
 You can clear cookies at any time via your browser settings. Disabling cookies will log you out of the service.`,
   },
   {
-    title: '7. Security',
+    title: '8. Security',
     content: `We implement multiple layers of security:
 • HTTPS/TLS encryption for all data in transit.
-• Encrypted session tokens.
-• Regular security audits and penetration testing.
-• Rate limiting on all API endpoints.
+• AES-256-GCM encryption for stored payment gateway credentials — raw keys are never returned in plain text.
+• HTTP-only, signed session tokens that are inaccessible to client-side scripts.
+• Rate limiting and plan-based quotas on API endpoints.
 
 No system is completely secure. If you discover a security vulnerability, please report it responsibly to security@recocareer.ai.`,
   },
   {
-    title: '8. Children\'s Privacy',
+    title: '9. Children\'s Privacy',
     content: `RecoCareer.ai is not intended for users under the age of 16. We do not knowingly collect personal information from children. If you believe a child has provided us data, please contact us and we will delete it promptly.`,
   },
   {
-    title: '9. Changes to This Policy',
+    title: '10. Changes to This Policy',
     content: `We may update this Privacy Policy from time to time. We will notify you of significant changes via email or an in-app notification. Continued use of the service after changes constitutes acceptance.`,
   },
   {
-    title: '10. Contact Us',
+    title: '11. Contact Us',
     content: `For privacy-related questions or requests:
 • **Email**: privacy@recocareer.ai
 • **Response Time**: Within 5 business days
@@ -84,69 +99,103 @@ For general inquiries, visit our Contact page.`,
   },
 ];
 
+const splitTitle = (title) => {
+  const match = title.match(/^(\d+)\.\s*(.*)$/);
+  return match ? { num: match[1].padStart(2, '0'), text: match[2] } : { num: '', text: title };
+};
+
+const sectionId = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+const renderContent = (content) => content.split('\n').filter(Boolean).map((line, li) => (
+  <p key={li} className="text-sm text-text-muted leading-relaxed">
+    {line.startsWith('•') ? (
+      <span className="flex items-start gap-2.5">
+        <span className="text-brand-primary mt-[7px] flex-shrink-0 w-1 h-1 rounded-full bg-current" />
+        <span dangerouslySetInnerHTML={{ __html: line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
+      </span>
+    ) : (
+      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
+    )}
+  </p>
+));
+
+const tldr = [
+  'We only collect what\'s needed to run the service.',
+  'We never sell your data, and never train AI models on it.',
+  'You can delete your account and all data anytime.',
+  'Email-sending access is send-only — we can\'t read your inbox.',
+  'Payments run through Razorpay (India) or Stripe (international) — we never store card details.',
+];
+
 const PrivacyPolicyPage = ({ isDark, onToggleTheme }) => (
   <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
-    <section className="max-w-4xl mx-auto px-5 py-20">
-      {/* Header */}
-      <div className="text-center mb-14 animate-fade-in">
-        <div className="w-16 h-16 rounded-2xl neo-card flex items-center justify-center mx-auto mb-6">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500">
-            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-          </svg>
-        </div>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-slate-50 mb-4">
-          Privacy <span className="text-gradient">Policy</span>
+    <section className="max-w-6xl mx-auto px-5 py-16 md:py-24">
+      {/* Editorial header */}
+      <div className="max-w-2xl mb-12 animate-fade-in">
+        <p className="kicker mb-4">Legal · updated July 9, 2026</p>
+        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text-main leading-[1.05] mb-5">
+          Your data, plainly.
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
-          Last updated: <strong>June 30, 2025</strong> · Effective immediately
-        </p>
-        <p className="mt-4 text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
-          We built RecoCareer.ai with your privacy as a priority. This policy explains what we collect, why, and how we protect it.
+        <p className="text-base md:text-lg text-text-muted leading-relaxed">
+          No legalese wall. This is exactly what we collect, why we collect it,
+          and how you get rid of it — written to be read.
         </p>
       </div>
 
-      {/* Quick summary neo-card */}
-      <div className="neo-card-inset p-6 mb-10 flex flex-col gap-3">
-        <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">TL;DR Summary</p>
-        <ul className="space-y-2 text-sm text-slate-700 dark:text-slate-300">
-          {[
-            'We only collect what\'s needed to run the service.',
-            'We never sell your data.',
-            'You can delete your account and all data anytime.',
-            'AI processing uses your data only to generate outputs for you.',
-            'We use Stripe for payments — we never store card details.',
-          ].map((point, i) => (
-            <li key={i} className="flex items-start gap-2">
-              <span className="text-indigo-500 mt-0.5 flex-shrink-0">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </span>
+      {/* TL;DR strip */}
+      <div className="glass-panel p-6 md:p-7 mb-12">
+        <p className="kicker mb-4">The short version</p>
+        <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
+          {tldr.map((point, i) => (
+            <li key={i} className="flex items-start gap-2.5 text-sm text-text-main">
+              <svg className="w-4 h-4 text-brand-accent mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
               {point}
             </li>
           ))}
         </ul>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-5">
-        {sections.map(({ title, content }, i) => (
-          <div key={i} className="neo-card p-7">
-            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">{title}</h2>
-            <div className="space-y-2">
-              {content.split('\n').filter(Boolean).map((line, li) => (
-                <p key={li} className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {line.startsWith('•') ? (
-                    <span className="flex items-start gap-2">
-                      <span className="text-indigo-400 mt-1 flex-shrink-0">·</span>
-                      <span dangerouslySetInnerHTML={{ __html: line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800 dark:text-slate-200">$1</strong>') }} />
-                    </span>
-                  ) : (
-                    <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800 dark:text-slate-200">$1</strong>') }} />
-                  )}
-                </p>
-              ))}
-            </div>
-          </div>
-        ))}
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+        {/* Sticky TOC */}
+        <nav className="hidden lg:block lg:sticky lg:top-24 glass-panel p-2">
+          {sections.map(({ title }) => {
+            const { num, text } = splitTitle(title);
+            return (
+              <a
+                key={title}
+                href={`#${sectionId(title)}`}
+                className="flex items-baseline gap-2.5 px-3.5 py-2 rounded-2xl text-[13px] text-text-muted hover:text-text-main hover:bg-white/40 dark:hover:bg-white/5 transition-colors"
+              >
+                <span className="font-mono text-[10px] text-brand-primary/70">{num}</span>
+                <span className="leading-snug">{text}</span>
+              </a>
+            );
+          })}
+        </nav>
+
+        {/* Continuous document */}
+        <div className="lg:col-span-3 glass-panel p-7 md:p-10">
+          {sections.map(({ title, content }, i) => {
+            const { num, text } = splitTitle(title);
+            return (
+              <div
+                key={title}
+                id={sectionId(title)}
+                className={`scroll-mt-24 ${i > 0 ? 'mt-10 pt-10 border-t border-white/40 dark:border-white/8' : ''}`}
+              >
+                <div className="flex items-baseline gap-3 mb-4">
+                  <span className="font-mono text-xs font-semibold text-brand-primary">{num}</span>
+                  <h2 className="text-lg font-bold text-text-main">{text}</h2>
+                </div>
+                <div className="space-y-2.5 md:pl-8">
+                  {renderContent(content)}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </section>
   </PublicLayout>

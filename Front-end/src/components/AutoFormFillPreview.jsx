@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import axios from 'axios';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
-import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
+import { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -68,7 +68,7 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
   const [error, setError] = useState('');
   const [activeStep, setActiveStep] = useState(0); // 0: Review fields, 1: Screenshot & complete
   const [loadingMessage, setLoadingMessage] = useState('Initializing scanning agent...');
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
 
   // Step messages sequence for autofilling
   const fillProgressMessages = [
@@ -212,12 +212,6 @@ const AutoFormFillPreview = ({ job, user, isOpen, onClose, onRefresh, toast }) =
           </div>
           
           <div className="flex items-center gap-3">
-            <AiModelSelector 
-              selectedModel={selectedAiModel} 
-              onSelectModel={setSelectedAiModel} 
-              compact={true} 
-              currentUseCase="autofill" 
-            />
 
             <button
               onClick={onClose}

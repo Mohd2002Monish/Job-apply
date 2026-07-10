@@ -11,7 +11,7 @@ import {
 } from './Icons';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
-import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
+import { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -99,7 +99,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
   const [exporting, setExporting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
   
   // Tab control when letter is generated: 'settings' or 'jd'
   const [leftTab, setLeftTab] = useState('settings');
@@ -243,18 +243,6 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
   const renderSettingsPanel = () => {
     return (
       <div className="space-y-4">
-        {/* AI Model selector */}
-        <div>
-          <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
-            AI Engine Selection
-          </label>
-          <AiModelSelector 
-            selectedModel={selectedAiModel} 
-            onSelectModel={setSelectedAiModel} 
-            compact={true} 
-            currentUseCase="detailed-cover-letter" 
-          />
-        </div>
 
         {/* Word Count */}
         <div>
@@ -270,7 +258,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                 className={`py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
                   wordCount === preset.id
                     ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm shadow-indigo-500/25'
-                    : 'bg-white dark:bg-zinc-800 text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500'
+                    : 'bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg text-slate-600 dark:text-zinc-300 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500'
                 }`}
               >
                 {preset.label}
@@ -354,7 +342,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
             onChange={(e) => setCustomInstructions(e.target.value)}
             placeholder="e.g. Emphasize my remote experience, use active verbs..."
             rows={2}
-            className="w-full p-2.5 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-zinc-500 resize-none leading-relaxed"
+            className="w-full p-2.5 text-xs bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 text-slate-800 dark:text-slate-200 placeholder-slate-400 dark:placeholder-zinc-500 resize-none leading-relaxed"
             id="cl-custom-instructions"
           />
         </div>
@@ -455,7 +443,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Paste the full job description here, or upload a file above..."
-                  className="flex-1 w-full p-4 text-xs bg-slate-50 dark:bg-zinc-950/20 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 text-slate-800 dark:text-slate-200 leading-relaxed resize-none overflow-y-auto"
+                  className="flex-1 w-full p-4 text-xs bg-slate-50/50 dark:bg-zinc-950/15 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 text-slate-800 dark:text-slate-200 leading-relaxed resize-none overflow-y-auto"
                   id="jd-description-textarea"
                 />
               </div>
@@ -507,7 +495,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                     onClick={() => setLeftTab('settings')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       leftTab === 'settings'
-                        ? 'bg-white dark:bg-zinc-900 text-slate-800 dark:text-slate-100 shadow-sm'
+                        ? 'bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl text-slate-800 dark:text-slate-100 shadow-sm'
                         : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
@@ -521,7 +509,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                     onClick={() => setLeftTab('jd')}
                     className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
                       leftTab === 'jd'
-                        ? 'bg-white dark:bg-zinc-900 text-slate-800 dark:text-slate-100 shadow-sm'
+                        ? 'bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl text-slate-800 dark:text-slate-100 shadow-sm'
                         : 'text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-200'
                     }`}
                   >
@@ -577,7 +565,7 @@ const CoverLetterModal = ({ job, onClose, onSaved }) => {
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
                         placeholder="Paste the job description here..."
-                        className="flex-1 w-full p-3 bg-slate-50 dark:bg-zinc-950/20 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 text-slate-805 dark:text-slate-200 leading-relaxed resize-none"
+                        className="flex-1 w-full p-3 bg-slate-50/50 dark:bg-zinc-950/15 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 dark:focus:ring-indigo-500/10 text-slate-805 dark:text-slate-200 leading-relaxed resize-none"
                         id="jd-description-textarea"
                       />
                     </div>

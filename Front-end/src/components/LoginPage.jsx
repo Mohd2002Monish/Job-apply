@@ -38,7 +38,7 @@ const LoginPage = ({ isDark, onToggleTheme }) => {
       <div className="fixed top-4 right-4">
         <button
           onClick={onToggleTheme}
-          className="p-2 rounded-lg bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors shadow-sm"
+          className="p-2 rounded-lg bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 text-slate-500 dark:text-zinc-400 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors shadow-sm"
           aria-label="Toggle theme"
         >
           {isDark ? <SunIcon size={16} /> : <MoonIcon size={16} />}
@@ -107,7 +107,7 @@ const LoginPage = ({ isDark, onToggleTheme }) => {
           <button
             onClick={() => { window.location.href = `${BACKEND}/auth/google`; }}
             id="google-signin-btn"
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm"
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm"
           >
             <GoogleIcon />
             Continue with Google
@@ -117,7 +117,7 @@ const LoginPage = ({ isDark, onToggleTheme }) => {
           <button
             onClick={() => { window.location.href = `${BACKEND}/auth/microsoft`; }}
             id="microsoft-signin-btn"
-            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm mt-3"
+            className="w-full flex items-center justify-center gap-3 px-4 py-2.5 rounded-lg bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 text-slate-800 dark:text-slate-200 text-sm font-semibold hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors shadow-sm mt-3"
           >
             <MicrosoftIcon />
             Continue with Microsoft

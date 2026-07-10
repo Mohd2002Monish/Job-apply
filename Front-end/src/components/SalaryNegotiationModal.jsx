@@ -4,7 +4,7 @@ import axios from 'axios';
 import { XIcon, WandIcon, GlobeIcon, LinkIcon, CheckCircleIcon, AlertTriangleIcon } from './Icons';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
-import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
+import { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -51,7 +51,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [negotiationData, setNegotiationData] = useState(null);
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
 
   // Initialize values
   useEffect(() => {
@@ -192,7 +192,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
     };
 
     return (
-      <div className="bg-slate-50 dark:bg-zinc-950/20 border border-slate-100 dark:border-zinc-800/80 rounded-2xl p-5 my-3 shadow-sm">
+      <div className="bg-slate-50/50 dark:bg-zinc-950/15 border border-slate-100 dark:border-zinc-800/80 rounded-2xl p-5 my-3 shadow-sm">
         <h4 className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wider mb-8">
           Visual Market Benchmark Comparison
         </h4>
@@ -296,18 +296,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                 Offer Parameters
               </h4>
 
-              {/* AI Engine Selection */}
-              <div>
-                <label className="block text-xs font-bold text-slate-500 dark:text-zinc-400 mb-1.5">
-                  AI Model Engine
-                </label>
-                <AiModelSelector 
-                  selectedModel={selectedAiModel} 
-                  onSelectModel={setSelectedAiModel} 
-                  compact={true} 
-                  currentUseCase="salary-negotiation" 
-                />
-              </div>
+
 
               {/* Currency */}
               <div>
@@ -339,7 +328,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                     value={offeredSalary}
                     onChange={(e) => setOfferedSalary(e.target.value)}
                     placeholder="e.g. 95000"
-                    className="w-full pl-8 pr-3 py-2 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold font-mono"
+                    className="w-full pl-8 pr-3 py-2 text-xs bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold font-mono"
                   />
                 </div>
               </div>
@@ -360,7 +349,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                     value={targetSalary}
                     onChange={(e) => setTargetSalary(e.target.value)}
                     placeholder="e.g. 115000"
-                    className="w-full pl-8 pr-3 py-2 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold font-mono"
+                    className="w-full pl-8 pr-3 py-2 text-xs bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold font-mono"
                   />
                 </div>
               </div>
@@ -375,7 +364,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                   value={location}
                   onChange={(e) => setLocation(e.target.value)}
                   placeholder="e.g. New York City, NY or Remote"
-                  className="w-full px-3 py-2 text-xs bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold"
+                  className="w-full px-3 py-2 text-xs bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/15 focus:border-emerald-500 text-slate-800 dark:text-slate-200 font-semibold"
                 />
                 <p className="text-[10px] text-slate-400 dark:text-zinc-550 mt-1">
                   Leave blank to auto-detect location context from job application details.
@@ -434,7 +423,7 @@ const SalaryNegotiationModal = ({ job, user, isOpen, onClose, onRefresh, toast }
                           href={src.url}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white dark:bg-zinc-800 hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-150 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors shadow-sm"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg hover:bg-slate-50 dark:hover:bg-zinc-800 border border-slate-150 dark:border-zinc-800 text-slate-700 dark:text-zinc-300 transition-colors shadow-sm"
                         >
                           <LinkIcon size={9} />
                           {src.title.length > 25 ? src.title.slice(0, 22) + '…' : src.title}

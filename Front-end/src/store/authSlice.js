@@ -23,7 +23,6 @@ const initialState = {
   resumes: [],
   activeResumeId: '',
   isDark: getInitialTheme(),
-  activeTab: 'jobs',
 };
 
 const authSlice = createSlice({
@@ -54,9 +53,6 @@ const authSlice = createSlice({
       localStorage.setItem('jaa_theme', state.isDark ? 'dark' : 'light');
       document.documentElement.classList.toggle('dark', state.isDark);
     },
-    setActiveTab: (state, action) => {
-      state.activeTab = action.payload;
-    },
     logoutUser: (state) => {
       state.authenticated = false;
       state.user = null;
@@ -69,5 +65,5 @@ const authSlice = createSlice({
   }
 });
 
-export const { setAuth, setResumeInfo, setResumesInfo, toggleTheme, setActiveTab, logoutUser } = authSlice.actions;
+export const { setAuth, setResumeInfo, setResumesInfo, toggleTheme, logoutUser } = authSlice.actions;
 export default authSlice.reducer;

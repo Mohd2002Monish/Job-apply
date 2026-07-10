@@ -44,8 +44,9 @@ const getAdminStats = async (req, res) => {
  */
 const getAdminUsers = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 20;
+    const query = req.query || {};
+    const page = parseInt(query.page) || 1;
+    const limit = parseInt(query.limit) || 20;
     const skip = (page - 1) * limit;
 
     // Aggregate in MongoDB to get jobCount and referralConversions in one pass

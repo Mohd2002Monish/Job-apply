@@ -43,7 +43,7 @@ const JobTimeline = ({ statusHistory }) => {
             {/* Content Details */}
             <div>
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100 dark:bg-zinc-800 text-slate-700 dark:text-zinc-350 border border-slate-200/50 dark:border-zinc-700/50">
+                <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-slate-100/70 dark:bg-zinc-800/60 text-slate-700 dark:text-zinc-350 border border-slate-200/50 dark:border-zinc-700/50">
                   {step.status}
                 </span>
                 <span className="text-[10px] text-slate-400 dark:text-zinc-500 font-semibold">

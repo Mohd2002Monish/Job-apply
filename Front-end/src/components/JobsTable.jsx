@@ -9,7 +9,8 @@ import VoiceInterviewTab from './VoiceInterviewTab';
 import AutoFormFillPreview from './AutoFormFillPreview';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
-import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
+import { getStoredAiModel } from './AiModelSelector';
+import ConfirmModal from './ConfirmModal';
 
 const BACKEND = 'http://localhost:3000';
 axios.defaults.withCredentials = true;
@@ -37,31 +38,10 @@ const Spinner = ({ size = 16 }) => (
   <div style={{ width: size, height: size }} className="border-2 border-indigo-300 border-t-indigo-600 rounded-full animate-spin" />
 );
 
-// ─── Toast system ─────────────────────────────────────────────────────────────
-let _toastId = 0;
-export const useToast = () => {
-  const [toasts, setToasts] = useState([]);
-  const show = (msg, type = 'success') => {
-    const id = ++_toastId;
-    setToasts(t => [...t, { id, msg, type }]);
-    setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500);
-  };
-  return { toasts, success: msg => show(msg, 'success'), error: msg => show(msg, 'error'), info: msg => show(msg, 'info') };
-};
-
-export const ToastContainer = ({ toasts }) => (
-  <div className="fixed bottom-4 right-4 z-[200] flex flex-col gap-2 pointer-events-none">
-    {toasts.map(t => (
-      <div key={t.id} className={`px-4 py-3 rounded-xl text-sm font-medium shadow-lg border backdrop-blur animate-fade-in pointer-events-auto ${
-        t.type === 'success' ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border-emerald-200 dark:border-emerald-500/20' :
-        t.type === 'error' ? 'bg-red-50 dark:bg-red-500/10 text-red-700 dark:text-red-400 border-red-200 dark:border-red-500/20' :
-        'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 border-indigo-200 dark:border-indigo-500/20'
-      }`}>
-        {t.msg}
-      </div>
-    ))}
-  </div>
-);
+// Toast system lives in Toast.jsx so App can use it without bundling this tab;
+// re-exported here for backward compatibility
+import { useToast, ToastContainer } from './Toast';
+export { useToast, ToastContainer };
 
 // ─── ATS Score Ring ───────────────────────────────────────────────────────────
 const AtsRing = ({ score }) => {
@@ -122,7 +102,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
   const [jdFileName, setJdFileName] = useState('');
   const [extractError, setExtractError] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
   const fileInputRef = useRef(null);
 
   const setField = (key) => (e) => setForm(f => ({ ...f, [key]: e.target.value }));
@@ -199,7 +179,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="w-full max-w-xl bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col max-h-[90vh] overflow-hidden animate-fade-in">
+      <div className="w-full max-w-xl bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200 dark:border-zinc-800 flex flex-col max-h-[90vh] overflow-hidden animate-fade-in">
 
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-center justify-between shrink-0">
@@ -215,12 +195,6 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Upload JD File (auto-fills fields)</label>
-                  <AiModelSelector 
-                    selectedModel={selectedAiModel} 
-                    onSelectModel={setSelectedAiModel} 
-                    compact={true} 
-                    currentUseCase="ats" 
-                  />
                 </div>
 
                 <div
@@ -319,7 +293,7 @@ const JobFormModal = ({ job, onClose, onSaved, toast }) => {
             </div>
 
             <div className="space-y-1.5 pt-1 pb-1">
-              <div className="flex items-center justify-between bg-slate-50 dark:bg-zinc-800/40 p-3.5 rounded-xl border border-slate-105 dark:border-zinc-800">
+              <div className="flex items-center justify-between bg-slate-50/50 dark:bg-zinc-800/25 p-3.5 rounded-xl border border-slate-105 dark:border-zinc-800">
                 <div>
                   <label htmlFor="shareOnFinder" className="text-xs font-bold text-slate-700 dark:text-zinc-200 cursor-pointer select-none">
                     Share on Finder
@@ -368,7 +342,7 @@ const InterviewPrepTab = ({ job, toast }) => {
   const [gradeFeedback, setGradeFeedback] = useState(null);
   const [savingNotes, setSavingNotes] = useState(false);
   const [practiceMode, setPracticeMode] = useState('written');
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
 
   const typeColors = {
     Technical: 'bg-blue-50 dark:bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-200 dark:border-blue-500/20',
@@ -458,12 +432,6 @@ const InterviewPrepTab = ({ job, toast }) => {
           <p className="text-xs text-slate-500 dark:text-zinc-400 mt-0.5">Tailored questions based on this job & your resume</p>
         </div>
         <div className="flex items-center gap-2">
-          <AiModelSelector 
-            selectedModel={selectedAiModel} 
-            onSelectModel={setSelectedAiModel} 
-            compact={true} 
-            currentUseCase="ats" 
-          />
           <button onClick={handleGenerate} disabled={generating} className="btn-primary text-xs gap-1.5 py-1.5 cursor-pointer">
             {generating ? <><Spinner size={12} /> Generating...</> : <><RefreshIcon /> {questions.length ? 'Regenerate' : 'Generate Questions'}</>}
           </button>
@@ -491,7 +459,7 @@ const InterviewPrepTab = ({ job, toast }) => {
                 className={`w-full text-left p-3 rounded-lg border transition-all text-xs ${
                   selected?._id === q._id
                     ? 'bg-indigo-50 dark:bg-indigo-500/10 border-indigo-300 dark:border-indigo-500/40'
-                    : 'bg-white dark:bg-zinc-800/50 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500/40'
+                    : 'bg-white/60 dark:bg-zinc-800/35 border-slate-200 dark:border-zinc-700 hover:border-indigo-300 dark:hover:border-indigo-500/40'
                 }`}
               >
                 <div className="flex items-start gap-2 mb-1">
@@ -509,7 +477,7 @@ const InterviewPrepTab = ({ job, toast }) => {
           <div className="flex-1 flex flex-col gap-3 overflow-y-auto min-h-0">
             {selected ? (
               <>
-                <div className="p-3 bg-slate-50 dark:bg-zinc-800/50 rounded-lg border border-slate-200 dark:border-zinc-700">
+                <div className="p-3 bg-slate-50/50 dark:bg-zinc-800/30 rounded-lg border border-slate-200 dark:border-zinc-700">
                   <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300 mb-2">{selected.question}</p>
                   {selected.suggestedPoints && (
                     <>
@@ -520,12 +488,12 @@ const InterviewPrepTab = ({ job, toast }) => {
                 </div>
 
                 {/* Sub-tab selection */}
-                <div className="flex border-b border-slate-200 dark:border-zinc-700 p-0.5 bg-slate-100 dark:bg-zinc-800 rounded-lg">
+                <div className="flex border-b border-slate-200 dark:border-zinc-700 p-0.5 bg-slate-100/70 dark:bg-zinc-800/60 rounded-lg">
                   <button
                     onClick={() => setPracticeMode('written')}
                     className={`flex-1 py-1.5 text-center text-xs font-semibold rounded-md transition-all cursor-pointer ${
                       practiceMode === 'written'
-                        ? 'bg-white dark:bg-zinc-700 text-indigo-650 dark:text-indigo-400 shadow-sm border-0'
+                        ? 'bg-white/80 dark:bg-zinc-700/80 text-indigo-650 dark:text-indigo-400 shadow-sm border-0'
                         : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 border-0 bg-transparent'
                     }`}
                   >
@@ -538,7 +506,7 @@ const InterviewPrepTab = ({ job, toast }) => {
                     onClick={() => setPracticeMode('spoken')}
                     className={`flex-1 py-1.5 text-center text-xs font-semibold rounded-md transition-all cursor-pointer ${
                       practiceMode === 'spoken'
-                        ? 'bg-white dark:bg-zinc-700 text-indigo-650 dark:text-indigo-400 shadow-sm border-0'
+                        ? 'bg-white/80 dark:bg-zinc-700/80 text-indigo-650 dark:text-indigo-400 shadow-sm border-0'
                         : 'text-slate-500 dark:text-zinc-400 hover:text-slate-700 border-0 bg-transparent'
                     }`}
                   >
@@ -616,7 +584,7 @@ const MessagesTab = ({ job, user, toast }) => {
   const [suggesting, setSuggesting] = useState(false);
   const [addingManual, setAddingManual] = useState(false);
   const [manualMsg, setManualMsg] = useState({ from: '', subject: '', body: '' });
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
   const messagesEndRef = useRef(null);
 
   useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
@@ -697,7 +665,7 @@ const MessagesTab = ({ job, user, toast }) => {
 
       {/* Add Manual Message */}
       {addingManual && (
-        <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 space-y-2">
+        <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 space-y-2">
           <p className="text-xs font-semibold text-slate-700 dark:text-zinc-300">Log a Recruiter Message</p>
           <input type="text" placeholder="From (recruiter name/email)" value={manualMsg.from} onChange={e => setManualMsg(m => ({ ...m, from: e.target.value }))} className="input text-xs" />
           <input type="text" placeholder="Subject" value={manualMsg.subject} onChange={e => setManualMsg(m => ({ ...m, subject: e.target.value }))} className="input text-xs" />
@@ -728,7 +696,7 @@ const MessagesTab = ({ job, user, toast }) => {
             <div key={msg._id || i} className={`flex ${msg.isFromRecruiter ? 'justify-start' : 'justify-end'}`}>
               <div className={`max-w-[85%] rounded-2xl px-4 py-2.5 ${
                 msg.isFromRecruiter
-                  ? 'bg-slate-100 dark:bg-zinc-800 text-slate-800 dark:text-zinc-200 rounded-tl-md'
+                  ? 'bg-slate-100/70 dark:bg-zinc-800/60 text-slate-800 dark:text-zinc-200 rounded-tl-md'
                   : 'bg-indigo-600 text-white rounded-tr-md'
               }`}>
                 {msg.subject && <p className="text-[10px] font-bold opacity-60 mb-0.5">{msg.subject}</p>}
@@ -754,12 +722,6 @@ const MessagesTab = ({ job, user, toast }) => {
           onKeyDown={e => e.key === 'Enter' && e.metaKey && handleSendReply()}
         />
         <div className="flex gap-2 items-center">
-          <AiModelSelector 
-            selectedModel={selectedAiModel} 
-            onSelectModel={setSelectedAiModel} 
-            compact={true} 
-            currentUseCase="email-outreach" 
-          />
           <button onClick={handleSuggestReply} disabled={suggesting} className="btn-ghost text-xs py-1.5 flex-1 cursor-pointer">
             {suggesting ? <><Spinner size={12} /> Thinking...</> : <><SparkleIcon /> AI Draft</>}
           </button>
@@ -833,7 +795,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
             Follow-up email dispatched on {new Date(job.updatedAt).toLocaleDateString()}
           </p>
           {job.followUpText && (
-            <details className="text-xs bg-white dark:bg-zinc-900 border border-slate-200/80 dark:border-zinc-800 rounded p-2.5 cursor-pointer">
+            <details className="text-xs bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200/80 dark:border-zinc-800 rounded p-2.5 cursor-pointer">
               <summary className="font-semibold text-slate-700 dark:text-slate-350 select-none">View Sent Email Content</summary>
               <p className="mt-2 text-slate-500 dark:text-zinc-400 leading-relaxed whitespace-pre-line border-t border-slate-100 dark:border-zinc-800/80 pt-2">{job.followUpText}</p>
             </details>
@@ -846,13 +808,13 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
               type="date"
               value={date}
               onChange={(e) => { setDate(e.target.value); handleSave(e.target.value); }}
-              className="bg-white dark:bg-zinc-900 border border-slate-250 dark:border-zinc-700 text-xs font-semibold px-2 py-1.5 rounded outline-none focus:border-indigo-500 cursor-pointer text-slate-800 dark:text-slate-250"
+              className="bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-250 dark:border-zinc-700 text-xs font-semibold px-2 py-1.5 rounded outline-none focus:border-indigo-500 cursor-pointer text-slate-800 dark:text-slate-250"
               disabled={saving}
             />
             <button
               type="button"
               onClick={() => addDays(3)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               disabled={saving}
             >
               +3 Days
@@ -860,7 +822,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
             <button
               type="button"
               onClick={() => addDays(7)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               disabled={saving}
             >
               +7 Days
@@ -868,7 +830,7 @@ const FollowUpScheduler = ({ job, onRefresh, toast }) => {
             <button
               type="button"
               onClick={() => addDays(14)}
-              className="bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              className="bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 text-[11px] font-semibold px-2 py-1.5 rounded text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
               disabled={saving}
             >
               +14 Days
@@ -918,7 +880,7 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
       <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-50 animate-fade-in" onClick={onClose} />
 
       {/* Drawer */}
-      <div ref={drawerRef} className="fixed right-0 top-0 h-full w-full max-w-xl bg-white dark:bg-zinc-900 shadow-2xl border-l border-slate-200 dark:border-zinc-800 z-50 flex flex-col animate-fade-in">
+      <div ref={drawerRef} className="fixed right-0 top-0 h-full w-full max-w-xl bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl shadow-2xl border-l border-slate-200 dark:border-zinc-800 z-50 flex flex-col animate-fade-in">
         {/* Header */}
         <div className="px-6 py-4 border-b border-slate-100 dark:border-zinc-800 flex items-start gap-3">
           <div className="flex-1 min-w-0">
@@ -960,18 +922,18 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
 
                 {/* Tracking */}
                 {job.isEmailSent && (
-                  <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 space-y-2">
+                  <div className="p-3 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 space-y-2">
                     <p className="text-xs font-bold text-slate-500 dark:text-zinc-400 uppercase tracking-wide">Outreach Engagement</p>
                     <div className="grid grid-cols-3 gap-2">
-                      <div className={`p-2 rounded text-center ${job.isEmailSent ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                      <div className={`p-2 rounded text-center ${job.isEmailSent ? 'bg-indigo-50 dark:bg-indigo-500/10' : 'bg-slate-100/70 dark:bg-zinc-800/60'}`}>
                         <div className="flex justify-center mb-1 text-indigo-500"><MailIcon /></div>
                         <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">Sent</p>
                       </div>
-                      <div className={`p-2 rounded text-center ${job.isOpened ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                      <div className={`p-2 rounded text-center ${job.isOpened ? 'bg-emerald-50 dark:bg-emerald-500/10' : 'bg-slate-100/70 dark:bg-zinc-800/60'}`}>
                         <div className={`flex justify-center mb-1 ${job.isOpened ? 'text-emerald-500' : 'text-slate-400 dark:text-zinc-500'}`}><EyeIcon /></div>
                         <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">{job.isOpened ? 'Opened' : 'Not Opened'}</p>
                       </div>
-                      <div className={`p-2 rounded text-center ${job.linkClicksCount > 0 ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-slate-100 dark:bg-zinc-800'}`}>
+                      <div className={`p-2 rounded text-center ${job.linkClicksCount > 0 ? 'bg-amber-50 dark:bg-amber-500/10' : 'bg-slate-100/70 dark:bg-zinc-800/60'}`}>
                         <div className={`flex justify-center mb-1 ${job.linkClicksCount > 0 ? 'text-amber-500' : 'text-slate-400 dark:text-zinc-500'}`}><LinkIcon /></div>
                         <p className="text-[10px] font-semibold text-slate-600 dark:text-zinc-400">{job.linkClicksCount > 0 ? `${job.linkClicksCount} Click(s)` : 'No Clicks'}</p>
                       </div>
@@ -1015,7 +977,7 @@ const JobDrawer = ({ job, user, onClose, onRefresh, toast }) => {
               </div>
 
               {/* Sticky Action Footer */}
-              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-2 shrink-0 bg-white dark:bg-zinc-900">
+              <div className="pt-3 border-t border-slate-100 dark:border-zinc-800 space-y-2 shrink-0 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl">
                 {job.status === 'offer' && (
                   <button 
                     onClick={() => setNegotiationOpen(true)} 
@@ -1124,6 +1086,7 @@ const JobsTable = ({ user }) => {
   const [tableOutreachStep, setTableOutreachStep] = useState('edit');
   const [formJob, setFormJob] = useState(null); // null = closed, {} = new, job = edit
   const [formOpen, setFormOpen] = useState(false);
+  const [jobToDelete, setJobToDelete] = useState(null);
 
   // Pagination, Search, and Status filter states
   const [page, setPage] = useState(1);
@@ -1211,16 +1174,22 @@ const JobsTable = ({ user }) => {
     fetchJobs(page, search, status, sortConfig);
   }, [page, limit, sortConfig]);
 
-  const handleDelete = async (jobId, e) => {
-    e.stopPropagation();
-    if (!window.confirm('Delete this job?')) return;
+  const handleDelete = (jobId, e) => {
+    if (e) e.stopPropagation();
+    setJobToDelete(jobId);
+  };
+
+  const executeDelete = async () => {
+    if (!jobToDelete) return;
     try {
-      await axios.delete(`${BACKEND}/jobs/${jobId}`);
-      if (drawerJob?._id === jobId) setDrawerJob(null);
+      await axios.delete(`${BACKEND}/jobs/${jobToDelete}`);
+      if (drawerJob?._id === jobToDelete) setDrawerJob(null);
       success('Job deleted.');
       fetchJobs(page, search, status, sortConfig);
     } catch (err) {
       error('Failed to delete job.');
+    } finally {
+      setJobToDelete(null);
     }
   };
 
@@ -1281,12 +1250,12 @@ const JobsTable = ({ user }) => {
           />
 
           {/* View Mode Toggle */}
-          <div className="flex items-center bg-slate-100 dark:bg-zinc-800 p-0.5 rounded-lg border border-slate-200/40 dark:border-zinc-700/40 shrink-0">
+          <div className="flex items-center bg-slate-100/70 dark:bg-zinc-800/60 p-0.5 rounded-lg border border-slate-200/40 dark:border-zinc-700/40 shrink-0">
             <button
               onClick={() => setViewMode('table')}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === 'table'
-                  ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
+                  ? 'bg-white/80 dark:bg-zinc-700/80 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
                   : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
               title="List View"
@@ -1300,7 +1269,7 @@ const JobsTable = ({ user }) => {
               onClick={() => setViewMode('kanban')}
               className={`p-1.5 rounded-md transition-all cursor-pointer ${
                 viewMode === 'kanban'
-                  ? 'bg-white dark:bg-zinc-700 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
+                  ? 'bg-white/80 dark:bg-zinc-700/80 text-slate-900 dark:text-slate-100 shadow-sm border border-slate-200/20 dark:border-zinc-700/30'
                   : 'text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-slate-300'
               }`}
               title="Kanban Board"
@@ -1335,7 +1304,58 @@ const JobsTable = ({ user }) => {
         />
       ) : (
         <div className="card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile card list — replaces the table on phones */}
+        <div className="md:hidden divide-y divide-slate-100 dark:divide-zinc-800">
+          {loading ? (
+            <div className="px-4 py-12 flex items-center justify-center gap-2 text-slate-400"><Spinner /> Loading jobs...</div>
+          ) : sortedFiltered.length === 0 ? (
+            <div className="px-4 py-12 text-center text-sm text-slate-400 dark:text-zinc-500">{(searchInput || status !== 'all') ? 'No jobs match your filters.' : 'No jobs yet. Tap "Add Job" to get started!'}</div>
+          ) : (
+            sortedFiltered.map(job => (
+              <div
+                key={job._id}
+                onClick={() => setDrawerJob(job)}
+                className="p-4 active:bg-slate-50 dark:active:bg-zinc-800/30 cursor-pointer"
+              >
+                <div className="flex items-start justify-between gap-3 mb-2.5">
+                  <div className="min-w-0 flex-1">
+                    <p className="font-semibold text-sm text-slate-900 dark:text-slate-100 truncate">{job.job}</p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400 truncate mt-0.5">{job.companyName || '—'}{job.hrName ? ` · ${job.hrName}` : ''}</p>
+                    <p className="text-[11px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">{job.email}</p>
+                  </div>
+                  <div className="shrink-0"><AtsRing score={job.atsAnalysis?.score} /></div>
+                </div>
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <StatusBadge sent={job.isEmailSent} opened={job.isOpened} clicked={job.linkClicksCount > 0} hasReply={job.hasReply} />
+                    <span className="text-[11px] text-slate-400 dark:text-zinc-500 whitespace-nowrap">{new Date(job.createdAt).toLocaleDateString()}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                    <button
+                      type="button"
+                      onClick={() => { setTableOutreachJob(job); setTableOutreachStep('review'); }}
+                      disabled={job.isEmailSent}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 btn-tactile disabled:opacity-40 whitespace-nowrap"
+                    >
+                      {job.isEmailSent ? 'Applied' : 'Send'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setTableOutreachJob(job); setTableOutreachStep('edit'); }}
+                      className="px-3 py-1.5 rounded-lg text-[11px] font-bold bg-brand-primary text-white btn-tactile whitespace-nowrap"
+                    >
+                      Outreach
+                    </button>
+                    <button type="button" onClick={(e) => handleEdit(job, e)} className="p-2 rounded-lg text-slate-400 active:bg-slate-100 dark:active:bg-zinc-800"><EditIcon /></button>
+                    <button type="button" onClick={(e) => handleDelete(job._id, e)} className="p-2 rounded-lg text-slate-400 active:bg-slate-100 dark:active:bg-zinc-800"><TrashIcon /></button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="overflow-x-auto hidden md:block">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 dark:border-zinc-800">
@@ -1455,7 +1475,7 @@ const JobsTable = ({ user }) => {
               <button
                 disabled={page <= 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
-                className="px-2 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
+                className="px-2 py-1 rounded bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
               >
                 Previous
               </button>
@@ -1473,7 +1493,7 @@ const JobsTable = ({ user }) => {
                       className={`w-7 h-7 rounded flex items-center justify-center font-semibold transition-all ${
                         isCurrent
                           ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-600/30'
-                          : 'bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-700/50'
+                          : 'bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-zinc-700/50'
                       }`}
                     >
                       {pageNum}
@@ -1488,7 +1508,7 @@ const JobsTable = ({ user }) => {
               <button
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                className="px-2 py-1 rounded bg-white dark:bg-zinc-800 border border-slate-200 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
+                className="px-2 py-1 rounded bg-white/75 dark:bg-zinc-800/70 backdrop-blur-lg border border-slate-200 dark:border-zinc-700 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700/50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed text-slate-700 dark:text-slate-300"
               >
                 Next
               </button>
@@ -1532,6 +1552,13 @@ const JobsTable = ({ user }) => {
           toast={toast}
         />
       )}
+      <ConfirmModal
+        isOpen={jobToDelete !== null}
+        title="Delete Job"
+        message="Are you sure you want to delete this job application? All associated records will be deleted."
+        onConfirm={executeDelete}
+        onCancel={() => setJobToDelete(null)}
+      />
     </div>
   );
 };

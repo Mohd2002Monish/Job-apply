@@ -11,14 +11,17 @@ These Terms apply to all visitors, users, and anyone who accesses or uses the Se
   {
     title: '2. Description of Service',
     content: `RecoCareer.ai provides AI-powered job application management tools including:
-• Job application tracking and organization
-• AI-generated outreach emails and cover letters
-• Resume builder and PDF export
-• Voice interview practice and AI scoring
-• Salary negotiation tools
-• Automated job application form assistance
+• Job application tracking, Kanban board, and analytics
+• AI-generated outreach emails and cover letters, sent from your own Gmail or Outlook account
+• Email open and click tracking with automated follow-ups
+• Resume parsing, WYSIWYG builder, and PDF/DOCX export
+• ATS compatibility scoring against job descriptions
+• Voice and written interview practice with AI grading
+• Salary negotiation tools and AI-suggested recruiter replies
+• A Chrome extension for importing job postings
+• A referral program with personal referral links
 
-The Service is available under a Free tier and a Pro subscription tier, as described on our Pricing page.`,
+The Service is offered as a Pro subscription (with regional pricing), as described on our Pricing page. Features, limits, and packages may change over time.`,
   },
   {
     title: '3. User Accounts',
@@ -34,16 +37,27 @@ We reserve the right to suspend or terminate accounts that violate these Terms.`
     content: `You agree NOT to use the Service to:
 • Violate any applicable laws or regulations.
 • Submit false, misleading, or fraudulent information.
+• Send spam, bulk unsolicited email, or deceptive outreach. Outreach tools are for genuine, individual job applications only.
 • Attempt to gain unauthorized access to any systems or data.
 • Upload malicious code, viruses, or harmful content.
 • Scrape, harvest, or collect data from the Service without permission.
+• Use the Chrome extension in violation of a job board's terms of service.
 • Resell or redistribute access to the Service.
 • Harass, abuse, or harm other users or third parties.
 
 Violations may result in immediate termination of your account without refund.`,
   },
   {
-    title: '5. Intellectual Property',
+    title: '5. Email Outreach & Tracking Responsibility',
+    content: `The Service sends emails from your own connected Google or Microsoft account and can embed open/click tracking in those emails.
+
+• **You are the sender.** You are solely responsible for the content, recipients, and legality of every email sent through your account, including compliance with anti-spam and privacy laws applicable to you and your recipients (e.g., CAN-SPAM, GDPR, India's IT rules).
+• **Tracking**: By enabling tracking you acknowledge that recipients' open and click events will be logged, and you are responsible for ensuring this is lawful in your jurisdiction.
+• **Automated follow-ups**: If you enable follow-ups, you authorize the Service to send the configured follow-up emails on your behalf.
+• We may suspend sending privileges for accounts that trigger abuse or spam signals.`,
+  },
+  {
+    title: '6. Intellectual Property',
     content: `All software, design, logos, branding, and content produced by RecoCareer.ai are the exclusive property of RecoCareer.ai and its licensors.
 
 **Your Content**: You retain ownership of all resume data, notes, and content you create within the Service. By using the Service, you grant RecoCareer.ai a limited, non-exclusive license to process and display your content solely to provide the Service.
@@ -51,16 +65,18 @@ Violations may result in immediate termination of your account without refund.`,
 **AI-Generated Content**: Outreach emails, cover letters, and other AI-generated outputs are produced for your personal use. You may use them freely. RecoCareer.ai makes no copyright claims over AI-generated content you create with the Service.`,
   },
   {
-    title: '6. Subscription & Billing',
-    content: `The Pro subscription is billed monthly. By subscribing, you authorize RecoCareer.ai to charge your payment method on a recurring basis.
+    title: '7. Subscription, Billing & Coupons',
+    content: `The Pro subscription is billed monthly with regional pricing — ₹999/month in India (processed by Razorpay) and $12/month internationally (processed by Stripe). Your region is detected automatically at checkout. By subscribing, you authorize recurring charges to your payment method through the applicable gateway.
 
 • **Cancellation**: You may cancel at any time from your profile settings. Access continues until the end of the billing period.
-• **Refunds**: Refunds are available within 7 days of initial Pro purchase.
+• **Refunds**: Refunds are available within 7 days of your initial Pro purchase.
+• **Coupons**: Promotional coupon codes (flat or percentage discounts) are subject to their stated expiry dates and usage limits. Coupons cannot be exchanged for cash, and abuse (e.g., automated redemption) voids the discount.
+• **Referral Program**: Referral rewards are credited only for genuine new users who upgrade to Pro through your link. Self-referral, fake accounts, or incentivized spam disqualify the reward and may lead to account suspension.
 • **Price Changes**: We will provide 30 days' notice of any price increases.
-• **Failed Payments**: If payment fails, your account will be downgraded to the Free tier after a grace period.`,
+• **Failed Payments**: If payment fails, your subscription is downgraded after a grace period.`,
   },
   {
-    title: '7. Disclaimers',
+    title: '8. Disclaimers',
     content: `The Service is provided "AS IS" without warranties of any kind. RecoCareer.ai does not guarantee:
 • That the Service will be uninterrupted, error-free, or completely secure.
 • That AI-generated content will be accurate, appropriate, or successful in job applications.
@@ -69,26 +85,26 @@ Violations may result in immediate termination of your account without refund.`,
 **We are a tool, not a recruiter.** Results depend on many factors outside our control.`,
   },
   {
-    title: '8. Limitation of Liability',
+    title: '9. Limitation of Liability',
     content: `To the maximum extent permitted by law, RecoCareer.ai shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including loss of profits, data, or goodwill.
 
 Our total liability for any claim arising from use of the Service is limited to the amount you paid us in the 12 months preceding the claim, or $100, whichever is greater.`,
   },
   {
-    title: '9. Termination',
+    title: '10. Termination',
     content: `We reserve the right to suspend or terminate your account at any time for any reason, including:
 • Violation of these Terms.
-• Fraudulent or abusive behavior.
-• Extended inactivity (Free accounts inactive for 12+ months).
+• Fraudulent or abusive behavior, including spam outreach or referral abuse.
+• Extended inactivity (accounts inactive for 12+ months).
 
 You may delete your account at any time from your profile settings or by contacting us. Upon termination, your license to use the Service ends immediately.`,
   },
   {
-    title: '10. Governing Law',
+    title: '11. Governing Law',
     content: `These Terms shall be governed by and construed in accordance with the laws of India, without regard to conflict of law provisions. Any disputes shall be subject to the exclusive jurisdiction of courts located in India.`,
   },
   {
-    title: '11. Contact',
+    title: '12. Contact',
     content: `For questions about these Terms:
 • **Email**: legal@recocareer.ai
 • **Response Time**: Within 10 business days
@@ -97,76 +113,82 @@ For general support, visit our Contact page.`,
   },
 ];
 
+const splitTitle = (title) => {
+  const match = title.match(/^(\d+)\.\s*(.*)$/);
+  return match ? { num: match[1].padStart(2, '0'), text: match[2] } : { num: '', text: title };
+};
+
+const sectionId = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
 const TermsPage = ({ isDark, onToggleTheme }) => (
   <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
-    <section className="max-w-4xl mx-auto px-5 py-20">
-      {/* Header */}
-      <div className="text-center mb-14 animate-fade-in">
-        <div className="w-16 h-16 rounded-2xl neo-card flex items-center justify-center mx-auto mb-6">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-indigo-500">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="16" y1="13" x2="8" y2="13"/>
-            <line x1="16" y1="17" x2="8" y2="17"/>
-            <polyline points="10 9 9 9 8 9"/>
-          </svg>
-        </div>
-        <h1 className="text-4xl md:text-5xl font-extrabold text-slate-900 dark:text-slate-50 mb-4">
-          Terms of <span className="text-gradient">Service</span>
+    <section className="max-w-4xl mx-auto px-5 py-16 md:py-24">
+      {/* Editorial header */}
+      <div className="max-w-2xl mb-10 animate-fade-in">
+        <p className="kicker mb-4">Legal · updated July 9, 2026 · ~6 min read</p>
+        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text-main leading-[1.05] mb-5">
+          The deal, in writing.
         </h1>
-        <p className="text-slate-500 dark:text-slate-400 text-sm">
-          Last updated: <strong>June 30, 2025</strong>
-        </p>
-        <p className="mt-4 text-base text-slate-600 dark:text-slate-400 max-w-xl mx-auto leading-relaxed">
-          Please read these terms carefully before using RecoCareer.ai. By using our service, you agree to these terms.
+        <p className="text-base md:text-lg text-text-muted leading-relaxed">
+          Twelve sections covering what you can expect from RecoCareer.ai and what
+          we expect from you. Using the service means you agree to all of it.
         </p>
       </div>
 
-      {/* Quick navigation */}
-      <div className="neo-card-inset p-5 mb-10">
-        <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Jump to section</p>
-        <div className="flex flex-wrap gap-2">
-          {terms.map(({ title }) => (
-            <a
-              key={title}
-              href={`#${title.replace(/\s+/g, '-').toLowerCase()}`}
-              className="text-xs px-3 py-1.5 rounded-lg neo-btn text-slate-600 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              {title}
-            </a>
-          ))}
+      {/* Horizontal jump bar */}
+      <div className="sticky top-[70px] z-20 -mx-5 px-5 py-3 mb-10">
+        <div className="glass-panel rounded-full px-2 py-1.5 flex gap-1 overflow-x-auto scrollbar-thin [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {terms.map(({ title }) => {
+            const { num, text } = splitTitle(title);
+            return (
+              <a
+                key={title}
+                href={`#${sectionId(title)}`}
+                className="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-medium text-text-muted hover:text-text-main hover:bg-white/50 dark:hover:bg-white/8 transition-colors"
+              >
+                <span className="font-mono text-[10px] text-brand-primary/70 mr-1.5">{num}</span>
+                {text}
+              </a>
+            );
+          })}
         </div>
       </div>
 
-      {/* Sections */}
-      <div className="space-y-5">
-        {terms.map(({ title, content }, i) => (
-          <div
-            key={i}
-            id={title.replace(/\s+/g, '-').toLowerCase()}
-            className="neo-card p-7"
-          >
-            <h2 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-4">{title}</h2>
-            <div className="space-y-2">
-              {content.split('\n').filter(Boolean).map((line, li) => (
-                <p key={li} className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
-                  {line.startsWith('•') ? (
-                    <span className="flex items-start gap-2">
-                      <span className="text-indigo-400 mt-1 flex-shrink-0 font-bold">·</span>
-                      <span dangerouslySetInnerHTML={{ __html: line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800 dark:text-slate-200">$1</strong>') }} />
-                    </span>
-                  ) : (
-                    <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-slate-800 dark:text-slate-200">$1</strong>') }} />
-                  )}
-                </p>
-              ))}
+      {/* Continuous document */}
+      <div className="glass-panel p-7 md:p-10">
+        {terms.map(({ title, content }, i) => {
+          const { num, text } = splitTitle(title);
+          return (
+            <div
+              key={title}
+              id={sectionId(title)}
+              className={`scroll-mt-36 ${i > 0 ? 'mt-10 pt-10 border-t border-white/40 dark:border-white/8' : ''}`}
+            >
+              <div className="flex items-baseline gap-3 mb-4">
+                <span className="font-mono text-xs font-semibold text-brand-primary">{num}</span>
+                <h2 className="text-lg font-bold text-text-main">{text}</h2>
+              </div>
+              <div className="space-y-2.5 md:pl-8">
+                {content.split('\n').filter(Boolean).map((line, li) => (
+                  <p key={li} className="text-sm text-text-muted leading-relaxed">
+                    {line.startsWith('•') ? (
+                      <span className="flex items-start gap-2.5">
+                        <span className="text-brand-primary mt-[7px] flex-shrink-0 w-1 h-1 rounded-full bg-current" />
+                        <span dangerouslySetInnerHTML={{ __html: line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
+                      </span>
+                    ) : (
+                      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
+                    )}
+                  </p>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Agreement notice */}
-      <div className="mt-10 neo-card-inset p-5 text-center text-sm text-slate-500 dark:text-slate-400">
+      <div className="mt-8 glass-chip px-6 py-4 text-center text-sm text-text-muted">
         By using RecoCareer.ai, you confirm that you have read, understood, and agree to these Terms of Service.
       </div>
     </section>

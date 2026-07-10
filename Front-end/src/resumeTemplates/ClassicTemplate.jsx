@@ -1,6 +1,12 @@
 import React from 'react';
-import { TEMPLATE_TOKENS, resolveTheme } from './templateSchema.js';
+import { TEMPLATE_TOKENS, resolveTheme, resolvePadding } from './templateSchema.js';
 import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, SectionActiveContext } from '../components/InlineCVEditor.jsx';
+
+const SummaryIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
+const ExperienceIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
+const EducationIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>;
+const SkillsIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+const ProjectsIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>;
 
 /**
  * Classic Template — Georgia serif, single-column, traditional layout.
@@ -11,6 +17,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   const t = resolveTheme('classic', rawTheme || resumeData.theme);
   const s = TEMPLATE_TOKENS.classic.styles(t);
   const skills = resumeData.skills || {};
+  const bodyPadding = resolvePadding('classic', t.margins);
 
   const { isSectionActive } = React.useContext(SectionActiveContext);
   const addBtn = (onClick, label) => (editMode && isSectionActive) ? (
@@ -86,7 +93,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   );
 
   return (
-    <div style={{ fontFamily: TEMPLATE_TOKENS.classic.fontFamily, fontSize: TEMPLATE_TOKENS.classic.fontSize, color: t.primary, background: '#fff', padding: TEMPLATE_TOKENS.classic.bodyPadding, maxWidth: TEMPLATE_TOKENS.classic.maxWidth, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
+    <div style={{ fontFamily: TEMPLATE_TOKENS.classic.fontFamily, fontSize: TEMPLATE_TOKENS.classic.fontSize, color: t.primary, background: '#fff', padding: bodyPadding, maxWidth: TEMPLATE_TOKENS.classic.maxWidth, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
 
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginBottom: '0' }}>
@@ -116,10 +123,13 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Summary */}
       {(resumeData.summary || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Summary" onDelete={() => onUpdate?.({ summary: '' })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Professional Summary</div>
-            <div style={s.summary}>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-summary">
+              {t.showIcons && <SummaryIcon />}
+              Professional Summary
+            </div>
+            <div style={s.summary} data-block data-block-id="summary-body">
               <ML value={resumeData.summary || ''} onChange={updSummary} placeholder="Brief professional overview..." />
             </div>
           </div>
@@ -128,9 +138,12 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Experience */}
       {((resumeData.experience || []).length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Experience" onAdd={addExp} onDelete={() => onUpdate?.({ experience: [] })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Experience</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-experience">
+              {t.showIcons && <ExperienceIcon />}
+              Experience
+            </div>
             {(resumeData.experience || []).map((exp, i) => (
               <BlockWrapper key={i} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
                 <div style={s.expItem}>
@@ -166,9 +179,12 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Education */}
       {((resumeData.education || []).length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Education" onAdd={addEdu} onDelete={() => onUpdate?.({ education: [] })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Education</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-education">
+              {t.showIcons && <EducationIcon />}
+              Education
+            </div>
             {(resumeData.education || []).map((edu, i) => (
               <BlockWrapper key={i} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
                 <div style={{ marginBottom: '8px' }}>
@@ -199,12 +215,15 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Skills */}
       {(Object.values(skills).some(v => (v || []).length > 0) || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Skills" onDelete={() => onUpdate?.({ skills: { technical: [], tools: [], soft: [], languages: [] } })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Skills</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-skills">
+              {t.showIcons && <SkillsIcon />}
+              Skills
+            </div>
             {[['technical', 'Technical'], ['tools', 'Tools & Frameworks'], ['soft', 'Soft Skills'], ['languages', 'Languages']].map(([key, label]) => (
               (skills[key]?.length > 0 || editMode) && (
-                <div key={key} style={{ marginBottom: '6px' }}>
+                <div key={key} style={{ marginBottom: '6px' }} data-block data-block-id={`skills-${key}`}>
                   {editMode && <div style={{ fontSize: '7.5pt', color: '#9ca3af', marginBottom: '3px' }}>{label}</div>}
                   <EditableSkillChips
                     items={skills[key] || []}
@@ -221,9 +240,12 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Projects */}
       {((resumeData.projects || []).length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Projects" onAdd={addPr} onDelete={() => onUpdate?.({ projects: [] })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Projects</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-projects">
+              {t.showIcons && <ProjectsIcon />}
+              Projects
+            </div>
             {(resumeData.projects || []).map((pr, i) => (
               <BlockWrapper key={i} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
                 <div style={s.expItem}>

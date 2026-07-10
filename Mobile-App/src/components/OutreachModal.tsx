@@ -1,50 +1,113 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, Modal, TouchableOpacity, SafeAreaView, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/constants/api';
 
-export default function OutreachModal({ visible, job, onClose }) {
-  const { token, user } = useAuth();
+export default function OutreachModal({ visible, job, onClose }: { visible: boolean; job: any; onClose: () => void }) {
+  const { token } = useAuth();
   const [isTailoring, setIsTailoring] = useState(false);
   const [coverLetter, setCoverLetter] = useState('');
   const [isGeneratingCL, setIsGeneratingCL] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [ats, setAts] = useState<any>(null);
+  const [isCalcAts, setIsCalcAts] = useState(false);
+
+  // Preload cover letter + ATS from the job, and reset when a different job
+  // is opened in the modal.
+  useEffect(() => {
+    setCoverLetter(job?.coverLetter || '');
+    setAts(job?.atsAnalysis || null);
+  }, [job?._id]);
 
   if (!job) return null;
 
+  const authHeaders = { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+
   const handleTailorResume = async () => {
     setIsTailoring(true);
-    // Simulate AI Tailoring for mobile UI
-    setTimeout(() => {
+    try {
+      // Resume tailoring is queued server-side (returns 202) and runs in the
+      // background, so report it honestly rather than faking instant success.
+      const res = await fetch(api('/resume/tailor'), {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ jobId: job._id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to start tailoring');
+      Alert.alert('Tailoring started', data.message || 'Your resume is being tailored for this job. Check the Builder shortly.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
       setIsTailoring(false);
-      Alert.alert('Success', 'Resume tailored to this job!');
-    }, 2000);
+    }
+  };
+
+  const handleCalcAts = async () => {
+    setIsCalcAts(true);
+    try {
+      const res = await fetch(api('/resume/ats-score'), {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ jobId: job._id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Could not calculate ATS score');
+      setAts(data.atsAnalysis || null);
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
+      setIsCalcAts(false);
+    }
   };
 
   const handleGenerateCoverLetter = async () => {
     setIsGeneratingCL(true);
-    // Simulate AI Cover Letter Generation
-    setTimeout(() => {
-      setCoverLetter(`Dear Hiring Manager,\n\nI am thrilled to apply for the ${job.job} position at ${job.companyName}. With my background in Software Engineering, I believe I would be a great fit.\n\nBest,\n${user?.name || 'Applicant'}`);
+    try {
+      const res = await fetch(api(`/jobs/${job._id}/generate-cover-letter`), {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ tone: 'Professional', wordCount: 200 }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Generation failed');
+      setCoverLetter(data.coverLetter || '');
+    } catch (err: any) {
+      Alert.alert('Error', err.message);
+    } finally {
       setIsGeneratingCL(false);
-    }, 2000);
+    }
   };
 
   const handleSendEmail = async () => {
     setIsSending(true);
     try {
-      const res = await fetch(`http://localhost:3000/jobs/${job._id}/send-application`, {
+      // /apply sends the cover letter stored on the job, so persist any edits
+      // the user made in the text box before dispatching.
+      if (coverLetter !== (job.coverLetter || '')) {
+        await fetch(api(`/jobs/${job._id}`), {
+          method: 'PATCH',
+          headers: authHeaders,
+          body: JSON.stringify({ coverLetter }),
+        });
+      }
+
+      const res = await fetch(api('/apply'), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({ emailBody: coverLetter })
+        headers: authHeaders,
+        body: JSON.stringify({ jobIds: [job._id], attachCoverLetter: true }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send email');
-      Alert.alert('Success', 'Application sent to recruiter!');
+
+      // /apply returns { results: [{ jobId, success, error }] } — surface the
+      // per-job outcome instead of assuming success on a 200.
+      const result = Array.isArray(data.results) ? data.results[0] : null;
+      if (result && !result.success) throw new Error(result.error || 'Send failed');
+
+      Alert.alert('Sent', 'Application sent to the recruiter from your inbox.');
       onClose();
-    } catch (err) {
+    } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
       setIsSending(false);
@@ -67,8 +130,11 @@ export default function OutreachModal({ visible, job, onClose }) {
         <ScrollView style={styles.content}>
           <View style={styles.card}>
             <Text style={styles.cardTitle}>ATS Match Score</Text>
-            <Text style={styles.scoreText}>{job.atsAnalysis?.score ? `${job.atsAnalysis.score}/100` : 'Not Calculated'}</Text>
-            <Text style={styles.analysisText}>{job.atsAnalysis?.analysis || 'No analysis available.'}</Text>
+            <Text style={styles.scoreText}>{ats?.score != null ? `${ats.score}/100` : 'Not Calculated'}</Text>
+            <Text style={styles.analysisText}>{ats?.analysis || 'Compare your active resume against this job description.'}</Text>
+            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#27272a', marginTop: 12 }]} onPress={handleCalcAts} disabled={isCalcAts}>
+              {isCalcAts ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionBtnText}>{ats?.score != null ? 'Recalculate ATS' : 'Calculate ATS Score'}</Text>}
+            </TouchableOpacity>
           </View>
 
           <View style={styles.card}>

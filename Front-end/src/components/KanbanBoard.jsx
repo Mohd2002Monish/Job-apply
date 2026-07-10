@@ -85,8 +85,8 @@ const KanbanBoard = ({ jobs, setJobs, onRefresh, onEdit, onDelete, onSelectJob, 
   };
 
   return (
-    <div className="overflow-x-auto pb-4 -mx-5 px-5">
-      <div className="flex gap-4 min-w-[1100px] h-[calc(100vh-230px)]">
+    <div className="overflow-x-auto pb-4 -mx-5 px-5 snap-x snap-mandatory md:snap-none">
+      <div className="flex gap-4 min-w-[1100px] h-[calc(100vh-300px)] md:h-[calc(100vh-230px)]">
         {columns.map(col => {
           const colJobs = jobs.filter(j => (j.status || 'saved') === col.id);
           const isOver = draggedOverColumn === col.id;
@@ -97,7 +97,7 @@ const KanbanBoard = ({ jobs, setJobs, onRefresh, onEdit, onDelete, onSelectJob, 
               onDragOver={(e) => handleDragOver(e, col.id)}
               onDragLeave={handleDragLeave}
               onDrop={(e) => handleDrop(e, col.id)}
-              className={`flex-1 flex flex-col rounded-xl border p-3 transition-all duration-200 ${col.color} ${
+              className={`flex-1 flex flex-col rounded-xl border p-3 snap-center md:snap-align-none transition-all duration-200 ${col.color} ${
                 isOver ? 'ring-2 ring-indigo-500/30 border-indigo-400/50 scale-[1.01]' : ''
               }`}
             >
@@ -113,7 +113,7 @@ const KanbanBoard = ({ jobs, setJobs, onRefresh, onEdit, onDelete, onSelectJob, 
                   }`} />
                   {col.name}
                 </h3>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100/70 dark:bg-zinc-800/60 text-slate-500 dark:text-zinc-400">
                   {colJobs.length}
                 </span>
               </div>
@@ -131,7 +131,7 @@ const KanbanBoard = ({ jobs, setJobs, onRefresh, onEdit, onDelete, onSelectJob, 
                       draggable
                       onDragStart={(e) => handleDragStart(e, job._id, job.status || 'saved')}
                       onClick={() => onSelectJob(job)}
-                      className="card p-3.5 hover:shadow-md cursor-grab active:cursor-grabbing border border-slate-200/80 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 transition-all group relative overflow-hidden bg-white dark:bg-zinc-900"
+                      className="card p-3.5 hover:shadow-md cursor-grab active:cursor-grabbing border border-slate-200/80 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 transition-all group relative overflow-hidden bg-white/85 dark:bg-zinc-900/80"
                     >
                       {/* Top Row: ATS Score & Status Badge */}
                       <div className="flex items-start justify-between gap-1.5 mb-2.5">
@@ -161,7 +161,7 @@ const KanbanBoard = ({ jobs, setJobs, onRefresh, onEdit, onDelete, onSelectJob, 
                       )}
 
                       {/* Hover Actions Menu overlay */}
-                      <div className="absolute top-2 right-2 flex items-center gap-0.5 bg-white/95 dark:bg-zinc-900/95 backdrop-blur-sm px-1 py-0.5 rounded-lg shadow-sm border border-slate-150 dark:border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="absolute top-2 right-2 flex items-center gap-0.5 bg-white/80 dark:bg-zinc-900/75 backdrop-blur-sm px-1 py-0.5 rounded-lg shadow-sm border border-slate-150 dark:border-zinc-800 opacity-0 group-hover:opacity-100 transition-opacity">
                         <button
                           onClick={(e) => {
                             e.stopPropagation();

@@ -128,7 +128,7 @@ const ResumeUpload = ({ user, resumeName, resumeData, onUploadSuccess, className
 
         {/* Step progress */}
         {uploading && (
-          <div className="px-4 py-4 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50 dark:bg-zinc-800/50 animate-fade-in">
+          <div className="px-4 py-4 rounded-lg border border-slate-200 dark:border-zinc-700 bg-slate-50/50 dark:bg-zinc-800/30 animate-fade-in">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin-slow shrink-0" />
               <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Processing your resume</span>

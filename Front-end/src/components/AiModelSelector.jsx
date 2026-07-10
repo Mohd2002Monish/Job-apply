@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 
 export const AI_MODELS = [
   {
@@ -38,6 +39,24 @@ export const AI_MODELS = [
     color: 'amber'
   },
   {
+    id: 'claude-3-5-sonnet',
+    name: 'Claude 3.5 Sonnet',
+    provider: 'Anthropic Claude',
+    badge: 'Maximum Creative Quality',
+    description: 'Advanced reasoning, logic, and nuanced writing. Best for creative pitches and tailored executive summaries.',
+    recommendedFor: ['tailoring', 'email-outreach'],
+    color: 'purple'
+  },
+  {
+    id: 'claude-3-5-haiku',
+    name: 'Claude 3.5 Haiku',
+    provider: 'Anthropic Claude',
+    badge: 'Highly Efficient Intelligence',
+    description: 'Lightning-fast, highly intelligent, and conversational. Best for quick recruiter reply suggestions.',
+    recommendedFor: ['pitch', 'quick-email', 'autofill'],
+    color: 'orange'
+  },
+  {
     id: 'gemini-1.5-flash',
     name: 'Gemini 1.5 Flash',
     provider: 'Google Gemini',
@@ -64,6 +83,27 @@ export const setStoredAiModel = (modelId) => {
 export default function AiModelSelector({ selectedModel, onSelectModel, compact = true, currentUseCase = 'email-outreach' }) {
   const [activeModel, setActiveModel] = useState(selectedModel || getStoredAiModel());
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [models, setModels] = useState(AI_MODELS);
+
+  useEffect(() => {
+    const BACKEND = 'http://localhost:3000';
+    axios.get(`${BACKEND}/auth/ai-models`)
+      .then(res => {
+        if (res.data.success && res.data.models?.length > 0) {
+          const mapped = res.data.models.map(m => ({
+            id: m.modelId,
+            name: m.name,
+            provider: m.provider,
+            badge: m.caption || 'Active',
+            description: m.caption || '',
+            recommendedFor: m.modelId.includes('flash') || m.modelId.includes('mini') || m.modelId.includes('haiku') ? ['ats', 'autofill', 'quick-email', 'pitch'] : ['tailoring', 'detailed-cover-letter', 'salary-negotiation'],
+            color: m.provider === 'Google Gemini' ? 'emerald' : m.provider === 'OpenAI' ? 'indigo' : 'purple'
+          }));
+          setModels(mapped);
+        }
+      })
+      .catch(err => console.error('Failed to load active AI models:', err.message));
+  }, []);
 
   useEffect(() => {
     if (selectedModel && selectedModel !== activeModel) {
@@ -80,7 +120,7 @@ export default function AiModelSelector({ selectedModel, onSelectModel, compact 
     setDropdownOpen(false);
   };
 
-  const currentModelObj = AI_MODELS.find(m => m.id === activeModel) || AI_MODELS[0];
+  const currentModelObj = models.find(m => m.id === activeModel) || models[0] || AI_MODELS[0];
 
   if (compact) {
     return (
@@ -108,7 +148,7 @@ export default function AiModelSelector({ selectedModel, onSelectModel, compact 
             </div>
 
             <div className="space-y-1 max-h-64 overflow-y-auto">
-              {AI_MODELS.map((m) => {
+              {models.map((m) => {
                 const isSelected = m.id === activeModel;
                 const isRecommended = m.recommendedFor.includes(currentUseCase);
 
@@ -157,10 +197,29 @@ export default function AiModelSelector({ selectedModel, onSelectModel, compact 
     );
   }
 
+  const groupedModels = {
+    'Google Gemini': models.filter(m => m.provider === 'Google Gemini'),
+    'OpenAI': models.filter(m => m.provider === 'OpenAI'),
+    'Anthropic Claude': models.filter(m => m.provider === 'Anthropic Claude')
+  };
+
+  const getModelCaption = (id) => {
+    switch (id) {
+      case 'gemini-2.5-flash': return 'Fast ATS Scan & Autofill';
+      case 'gemini-1.5-pro': return 'Deep Reasoning & Tailoring';
+      case 'gemini-1.5-flash': return 'Balanced Standard';
+      case 'gpt-4o': return 'Persuasive Outreach & Letters';
+      case 'gpt-4o-mini': return 'Lightweight & Direct';
+      case 'claude-3-5-sonnet': return 'Nuanced Executive Writing';
+      case 'claude-3-5-haiku': return 'Fast Conversational Replies';
+      default: return 'General Purpose';
+    }
+  };
+
   return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-text-main uppercase tracking-wider block">
+    <div className="space-y-4">
+      <div className="flex items-center justify-between border-b border-border-card pb-3">
+        <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider block">
           AI Intelligence Engine & Model Selection
         </span>
         <span className="text-[11px] font-semibold text-brand-primary">
@@ -168,46 +227,52 @@ export default function AiModelSelector({ selectedModel, onSelectModel, compact 
         </span>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {AI_MODELS.map((m) => {
-          const isSelected = m.id === activeModel;
-          const isRecommended = m.recommendedFor.includes(currentUseCase);
-
-          return (
-            <div
-              key={m.id}
-              onClick={() => handleSelect(m.id)}
-              className={`p-3.5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between gap-2.5 btn-tactile ${
-                isSelected
-                  ? 'bg-brand-primary/10 border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
-                  : 'bg-bg-app border-border-card hover:border-brand-primary/40'
-              }`}
-            >
-              <div>
-                <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <h5 className="font-extrabold text-xs text-text-main font-mono">{m.name}</h5>
-                  <span className="text-[9px] font-bold px-2 py-0.5 rounded bg-bg-card border border-border-card text-text-muted">
-                    {m.provider}
-                  </span>
-                </div>
-                <p className="text-[11px] text-text-muted leading-relaxed line-clamp-2">{m.description}</p>
-              </div>
-
-              <div className="flex items-center justify-between pt-2 border-t border-border-card/60">
-                <span className="text-[9.5px] font-bold text-brand-primary bg-brand-primary/10 px-2 py-0.5 rounded-full">
-                  {m.badge}
-                </span>
-                {isSelected ? (
-                  <span className="text-[10px] font-bold text-brand-primary flex items-center gap-1">
-                    Selected
-                  </span>
-                ) : isRecommended ? (
-                  <span className="text-[9.5px] font-bold text-emerald-500">Recommended ↗</span>
-                ) : null}
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {Object.entries(groupedModels).map(([provider, models]) => (
+          <div key={provider} className="flex flex-col gap-2">
+            <h4 className="text-[10.5px] font-bold text-text-muted uppercase tracking-widest pl-1 mb-1">
+              {provider}
+            </h4>
+            <div className="space-y-2">
+              {models.map((m) => {
+                const isSelected = m.id === activeModel;
+                return (
+                  <div
+                    key={m.id}
+                    onClick={() => handleSelect(m.id)}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer select-none ${
+                      isSelected
+                        ? 'bg-brand-primary/10 border-brand-primary shadow-xs'
+                        : 'bg-bg-app border-border-card hover:border-brand-primary/50 hover:bg-bg-card-hover/20'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      {/* Radio button circle */}
+                      <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center transition-all ${
+                        isSelected 
+                          ? 'border-brand-primary' 
+                          : 'border-text-muted/40'
+                      }`}>
+                        {isSelected && (
+                          <div className="w-1.5 h-1.5 rounded-full bg-brand-primary" />
+                        )}
+                      </div>
+                      
+                      <div className="flex flex-col">
+                        <span className={`text-[12px] font-semibold ${isSelected ? 'text-text-main font-bold' : 'text-text-main'}`}>
+                          {m.name}
+                        </span>
+                        <span className="text-[10px] text-text-muted mt-0.5 leading-none">
+                          {getModelCaption(m.id)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
+          </div>
+        ))}
       </div>
     </div>
   );

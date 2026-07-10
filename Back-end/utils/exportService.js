@@ -1,13 +1,38 @@
 const puppeteer = require('puppeteer');
 const { Document, Packer, Paragraph, TextRun, HeadingLevel, AlignmentType, BorderStyle, Table, TableRow, TableCell, WidthType, ShadingType } = require('docx');
 
+// ─── Shared Padding Resolver ──────────────────────────────────────────────────
+const resolvePadding = (templateId, marginSize = 'normal') => {
+  const compactMap = {
+    classic: '32px 38px',
+    minimal: '36px 44px',
+    modern: { header: '20px 24px', sidebar: '14px 10px', main: '14px 20px' }
+  };
+  const normalMap = {
+    classic: '52px 58px',
+    minimal: '56px 64px',
+    modern: { header: '34px 44px', sidebar: '24px 18px', main: '24px 32px' }
+  };
+  const wideMap = {
+    classic: '68px 74px',
+    minimal: '72px 80px',
+    modern: { header: '44px 54px', sidebar: '34px 24px', main: '34px 42px' }
+  };
+  
+  const map = marginSize === 'compact' ? compactMap : (marginSize === 'wide' ? wideMap : normalMap);
+  return map[templateId] || map.classic;
+};
+
 // ─── Template HTML Generators ────────────────────────────────────────────────
 
 const buildClassicHTML = (data) => {
   const t = data.theme || {};
   const p = data.personalInfo || {};
+  const marginSize = t.marginSize || 'normal';
+  const bodyPadding = resolvePadding('classic', marginSize);
+
   const exp = (data.experience || []).map((e, i) => `
-    <div class="exp-item" data-block data-block-id="experience-${i}">
+    <div class="exp-item" data-block data-block-id="experience-${i}" style="break-inside: avoid; page-break-inside: avoid;">
       <div class="exp-header">
         <div>
           <div class="job-title">${e.role || ''}</div>
@@ -21,7 +46,7 @@ const buildClassicHTML = (data) => {
   `).join('');
 
   const edu = (data.education || []).map((e, i) => `
-    <div class="edu-item" data-block data-block-id="education-${i}">
+    <div class="edu-item" data-block data-block-id="education-${i}" style="break-inside: avoid; page-break-inside: avoid;">
       <div class="exp-header">
         <div>
           <div class="job-title">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
@@ -37,8 +62,8 @@ const buildClassicHTML = (data) => {
   const allSkills = [...(skills.technical || []), ...(skills.tools || [])];
 
   const projects = (data.projects || []).map((pr, i) => `
-    <div class="exp-item" data-block data-block-id="project-${i}">
-      <div class="job-title">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:0.75rem;color:#2563eb;">[Link]</a>` : ''}</div>
+    <div class="exp-item" data-block data-block-id="project-${i}" style="break-inside: avoid; page-break-inside: avoid;">
+      <div class="job-title">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:0.85rem;color:#2563eb;">[Link]</a>` : ''}</div>
       ${pr.description ? `<p class="desc">${pr.description}</p>` : ''}
       ${(pr.techStack || []).length ? `<p class="desc tech-stack"><strong>Tech:</strong> ${pr.techStack.join(', ')}</p>` : ''}
     </div>
@@ -50,28 +75,37 @@ const buildClassicHTML = (data) => {
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Georgia', serif; font-size: 10pt; color: ${t.primary || '#1a1a1a'}; background: #fff; padding: 40px 50px; max-width: 800px; margin: 0 auto; }
-  .name { font-size: 26pt; font-weight: bold; color: ${t.primary || '#1a1a1a'}; letter-spacing: -0.5px; }
-  .job-headline { font-size: 11pt; color: #4b5563; margin-top: 4px; }
-  .contact { font-size: 8.5pt; color: #4b5563; margin-top: 8px; display: flex; flex-wrap: wrap; gap: 12px; }
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    font-size: 10.5pt;
+    color: ${t.primary || '#1a1a1a'};
+    background: #fff;
+    padding: ${bodyPadding};
+    width: 794px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .name { font-size: 28pt; font-weight: bold; color: ${t.primary || '#1a1a1a'}; letter-spacing: -0.5px; line-height: 1.1; }
+  .job-headline { font-size: 11.5pt; color: #52525b; margin-top: 5px; font-weight: 400; letter-spacing: 0.01em; }
+  .contact { font-size: 8.5pt; color: #6b7280; margin-top: 10px; display: flex; flex-wrap: wrap; gap: 14px; line-height: 1.5; }
   .contact span { display: flex; align-items: center; gap: 3px; }
-  .divider { border: none; border-top: 2px solid ${t.primary || '#1a1a1a'}; margin: 16px 0 12px; }
-  .section-title { font-size: 9pt; font-weight: bold; text-transform: uppercase; letter-spacing: 1.5px; color: ${t.primary || '#1a1a1a'}; margin-bottom: 10px; page-break-after: avoid; break-after: avoid; }
-  .section { margin-bottom: 18px; page-break-inside: avoid; break-inside: avoid; }
-  .summary { font-size: 9.5pt; color: #374151; line-height: 1.6; }
-  .exp-item { margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
+  .divider { border: none; border-top: 1.5px solid ${t.primary || '#1a1a1a'}; margin: 20px 0 18px; opacity: 0.15; }
+  .section-title { font-size: 8.5pt; font-weight: 750; text-transform: uppercase; letter-spacing: 2px; color: ${t.primary || '#1a1a1a'}; margin-bottom: 14px; opacity: 0.85; display: flex; align-items: center; gap: 6px; break-after: avoid; }
+  .section { margin-bottom: 26px; }
+  .summary { font-size: 10pt; color: #374151; line-height: 1.8; }
+  .exp-item { margin-bottom: 18px; }
   .exp-header { display: flex; justify-content: space-between; align-items: flex-start; }
-  .job-title { font-size: 10pt; font-weight: bold; color: ${t.primary || '#1a1a1a'}; }
-  .company { font-size: 9pt; color: #4b5563; font-style: italic; }
-  .dates { font-size: 8.5pt; color: #6b7280; white-space: nowrap; margin-left: 8px; }
-  .desc { font-size: 9pt; color: #374151; margin-top: 4px; line-height: 1.5; }
+  .job-title { font-size: 10.5pt; font-weight: bold; color: ${t.primary || '#1a1a1a'}; line-height: 1.3; }
+  .company { font-size: 9.5pt; color: #6b7280; font-style: italic; margin-top: 1px; }
+  .dates { font-size: 8.5pt; color: #9ca3af; white-space: nowrap; margin-left: 8px; }
+  .desc { font-size: 9.5pt; color: #4b5563; margin-top: 6px; line-height: 1.75; }
   ul { margin-top: 4px; margin-left: 16px; }
-  li { font-size: 9pt; color: #374151; margin-bottom: 2px; line-height: 1.4; }
+  li { font-size: 9.5pt; color: #4b5563; margin-bottom: 3px; line-height: 1.65; }
   .skills-grid { display: flex; flex-wrap: wrap; gap: 6px; }
-  .skill-pill { background: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 3px; padding: 2px 8px; font-size: 8.5pt; color: #374151; }
-  .tech-stack { color: #4b5563; font-size: 8.5pt; }
-  .edu-item { margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid; }
-  .cert-item { font-size: 9pt; color: #374151; margin-bottom: 4px; page-break-inside: avoid; break-inside: avoid; }
+  .skill-pill { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 3px; padding: 2px 9px; font-size: 8.5pt; color: #374151; display: inline-block; }
+  .tech-stack { color: #2563eb; font-size: 8.5pt; }
+  .edu-item { margin-bottom: 8px; }
+  .cert-item { font-size: 9.5pt; color: #4b5563; margin-bottom: 4px; break-inside: avoid; }
   a { color: #2563eb; text-decoration: none; }
 </style>
 </head>
@@ -110,8 +144,6 @@ const buildClassicHTML = (data) => {
   <div class="section">
     <div class="section-title">Skills</div>
     <div class="skills-grid">${allSkills.map(s => `<span class="skill-pill">${s}</span>`).join('')}</div>
-    ${(skills.soft || []).length ? `<div style="margin-top:6px;font-size:8.5pt;color:#4b5563;"><strong>Soft Skills:</strong> ${skills.soft.join(', ')}</div>` : ''}
-    ${(skills.languages || []).length ? `<div style="margin-top:4px;font-size:8.5pt;color:#4b5563;"><strong>Languages:</strong> ${skills.languages.join(', ')}</div>` : ''}
   </div>` : ''}
 
   ${projects ? `
@@ -132,8 +164,11 @@ const buildClassicHTML = (data) => {
 const buildModernHTML = (data) => {
   const t = data.theme || {};
   const p = data.personalInfo || {};
+  const marginSize = t.marginSize || 'normal';
+  const bodyPadding = resolvePadding('modern', marginSize);
+
   const exp = (data.experience || []).map((e, i) => `
-    <div class="exp-item" data-block data-block-id="experience-${i}">
+    <div class="exp-item" data-block data-block-id="experience-${i}" style="break-inside: avoid; page-break-inside: avoid;">
       <div class="exp-row">
         <div class="role-company">
           <span class="role">${e.role || ''}</span>
@@ -147,10 +182,12 @@ const buildModernHTML = (data) => {
   `).join('');
 
   const edu = (data.education || []).map((e, i) => `
-    <div class="edu-card" data-block data-block-id="education-${i}">
+    <div class="edu-card" data-block data-block-id="education-${i}" style="break-inside: avoid; page-break-inside: avoid;">
       <div class="edu-top">
-        <div><div class="edu-degree">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
-        <div class="edu-inst">${e.institution || ''}</div></div>
+        <div>
+          <div class="edu-degree">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
+          <div class="edu-inst">${e.institution || ''}</div>
+        </div>
         <span class="date-badge">${e.endDate || ''}</span>
       </div>
       ${e.gpa ? `<div class="gpa">GPA: ${e.gpa}</div>` : ''}
@@ -159,17 +196,25 @@ const buildModernHTML = (data) => {
 
   const skills = data.skills || {};
 
+  const projects = (data.projects || []).map((pr, i) => `
+    <div class="project-item" data-block data-block-id="project-${i}" style="break-inside: avoid; page-break-inside: avoid;">
+      <div class="project-name">
+        ${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:7.5pt;color:#2563eb;font-weight:normal;">[Link]</a>` : ''}
+      </div>
+      ${pr.description ? `<p class="desc">${pr.description}</p>` : ''}
+      ${(pr.techStack || []).length ? `<div class="project-tech">Tech: ${pr.techStack.join(' · ')}</div>` : ''}
+    </div>
+  `).join('');
+
   const sidebar = `
-    ${p.email || p.phone || p.location || p.linkedin || p.github ? `
     <div class="sidebar-section">
       <div class="sidebar-title">Contact</div>
-      ${p.email ? `<div class="contact-row">✉ <span>${p.email}</span></div>` : ''}
-      ${p.phone ? `<div class="contact-row">📞 <span>${p.phone}</span></div>` : ''}
-      ${p.location ? `<div class="contact-row">📍 <span>${p.location}</span></div>` : ''}
-      ${p.linkedin ? `<div class="contact-row">in <a href="${p.linkedin}">LinkedIn</a></div>` : ''}
-      ${p.github ? `<div class="contact-row">⌥ <a href="${p.github}">GitHub</a></div>` : ''}
-      ${p.website ? `<div class="contact-row">🔗 <a href="${p.website}">${p.website}</a></div>` : ''}
-    </div>` : ''}
+      ${p.email ? `<div class="contact-row">✉ <a href="mailto:${p.email}">${p.email}</a></div>` : ''}
+      ${p.phone ? `<div class="contact-row">📞 ${p.phone}</div>` : ''}
+      ${p.location ? `<div class="contact-row">📍 ${p.location}</div>` : ''}
+      ${p.linkedin ? `<div class="contact-row">In: <a href="${p.linkedin}">LinkedIn</a></div>` : ''}
+      ${p.github ? `<div class="contact-row">Gh: <a href="${p.github}">GitHub</a></div>` : ''}
+    </div>
 
     ${(skills.technical || []).length ? `
     <div class="sidebar-section">
@@ -177,22 +222,22 @@ const buildModernHTML = (data) => {
       ${skills.technical.map(s => `<div class="skill-tag">${s}</div>`).join('')}
     </div>` : ''}
 
+    ${(skills.soft || []).length ? `
+    <div class="sidebar-section">
+      <div class="sidebar-title">Soft Skills</div>
+      ${skills.soft.map(s => `<div class="skill-tag">${s}</div>`).join('')}
+    </div>` : ''}
+
     ${(skills.tools || []).length ? `
     <div class="sidebar-section">
       <div class="sidebar-title">Tools</div>
       ${skills.tools.map(s => `<div class="skill-tag">${s}</div>`).join('')}
     </div>` : ''}
-
-    ${(skills.languages || []).length ? `
-    <div class="sidebar-section">
-      <div class="sidebar-title">Languages</div>
-      ${skills.languages.map(s => `<div class="skill-tag">${s}</div>`).join('')}
-    </div>` : ''}
-
+    
     ${(data.certifications || []).length ? `
     <div class="sidebar-section">
       <div class="sidebar-title">Certifications</div>
-      ${data.certifications.map(c => `<div class="cert-mini">${c.name}${c.issuer ? `<br><span style="opacity:0.75">${c.issuer}</span>` : ''}</div>`).join('')}
+      ${data.certifications.map(c => `<div class="cert-mini">${c.name}</div>`).join('')}
     </div>` : ''}
   `;
 
@@ -202,37 +247,37 @@ const buildModernHTML = (data) => {
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 9.5pt; color: #1e293b; background: #fff; }
-  .header { background: linear-gradient(135deg, ${t.primary || '#1e40af'} 0%, ${t.secondary || '#3b82f6'} 100%); color: white; padding: 30px 40px; }
-  .name { font-size: 24pt; font-weight: 800; letter-spacing: -0.5px; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 9.5pt; color: #1e293b; background: #fff; width: 794px; margin: 0 auto; box-sizing: border-box; }
+  .header { background: linear-gradient(135deg, ${t.primary || '#1e40af'} 0%, ${t.secondary || '#3b82f6'} 100%); color: white; padding: ${bodyPadding.header}; }
+  .name { font-size: 25pt; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
   .headline { font-size: 11pt; opacity: 0.85; margin-top: 4px; font-weight: 300; }
-  .body { display: flex; min-height: calc(100% - 100px); }
-  .sidebar { width: 200px; min-width: 200px; background: #f1f5f9; padding: 20px 16px; border-right: 1px solid #e2e8f0; }
-  .main { flex: 1; padding: 20px 28px; }
-  .sidebar-section { margin-bottom: 16px; page-break-inside: avoid; break-inside: avoid; }
-  .sidebar-title { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1.5px; color: ${t.primary || '#1e40af'}; margin-bottom: 6px; page-break-after: avoid; break-after: avoid; }
-  .contact-row { font-size: 8pt; color: #475569; margin-bottom: 4px; display: flex; align-items: center; gap: 5px; word-break: break-all; }
-  .contact-row a { color: #2563eb; text-decoration: none; }
-  .skill-tag { background: white; border: 1px solid #bfdbfe; border-radius: 3px; padding: 2px 7px; font-size: 7.5pt; color: ${t.primary || '#1e40af'}; margin-bottom: 3px; display: inline-block; margin-right: 2px; page-break-inside: avoid; break-inside: avoid; }
-  .cert-mini { font-size: 7.5pt; color: #475569; margin-bottom: 4px; line-height: 1.4; page-break-inside: avoid; break-inside: avoid; }
-  .section { margin-bottom: 18px; }
-  .section-title { font-size: 9pt; font-weight: 800; text-transform: uppercase; letter-spacing: 1.2px; color: ${t.primary || '#1e40af'}; border-bottom: 2px solid #bfdbfe; padding-bottom: 4px; margin-bottom: 10px; page-break-after: avoid; break-after: avoid; }
-  .summary { font-size: 9pt; color: #374151; line-height: 1.6; }
-  .exp-item { margin-bottom: 12px; page-break-inside: avoid; break-inside: avoid; }
+  .body { display: flex; }
+  .sidebar { width: 200px; min-width: 200px; background: #f8fafc; padding: ${bodyPadding.sidebar}; border-right: 1px solid #f1f5f9; }
+  .main { flex: 1; padding: ${bodyPadding.main}; }
+  .sidebar-section { margin-bottom: 20px; break-inside: avoid; }
+  .sidebar-title { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: ${t.primary || '#1e40af'}; margin-bottom: 8px; opacity: 0.85; }
+  .contact-row { font-size: 8pt; color: #64748b; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; overflow-wrap: anywhere; word-break: break-word; line-height: 1.4; }
+  .contact-row a { color: #64748b; text-decoration: none; }
+  .skill-tag { background: white; border: 1px solid #dbeafe; border-radius: 3px; padding: 2px 8px; font-size: 7.5pt; color: ${t.primary || '#1e40af'}; margin-bottom: 3px; display: inline-block; margin-right: 3px; }
+  .cert-mini { font-size: 7.5pt; color: #475569; margin-bottom: 4px; line-height: 1.4; }
+  .section { margin-bottom: 22px; }
+  .section-title { font-size: 8.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2px; color: ${t.primary || '#1e40af'}; border-bottom: ${t.sectionDividers !== false ? `1.5px solid ${t.primary || '#1e40af'}` : 'none'}; padding-bottom: 5px; margin-bottom: 14px; opacity: 0.85; break-after: avoid; }
+  .summary { font-size: 9.5pt; color: #374151; line-height: 1.78; }
+  .exp-item { margin-bottom: 16px; }
   .exp-row { display: flex; justify-content: space-between; align-items: flex-start; }
   .role-company { display: flex; flex-direction: column; }
-  .role { font-weight: 700; font-size: 9.5pt; color: #1e293b; }
+  .role { font-weight: 700; font-size: 10pt; color: #1e293b; line-height: 1.3; }
   .company { font-size: 8.5pt; color: #64748b; }
-  .date-badge { background: #dbeafe; color: ${t.primary || '#1e40af'}; padding: 1px 7px; border-radius: 10px; font-size: 7.5pt; font-weight: 600; white-space: nowrap; margin-left: 8px; }
-  .desc { font-size: 8.5pt; color: #475569; margin-top: 4px; line-height: 1.5; }
+  .date-badge { background: #eff6ff; color: ${t.primary || '#1e40af'}; padding: 2px 8px; border-radius: 10px; font-size: 7.5pt; font-weight: 600; white-space: nowrap; margin-left: 8px; }
+  .desc { font-size: 8.5pt; color: #4b5563; margin-top: 5px; line-height: 1.75; }
   ul { margin-left: 14px; margin-top: 3px; }
-  li { font-size: 8.5pt; color: #475569; margin-bottom: 2px; }
-  .edu-card { margin-bottom: 8px; page-break-inside: avoid; break-inside: avoid; }
+  li { font-size: 8.5pt; color: #4b5563; margin-bottom: 3px; line-height: 1.65; }
+  .edu-card { margin-bottom: 8px; }
   .edu-top { display: flex; justify-content: space-between; }
   .edu-degree { font-weight: 700; font-size: 9pt; }
   .edu-inst { font-size: 8.5pt; color: #64748b; }
   .gpa { font-size: 8pt; color: #64748b; margin-top: 2px; }
-  .project-item { margin-bottom: 10px; page-break-inside: avoid; break-inside: avoid; }
+  .project-item { margin-bottom: 10px; }
   .project-name { font-weight: 700; font-size: 9pt; }
   .project-tech { font-size: 7.5pt; color: #2563eb; margin-top: 2px; }
 </style>
@@ -250,25 +295,16 @@ const buildModernHTML = (data) => {
         <div class="section-title">Summary</div>
         <div class="summary">${data.summary}</div>
       </div>` : ''}
-
       ${exp ? `
       <div class="section">
         <div class="section-title">Experience</div>
         ${exp}
       </div>` : ''}
-
-      ${(data.projects || []).length ? `
+      ${projects ? `
       <div class="section">
         <div class="section-title">Projects</div>
-        ${data.projects.map((pr, i) => `
-          <div class="project-item" data-block data-block-id="project-${i}">
-            <div class="project-name">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:7.5pt;color:#2563eb;">[Link]</a>` : ''}</div>
-            ${pr.description ? `<p class="desc">${pr.description}</p>` : ''}
-            ${(pr.techStack || []).length ? `<div class="project-tech">🛠 ${pr.techStack.join(' · ')}</div>` : ''}
-          </div>
-        `).join('')}
+        ${projects}
       </div>` : ''}
-
       ${edu ? `
       <div class="section">
         <div class="section-title">Education</div>
@@ -283,8 +319,11 @@ const buildModernHTML = (data) => {
 const buildMinimalHTML = (data) => {
   const t = data.theme || {};
   const p = data.personalInfo || {};
+  const marginSize = t.marginSize || 'normal';
+  const bodyPadding = resolvePadding('minimal', marginSize);
+
   const exp = (data.experience || []).map((e, i) => `
-    <div style="margin-bottom:14px; page-break-inside: avoid; break-inside: avoid;" data-block data-block-id="experience-${i}">
+    <div style="margin-bottom:14px; break-inside: avoid; page-break-inside: avoid;" data-block data-block-id="experience-${i}">
       <div style="display:flex;justify-content:space-between;align-items:baseline;">
         <div style="font-weight:600;color:${t.primary || '#111111'};">${e.role || ''}</div>
         <div style="font-size:8.5pt;color:#9ca3af;">${e.startDate || ''}${e.endDate || e.current ? ` – ${e.current ? 'Present' : e.endDate}` : ''}</div>
@@ -304,19 +343,28 @@ const buildMinimalHTML = (data) => {
 <meta charset="UTF-8">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { font-family: 'Helvetica Neue', Arial, sans-serif; font-size: 9.5pt; color: #374151; background: #fff; padding: 48px 56px; max-width: 800px; margin: 0 auto; }
-  .name { font-size: 28pt; font-weight: 300; letter-spacing: -1px; color: ${t.primary || '#111111'}; }
+  body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    font-size: 10pt;
+    color: #374151;
+    background: #fff;
+    padding: ${bodyPadding};
+    width: 794px;
+    margin: 0 auto;
+    box-sizing: border-box;
+  }
+  .name { font-size: 30pt; font-weight: 300; letter-spacing: -1.5px; color: ${t.primary || '#111111'}; line-height: 1.0; }
   .name strong { font-weight: 700; }
-  .headline { font-size: 10pt; color: #6b7280; margin-top: 4px; letter-spacing: 0.5px; }
-  .contacts { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb; font-size: 8pt; color: #6b7280; }
+  .headline { font-size: 10.5pt; color: #9ca3af; margin-top: 6px; letter-spacing: 0.08em; font-weight: 400; }
+  .contacts { display: flex; gap: 20px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid #f3f4f6; font-size: 8.5pt; color: #9ca3af; line-height: 1.5; }
   .contacts a { color: #374151; text-decoration: none; }
-  .section { margin-top: 22px; }
-  .section-title { font-size: 7.5pt; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: #9ca3af; margin-bottom: 10px; page-break-after: avoid; break-after: avoid; }
-  .thin-line { border: none; border-top: 1px solid #f3f4f6; margin-bottom: 10px; }
-  .summary { font-size: 9pt; color: #4b5563; line-height: 1.65; }
+  .section { margin-top: 28px; }
+  .section-title { font-size: 7.5pt; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; color: #d1d5db; margin-bottom: 12px; }
+  .thin-line { border: none; border-top: 1px solid #f3f4f6; margin-bottom: 14px; }
+  .summary { font-size: 9.5pt; color: #4b5563; line-height: 1.65; }
   .skill-list { display: flex; flex-wrap: wrap; gap: 5px; }
-  .skill-chip { border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px 9px; font-size: 7.5pt; color: #4b5563; page-break-inside: avoid; break-inside: avoid; }
-  .edu-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; page-break-inside: avoid; break-inside: avoid; }
+  .skill-chip { border: 1px solid #e5e7eb; border-radius: 2px; padding: 2px 9px; font-size: 7.5pt; color: #4b5563; }
+  .edu-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
   .edu-degree { font-size: 9.5pt; font-weight: 600; color: ${t.primary || '#111111'}; }
   .edu-inst { font-size: 8.5pt; color: #6b7280; }
 </style>
@@ -361,7 +409,7 @@ const buildMinimalHTML = (data) => {
     <div class="section-title">Education</div>
     <hr class="thin-line"/>
     ${data.education.map((e, i) => `
-      <div class="edu-row" data-block data-block-id="education-${i}">
+      <div class="edu-row" data-block data-block-id="education-${i}" style="break-inside: avoid; page-break-inside: avoid;">
         <div>
           <div class="edu-degree">${e.degree || ''} ${e.field ? `in ${e.field}` : ''}</div>
           <div class="edu-inst">${e.institution || ''}</div>
@@ -376,7 +424,7 @@ const buildMinimalHTML = (data) => {
     <div class="section-title">Projects</div>
     <hr class="thin-line"/>
     ${data.projects.map((pr, i) => `
-      <div style="margin-bottom:10px; page-break-inside: avoid; break-inside: avoid;" data-block data-block-id="project-${i}">
+      <div style="margin-bottom:10px; break-inside: avoid; page-break-inside: avoid;" data-block data-block-id="project-${i}">
         <div style="font-weight:600;color:${t.primary || '#111111'};font-size:9.5pt;">${pr.name || ''}${pr.url ? ` <a href="${pr.url}" style="font-size:8pt;color:#6b7280;">[↗]</a>` : ''}</div>
         ${pr.description ? `<p style="font-size:8.5pt;color:#4b5563;margin-top:3px;line-height:1.5;">${pr.description}</p>` : ''}
         ${(pr.techStack || []).length ? `<div style="font-size:7.5pt;color:#9ca3af;margin-top:3px;">${pr.techStack.join(' · ')}</div>` : ''}
@@ -388,7 +436,7 @@ const buildMinimalHTML = (data) => {
   <div class="section">
     <div class="section-title">Certifications</div>
     <hr class="thin-line"/>
-    ${data.certifications.map(c => `<div style="font-size:8.5pt;color:#4b5563;margin-bottom:4px; page-break-inside: avoid; break-inside: avoid;">${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.date ? ` (${c.date})` : ''}</div>`).join('')}
+    ${data.certifications.map(c => `<div style="font-size:8.5pt;color:#4b5563;margin-bottom:4px; break-inside: avoid; page-break-inside: avoid;">${c.name}${c.issuer ? ` — ${c.issuer}` : ''}${c.date ? ` (${c.date})` : ''}</div>`).join('')}
   </div>` : ''}
 </body>
 </html>`;
@@ -738,16 +786,108 @@ const getBrowser = async () => {
   });
 };
 
+// The browser preview page-break engine injects margin-top values that include
+// a PAGE_GAP (40px) between each virtual page for visual separation. Puppeteer's
+// PDF renderer has no such gap — pure A4 at 96 dpi = 1123px per page.
+// We must normalise each injected margin so it references pure A4 page space.
+const PAGE_GAP_PX = 40;
+const A4_HEIGHT_PX = 1123;
+
+/**
+ * Normalise a single injected margin-top value from the browser preview coordinate
+ * space (which includes PAGE_GAP offsets) to the Puppeteer PDF coordinate space.
+ *
+ * Example: if the browser pushed a block 1163px (1123 + 40) to land at the top of
+ * page 2, the PDF only needs 1123px because there is no gap.
+ */
+const normalisePdfMargin = (marginPx) => {
+  // How many page boundaries does this margin cross?
+  const A4_WITH_GAP = A4_HEIGHT_PX + PAGE_GAP_PX;
+  const pagesJumped = Math.floor(marginPx / A4_WITH_GAP);
+  // Subtract one PAGE_GAP per boundary crossed
+  return Math.max(0, marginPx - pagesJumped * PAGE_GAP_PX);
+};
+
+/**
+ * Replace all margin-top values in the injected style block so they are
+ * valid for Puppeteer's gap-free page space.
+ */
+const normalisePdfStyles = (css) => {
+  if (!css) return '';
+  // Match patterns like:  margin-top: 1163px !important;
+  return css.replace(/margin-top:\s*([\d.]+)px(\s*!important)?/g, (_, val, imp) => {
+    const normalised = normalisePdfMargin(parseFloat(val));
+    return `margin-top: ${normalised}px${imp || ''}`;
+  });
+};
+
+/**
+ * Pixel-perfect export path: prints the EXACT HTML captured from the browser's
+ * inline editor instead of rebuilding the resume from data with separate
+ * server-side templates. Same markup + same fonts + same 794px layout width
+ * means the PDF pages match the on-screen pages 1:1.
+ *
+ * The page is sized to 794×1123 CSS px (the editor's A4 at 96dpi) rather than
+ * Puppeteer's 'A4' format (which is 793.7px and drifts a fraction of a pixel
+ * per page). The client's page-break engine has already injected gap-free
+ * margin-top pushes, so slicing every 1123px lands exactly on the boundaries
+ * the user saw.
+ */
+const exportHtmlAsPdf = async (html, pageCount) => {
+  const browser = await getBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 794, height: A4_HEIGHT_PX, deviceScaleFactor: 1 });
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    // Make sure the Google web fonts used by the editor are fully loaded,
+    // otherwise fallback metrics shift every line height.
+    try { await page.evaluate(() => document.fonts.ready); } catch (_) {}
+    const options = {
+      width: '794px',
+      height: `${A4_HEIGHT_PX}px`,
+      printBackground: true,
+      margin: { top: '0', right: '0', bottom: '0', left: '0' },
+    };
+    // Clamp to the page count the editor displayed so a stray trailing margin
+    // can never produce a blank extra page.
+    const pages = parseInt(pageCount, 10);
+    if (Number.isInteger(pages) && pages > 0) options.pageRanges = `1-${pages}`;
+    const pdfBuffer = await page.pdf(options);
+    return Buffer.from(pdfBuffer);
+  } finally {
+    await browser.close();
+  }
+};
+
+const exportHtmlAsJpg = async (html) => {
+  const browser = await getBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 794, height: A4_HEIGHT_PX, deviceScaleFactor: 2 });
+    await page.setContent(html, { waitUntil: 'networkidle0' });
+    try { await page.evaluate(() => document.fonts.ready); } catch (_) {}
+    const imgBuffer = await page.screenshot({ type: 'jpeg', quality: 95, fullPage: true });
+    return Buffer.from(imgBuffer);
+  } finally {
+    await browser.close();
+  }
+};
+
 const exportAsPdf = async (resumeData, templateId = 'classic', injectedStyles = '') => {
   const htmlBuilder = TEMPLATES[templateId] || TEMPLATES.classic;
   let html = htmlBuilder(resumeData);
-  if (injectedStyles) {
-    html = html.replace('</head>', `<style>${injectedStyles}</style></head>`);
+
+  // Normalise the injected page-break margins before embedding them in the PDF HTML
+  const pdfStyles = normalisePdfStyles(injectedStyles);
+  if (pdfStyles) {
+    html = html.replace('</head>', `<style>${pdfStyles}</style></head>`);
   }
 
   const browser = await getBrowser();
   try {
     const page = await browser.newPage();
+    // Set viewport to exact A4 width at 96 dpi so layout matches the preview
+    await page.setViewport({ width: 794, height: A4_HEIGHT_PX, deviceScaleFactor: 1 });
     await page.setContent(html, { waitUntil: 'networkidle0' });
     const pdfBuffer = await page.pdf({
       format: 'A4',
@@ -932,10 +1072,21 @@ const exportAsDocx = async (resumeData, templateId = 'classic') => {
 
 // ─── Main Export Function ────────────────────────────────────────────────────
 
-const exportResume = async (resumeData, templateId = 'classic', format = 'pdf', injectedStyles = '') => {
+const exportResume = async (resumeData, templateId = 'classic', format = 'pdf', injectedStyles = '', options = {}) => {
+  const { exportHtml = '', pageCount = 0 } = options;
   switch (format) {
-    case 'pdf': return { buffer: await exportAsPdf(resumeData, templateId, injectedStyles), mime: 'application/pdf', ext: 'pdf' };
-    case 'jpg': return { buffer: await exportAsJpg(resumeData, templateId, injectedStyles), mime: 'image/jpeg', ext: 'jpg' };
+    case 'pdf':
+      // Prefer the exact editor-rendered HTML (pixel-perfect WYSIWYG); fall
+      // back to the legacy data-driven templates for older clients.
+      if (exportHtml) {
+        return { buffer: await exportHtmlAsPdf(exportHtml, pageCount), mime: 'application/pdf', ext: 'pdf' };
+      }
+      return { buffer: await exportAsPdf(resumeData, templateId, injectedStyles), mime: 'application/pdf', ext: 'pdf' };
+    case 'jpg':
+      if (exportHtml) {
+        return { buffer: await exportHtmlAsJpg(exportHtml), mime: 'image/jpeg', ext: 'jpg' };
+      }
+      return { buffer: await exportAsJpg(resumeData, templateId, injectedStyles), mime: 'image/jpeg', ext: 'jpg' };
     case 'docx': return { buffer: await exportAsDocx(resumeData, templateId), mime: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', ext: 'docx' };
     default: throw new Error(`Unsupported format: ${format}`);
   }

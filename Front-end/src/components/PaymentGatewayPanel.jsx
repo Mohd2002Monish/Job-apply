@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import ConfirmModal from './ConfirmModal';
 
 const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -45,6 +46,7 @@ export default function PaymentGatewayPanel() {
   const [editingGateway, setEditingGateway] = useState(null);
   const [formData, setFormData] = useState({});
   const [error, setError] = useState('');
+  const [gatewayToDelete, setGatewayToDelete] = useState(null); // { id, gateway }
 
   const fetchConfigs = useCallback(async () => {
     try {
@@ -118,15 +120,22 @@ export default function PaymentGatewayPanel() {
     }
   };
 
-  const handleDelete = async (configId, gateway) => {
-    if (!confirm(`Remove ${gateway} gateway configuration?`)) return;
+  const handleDelete = (configId, gateway) => {
+    setGatewayToDelete({ id: configId, gateway });
+  };
+
+  const executeDelete = async () => {
+    if (!gatewayToDelete) return;
+    const { id, gateway } = gatewayToDelete;
     try {
-      await fetch(`${API_BASE}/admin/payment-config/${configId}`, {
+      await fetch(`${API_BASE}/admin/payment-config/${id}`, {
         method: 'DELETE', credentials: 'include',
       });
       await fetchConfigs();
     } catch (err) {
       setError('Delete failed: ' + err.message);
+    } finally {
+      setGatewayToDelete(null);
     }
   };
 
@@ -436,6 +445,13 @@ export default function PaymentGatewayPanel() {
           )}
         </>
       )}
+      <ConfirmModal
+        isOpen={gatewayToDelete !== null}
+        title="Remove Gateway"
+        message={`Are you sure you want to remove the ${gatewayToDelete?.gateway} payment gateway configuration?`}
+        onConfirm={executeDelete}
+        onCancel={() => setGatewayToDelete(null)}
+      />
     </div>
   );
 }

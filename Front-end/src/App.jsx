@@ -1,28 +1,48 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, lazy, Suspense } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import HomePage from './components/HomePage';
-import JobsTable, { useToast, ToastContainer } from './components/JobsTable';
+import { useToast, ToastContainer } from './components/Toast';
 import ResumeUpload from './components/ResumeUpload';
-import ResumeBuilder from './components/ResumeBuilder';
-import AnalyticsDashboard from './components/AnalyticsDashboard';
 import InteractiveBackground from './components/InteractiveBackground';
-import JobDiscoverer from './components/JobDiscoverer';
-import AdminPanel from './components/AdminPanel';
-import CoverLetterTab from './components/CoverLetterTab';
-import Finder from './components/Finder';
+import OnboardingModal from './components/OnboardingModal';
 import Select from 'react-select';
 import { getReactSelectStyles } from './utils/reactSelectStyles';
-import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon, FileTextIcon } from './components/Icons';
-import { setAuth, setResumeInfo, setResumesInfo, toggleTheme, setActiveTab, logoutUser } from './store/authSlice';
-import PricingPage from './pages/PricingPage';
-import FAQPage from './pages/FAQPage';
-import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
-import TermsPage from './pages/TermsPage';
-import ContactPage from './pages/ContactPage';
-import PaymentGate from './components/PaymentGate';
+import { SunIcon, MoonIcon, LogOutIcon, BriefcaseIcon, LayersIcon, FileTextIcon, SettingsIcon } from './components/Icons';
+import { setAuth, setResumeInfo, setResumesInfo, toggleTheme, logoutUser } from './store/authSlice';
 import './index.css';
+
+// Code-split: heavy dashboard tabs and public pages load on demand
+const JobsTable = lazy(() => import('./components/JobsTable'));
+const ResumeBuilder = lazy(() => import('./components/ResumeBuilder'));
+const AnalyticsDashboard = lazy(() => import('./components/AnalyticsDashboard'));
+const JobDiscoverer = lazy(() => import('./components/JobDiscoverer'));
+const AdminPanel = lazy(() => import('./components/AdminPanel'));
+const CoverLetterTab = lazy(() => import('./components/CoverLetterTab'));
+const Finder = lazy(() => import('./components/Finder'));
+const SettingsTab = lazy(() => import('./components/SettingsTab'));
+const PaymentGate = lazy(() => import('./components/PaymentGate'));
+const PricingPage = lazy(() => import('./pages/PricingPage'));
+const FAQPage = lazy(() => import('./pages/FAQPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const TermsPage = lazy(() => import('./pages/TermsPage'));
+const ContactPage = lazy(() => import('./pages/ContactPage'));
+
+const TabLoader = () => (
+  <div className="flex items-center justify-center py-24">
+    <div className="w-8 h-8 border-2 border-brand-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
+
+const DASHBOARD_TABS = ['jobs', 'discover', 'finder', 'cover-letter', 'builder', 'analytics', 'settings', 'admin'];
+
+// Catch-all for authenticated users: send to the app, keeping query params
+// (email-digest imports and payment redirects land on "/" with search params)
+const RedirectToApp = () => {
+  const location = useLocation();
+  return <Navigate to={{ pathname: '/app/jobs', search: location.search }} replace />;
+};
 
 const ShieldAlertIcon = ({ size = 15 }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -87,18 +107,46 @@ const NavTab = ({ id, label, Icon, active, badge, onClick }) => (
   </button>
 );
 
+// ─── Mobile Bottom Tab Bar ────────────────────────────────────────────────────
+const BottomTab = ({ id, label, Icon, active, onClick }) => (
+  <button
+    onClick={() => onClick(id)}
+    className={`flex-1 flex flex-col items-center justify-center gap-1 py-2 min-h-[52px] transition-colors ${
+      active ? 'text-brand-primary' : 'text-text-muted'
+    }`}
+  >
+    <Icon size={20} />
+    <span className={`text-[10px] leading-none ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
+  </button>
+);
+
+const MobileBottomNav = ({ activeTab, onSelect, onMore }) => (
+  <nav
+    className="lg:hidden fixed bottom-0 inset-x-0 z-40 bg-bg-card backdrop-blur-2xl backdrop-saturate-150 border-t border-border-card flex items-stretch"
+    style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+  >
+    <BottomTab id="jobs" label="Jobs" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={onSelect} />
+    <BottomTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={onSelect} />
+    <BottomTab id="cover-letter" label="Letters" Icon={FileTextIcon} active={activeTab === 'cover-letter'} onClick={onSelect} />
+    <BottomTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} onClick={onSelect} />
+    <BottomTab id="__more" label="More" Icon={MenuIcon} active={false} onClick={onMore} />
+  </nav>
+);
+
 // ─── Dashboard ────────────────────────────────────────────────────────────────
-const Dashboard = () => {
+const Dashboard = ({ toast: propToast }) => {
   const dispatch = useDispatch();
-  const { user, resumeName, resumeData, resumes, activeResumeId, isDark, activeTab } = useSelector(state => state.auth);
+  const navigate = useNavigate();
+  const { tab: activeTab = 'jobs' } = useParams();
+  const { user, resumeName, resumeData, resumes, activeResumeId, isDark } = useSelector(state => state.auth);
   const [uploadModalOpen, setUploadModalOpen] = React.useState(false);
   const [profileModalOpen, setProfileModalOpen] = React.useState(false);
   const [profileName, setProfileName] = React.useState(user?.name || '');
   const [billingLoading, setBillingLoading] = React.useState(false);
   const [sidebarOpen, setSidebarOpen] = React.useState(false);
 
-  const { toasts, success, error, info } = useToast();
-  const toast = { success, error, info };
+  const localToast = useToast();
+  const toast = propToast || { success: localToast.success, error: localToast.error, info: localToast.info };
 
   // Intercept 1-click import from email digests & Stripe upgrades
   React.useEffect(() => {
@@ -110,21 +158,20 @@ const Dashboard = () => {
         .then(res => {
           if (res.data.success) {
             toast.success(res.data.message || 'Job successfully tracked!');
-            dispatch(setActiveTab('jobs'));
           }
-          window.history.replaceState({}, '', '/');
+          navigate('/app/jobs', { replace: true });
         })
         .catch(err => {
           console.error('Email digest import error:', err);
           toast.error(err.response?.data?.error || 'Failed to import job.');
-          window.history.replaceState({}, '', '/');
+          navigate('/app/jobs', { replace: true });
         });
     }
 
     const upgradeResult = params.get('upgrade');
     if (upgradeResult === 'success') {
       toast.success('Congratulations! You upgraded to Pro tier successfully.');
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', window.location.pathname);
       axios.get(`${BACKEND}/auth/status`).then(statusRes => {
         if (statusRes.data.authenticated) {
           dispatch(setAuth({
@@ -144,7 +191,8 @@ const Dashboard = () => {
               tokenUsage: statusRes.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               referralCode: statusRes.data.referralCode || '',
               referralClicks: statusRes.data.referralClicks || 0,
-              referralConversions: statusRes.data.referralConversions || 0
+              referralConversions: statusRes.data.referralConversions || 0,
+              onboardingCompleted: statusRes.data.onboardingCompleted
             },
             resumeName: statusRes.data.resumeName,
             resumeData: statusRes.data.resumeData
@@ -153,9 +201,9 @@ const Dashboard = () => {
       });
     } else if (upgradeResult === 'cancel') {
       toast.info('Checkout cancelled.');
-      window.history.replaceState({}, '', '/');
+      window.history.replaceState({}, '', window.location.pathname);
     }
-  }, [user, dispatch]);
+  }, [user, dispatch, navigate]);
 
   const [profileEmail, setProfileEmail] = React.useState(user?.email || '');
   const [profilePicFile, setProfilePicFile] = React.useState(null);
@@ -203,7 +251,8 @@ const Dashboard = () => {
               tokenUsage: statusRes.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               referralCode: statusRes.data.referralCode || '',
               referralClicks: statusRes.data.referralClicks || 0,
-              referralConversions: statusRes.data.referralConversions || 0
+              referralConversions: statusRes.data.referralConversions || 0,
+              onboardingCompleted: statusRes.data.onboardingCompleted
             },
             resumeName: statusRes.data.resumeName,
             resumeData: statusRes.data.resumeData
@@ -249,7 +298,8 @@ const Dashboard = () => {
                 tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
                 referralCode: res.data.referralCode || '',
                 referralClicks: res.data.referralClicks || 0,
-                referralConversions: res.data.referralConversions || 0
+                referralConversions: res.data.referralConversions || 0,
+                onboardingCompleted: res.data.onboardingCompleted
               },
               resumeName: res.data.resumeName || null,
               resumeData: res.data.resumeData || null,
@@ -332,7 +382,7 @@ const Dashboard = () => {
         });
     }
     if (parsedData) {
-      setTimeout(() => dispatch(setActiveTab('builder')), 900);
+      setTimeout(() => navigate('/app/builder'), 900);
     }
   };
 
@@ -360,8 +410,17 @@ const Dashboard = () => {
     dispatch(logoutUser());
   };
 
+  const goToTab = (id) => {
+    navigate(`/app/${id}`);
+    setSidebarOpen(false);
+  };
+
+  if (!DASHBOARD_TABS.includes(activeTab) || (activeTab === 'admin' && user?.role !== 'owner')) {
+    return <Navigate to="/app/jobs" replace />;
+  }
+
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-bg-app text-text-main transition-colors duration-200">
+    <div className="min-h-screen flex flex-col lg:flex-row text-text-main transition-colors duration-200">
       {/* Backdrop for Mobile Sidebar */}
       {sidebarOpen && (
         <div
@@ -372,7 +431,7 @@ const Dashboard = () => {
 
       {/* Sidebar Container */}
       <aside
-        className={`w-64 fixed inset-y-0 left-0 bg-bg-card border-r border-border-card flex flex-col justify-between z-50 transition-all duration-300 ease-out transform ${
+        className={`w-64 fixed inset-y-0 left-0 bg-bg-card backdrop-blur-2xl backdrop-saturate-150 border-r border-border-card flex flex-col justify-between z-50 transition-all duration-300 ease-out transform ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         }`}
       >
@@ -393,14 +452,15 @@ const Dashboard = () => {
 
           {/* Navigation Links Stack */}
           <nav className="p-4 space-y-1">
-            <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
-            <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
-            <NavTab id="finder" label="Finder" Icon={FinderIcon} active={activeTab === 'finder'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
-            <NavTab id="cover-letter" label="Cover Letter" Icon={FileTextIcon} active={activeTab === 'cover-letter'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
-            <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
-            <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+            <NavTab id="jobs" label="Outreach" Icon={BriefcaseIcon} active={activeTab === 'jobs'} onClick={goToTab} />
+            <NavTab id="discover" label="Discover" Icon={SearchIcon} active={activeTab === 'discover'} onClick={goToTab} />
+            <NavTab id="finder" label="Finder" Icon={FinderIcon} active={activeTab === 'finder'} onClick={goToTab} />
+            <NavTab id="cover-letter" label="Cover Letter" Icon={FileTextIcon} active={activeTab === 'cover-letter'} onClick={goToTab} />
+            <NavTab id="builder" label="Builder" Icon={LayersIcon} active={activeTab === 'builder'} badge={!!resumeData} onClick={goToTab} />
+            <NavTab id="analytics" label="Analytics" Icon={TrendingUpIcon} active={activeTab === 'analytics'} onClick={goToTab} />
+            <NavTab id="settings" label="Settings" Icon={SettingsIcon} active={activeTab === 'settings'} onClick={goToTab} />
             {user?.role === 'owner' && (
-              <NavTab id="admin" label="Admin" Icon={ShieldAlertIcon} active={activeTab === 'admin'} onClick={(id) => { dispatch(setActiveTab(id)); setSidebarOpen(false); }} />
+              <NavTab id="admin" label="Admin" Icon={ShieldAlertIcon} active={activeTab === 'admin'} onClick={goToTab} />
             )}
           </nav>
         </div>
@@ -432,13 +492,22 @@ const Dashboard = () => {
               <div className="space-y-1.5 pt-2.5 border-t border-border-card">
                 <div className="flex items-center justify-between">
                   <span className="text-[9.5px] font-bold text-text-muted uppercase tracking-widest">Active Resume</span>
-                  <button
-                    onClick={() => { setUploadModalOpen(true); setSidebarOpen(false); }}
-                    className="text-[10px] font-bold text-brand-primary hover:opacity-80 transition-colors flex items-center gap-0.5"
-                    id="sidebar-resume-manage-btn"
-                  >
-                    Manage
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => goToTab('builder')}
+                      className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 hover:opacity-80 transition-colors flex items-center gap-0.5 border-0 bg-transparent cursor-pointer"
+                      id="sidebar-resume-view-btn"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => { setUploadModalOpen(true); setSidebarOpen(false); }}
+                      className="text-[10px] font-bold text-brand-primary hover:opacity-80 transition-colors flex items-center gap-0.5 border-0 bg-transparent cursor-pointer"
+                      id="sidebar-resume-manage-btn"
+                    >
+                      Manage
+                    </button>
+                  </div>
                 </div>
                 <Select
                   value={resumes.map(r => ({ value: r.id, label: r.title })).find(o => o.value === activeResumeId)}
@@ -528,8 +597,8 @@ const Dashboard = () => {
         </header>
 
         {/* Page Content area */}
-        <main className="flex-1 p-5 lg:p-8 max-w-7xl w-full mx-auto">
-          {!resumeName && activeTab !== 'admin' && activeTab !== 'finder' && (
+        <main className={`flex-1 pb-24 lg:pb-0 ${activeTab === 'builder' ? 'w-full' : 'p-5 lg:p-8 max-w-7xl w-full mx-auto'}`}>
+          {!resumeName && activeTab !== 'admin' && activeTab !== 'finder' && activeTab !== 'settings' && (
             <ResumeUpload
               user={user}
               resumeName={resumeName}
@@ -538,15 +607,25 @@ const Dashboard = () => {
             />
           )}
 
-          {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
-          {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
-          {activeTab === 'finder' && <Finder toast={toast} />}
-          {activeTab === 'cover-letter' && <CoverLetterTab user={user} />}
-          {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} />}
-          {activeTab === 'analytics' && <AnalyticsDashboard />}
-          {activeTab === 'admin' && user?.role === 'owner' && <AdminPanel />}
+          <Suspense fallback={<TabLoader />}>
+            {activeTab === 'jobs' && <JobsTable user={user} resumeName={resumeName} />}
+            {activeTab === 'discover' && <JobDiscoverer toast={toast} />}
+            {activeTab === 'finder' && <Finder toast={toast} />}
+            {activeTab === 'cover-letter' && <CoverLetterTab user={user} />}
+            {activeTab === 'builder' && <ResumeBuilder user={user} initialResumeData={resumeData} toast={toast} onUploadClick={() => setUploadModalOpen(true)} />}
+            {activeTab === 'analytics' && <AnalyticsDashboard />}
+            {activeTab === 'settings' && <SettingsTab toast={toast} />}
+            {activeTab === 'admin' && user?.role === 'owner' && <div className="surface-solid"><AdminPanel /></div>}
+          </Suspense>
         </main>
       </div>
+
+      {/* Phone bottom tab bar — Finder/Analytics/Settings/Admin live behind "More" */}
+      <MobileBottomNav
+        activeTab={activeTab}
+        onSelect={goToTab}
+        onMore={() => setSidebarOpen(true)}
+      />
 
       {/* Resume Upload Modal */}
       {uploadModalOpen && (
@@ -558,7 +637,7 @@ const Dashboard = () => {
           <div className="relative w-full max-w-lg animate-fade-in">
             <button
               onClick={() => setUploadModalOpen(false)}
-              className="absolute top-4 right-4 z-10 p-1.5 rounded-lg bg-slate-100 dark:bg-zinc-800 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors shadow-sm"
+              className="absolute top-4 right-4 z-10 p-1.5 rounded-lg bg-slate-100/70 dark:bg-zinc-800/60 hover:bg-slate-200 dark:hover:bg-zinc-700 text-slate-400 dark:text-zinc-500 hover:text-slate-700 dark:hover:text-zinc-200 transition-colors shadow-sm"
               aria-label="Close dialog"
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -586,7 +665,7 @@ const Dashboard = () => {
           onClick={(e) => e.target === e.currentTarget && !savingProfile && setProfileModalOpen(false)}
         >
           {/* Modal content */}
-          <div className="relative w-full max-w-md bg-white/95 dark:bg-zinc-900/95 backdrop-blur-xl rounded-[28px] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.25)] border border-slate-200/60 dark:border-zinc-800/60 overflow-hidden animate-fade-in pointer-events-auto flex flex-col max-h-[90vh]">
+          <div className="relative w-full max-w-2xl bg-white/80 dark:bg-zinc-900/75 backdrop-blur-xl rounded-[28px] shadow-[0_24px_50px_-12px_rgba(0,0,0,0.25)] border border-slate-200/60 dark:border-zinc-800/60 overflow-hidden animate-fade-in pointer-events-auto flex flex-col max-h-[90vh]">
             {/* Header */}
             <div className="px-6 py-5 border-b border-slate-100 dark:border-zinc-850 flex items-center justify-between shrink-0">
               <div>
@@ -607,223 +686,230 @@ const Dashboard = () => {
             </div>
 
             {/* Form */}
-            <form onSubmit={handleProfileSubmit} className="flex-1 overflow-y-auto p-6 space-y-5 min-h-0 scrollbar-thin">
-              {/* Picture Upload */}
-              <div className="flex flex-col items-center gap-2">
-                <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-                  <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 dark:border-zinc-700 group-hover:border-indigo-500 group-hover:ring-4 group-hover:ring-indigo-500/10 transition-all duration-300 bg-slate-50 dark:bg-zinc-850 flex items-center justify-center shadow-inner">
-                    {previewUrl ? (
-                      <img src={previewUrl} alt="Profile preview" className="w-full h-full object-cover" />
-                    ) : user?.picture ? (
-                      <img src={user.picture.startsWith('http') ? user.picture : `${BACKEND}${user.picture}`} alt={user.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{user?.name?.charAt(0) || 'U'}</span>
-                    )}
-                  </div>
-                  <div className="absolute inset-0 bg-black/45 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[1px]">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
-                      <circle cx="12" cy="13" r="4"/>
-                    </svg>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    className="hidden"
-                    onChange={handleProfilePicChange}
-                    id="profile-pic-input"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors bg-transparent border-0 cursor-pointer"
-                >
-                  Change Photo
-                </button>
-              </div>
-
-              {/* Inputs */}
-              <div className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">Full Name</label>
-                  <input
-                    type="text"
-                    required
-                    value={profileName}
-                    onChange={(e) => setProfileName(e.target.value)}
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-medium transition-all"
-                    placeholder="Your Name"
-                    id="profile-name-input"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">Email Address</label>
-                  <input
-                    type="email"
-                    required
-                    value={profileEmail}
-                    onChange={(e) => setProfileEmail(e.target.value)}
-                    className="w-full px-4 py-2.5 text-xs bg-slate-50 dark:bg-zinc-800/40 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-medium transition-all"
-                    placeholder="your.email@example.com"
-                    id="profile-email-input"
-                  />
-                </div>
-              </div>
-
-              {/* Referral Program */}
-              <div className="pt-4 border-t border-slate-150 dark:border-zinc-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">
-                    Referral Program
-                  </h3>
-                </div>
-                <p className="text-[11px] text-slate-450 dark:text-zinc-455 leading-relaxed">
-                  Invite friends to RecoCareer.ai! When they sign up using your link, we will track your stats.
-                </p>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={`${BACKEND}/r/${user?.referralCode || ''}`}
-                    className="w-full bg-slate-50/50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800 text-[11px] font-mono rounded-xl px-3 py-2 focus:outline-none text-slate-600 dark:text-slate-400 shrink min-w-0"
-                    id="referral-url-input"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`${BACKEND}/r/${user?.referralCode || ''}`);
-                      toast.success('Referral link copied to clipboard!');
-                    }}
-                    className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-150/40 dark:border-indigo-500/20 px-3.5 py-2 rounded-xl hover:bg-indigo-100/70 dark:hover:bg-indigo-500/20 transition-all shrink-0 cursor-pointer"
-                  >
-                    Copy
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3 bg-slate-50/40 dark:bg-zinc-950/20 p-3 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
-                  <div className="text-center py-1">
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block mb-0.5">Link Clicks</span>
-                    <span className="text-xl font-extrabold text-slate-800 dark:text-slate-100 leading-none">{user?.referralClicks || 0}</span>
-                  </div>
-                  <div className="text-center py-1 border-l border-slate-200/50 dark:border-zinc-800/40">
-                    <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block mb-0.5">Pro Converts</span>
-                    <span className="text-xl font-extrabold text-indigo-500 dark:text-indigo-400 leading-none">{user?.referralConversions || 0}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Billing & Subscriptions */}
-              <div className="pt-4 border-t border-slate-150 dark:border-zinc-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
-                    Subscription & Usage
-                  </h3>
-                  <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    user?.subscriptionTier === 'pro'
-                      ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
-                      : 'bg-slate-100 dark:bg-zinc-800 text-slate-500 dark:text-zinc-400'
-                  }`}>
-                    {user?.subscriptionTier === 'pro' ? 'Pro Tier' : 'Free Tier'}
-                  </span>
-                </div>
-
-                {/* Usage Metrics */}
-                <div className="space-y-3 bg-slate-50/50 dark:bg-zinc-950/10 p-3.5 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
-                  {/* Tracked Jobs Limit */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="font-semibold text-slate-650 dark:text-zinc-400">Jobs Tracked</span>
-                      <span className={`font-bold ${user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5 ? 'text-rose-500' : 'text-slate-800 dark:text-zinc-200'}`}>
-                        {user?.jobCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '5'}
-                        {user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5 && ' (Limit Exceeded)'}
-                      </span>
-                    </div>
-                    <div className="w-full bg-slate-200/60 dark:bg-zinc-805 h-2 rounded-full overflow-hidden p-[1px]">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5
-                            ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                            : 'bg-gradient-to-r from-indigo-500 to-purple-500'
-                        }`}
-                        style={{
-                          width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.jobCount || 0) / 5) * 100, 100)}%`
-                        }}
+            <form onSubmit={handleProfileSubmit} className="flex-1 overflow-y-auto p-6 min-h-0 scrollbar-thin">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                
+                {/* Left Column: Avatar & Inputs */}
+                <div className="space-y-5">
+                  {/* Picture Upload */}
+                  <div className="flex flex-col items-center gap-2 bg-slate-50/40 dark:bg-zinc-950/20 p-4 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
+                    <div className="relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+                      <div className="w-20 h-20 rounded-full overflow-hidden border-2 border-slate-200 dark:border-zinc-700 group-hover:border-indigo-500 group-hover:ring-4 group-hover:ring-indigo-500/10 transition-all duration-300 bg-slate-50 dark:bg-zinc-850 flex items-center justify-center shadow-inner">
+                        {previewUrl ? (
+                          <img src={previewUrl} alt="Profile preview" className="w-full h-full object-cover" />
+                        ) : user?.picture ? (
+                          <img src={user.picture.startsWith('http') ? user.picture : `${BACKEND}${user.picture}`} alt={user.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <span className="text-2xl font-bold text-indigo-500 dark:text-indigo-400">{user?.name?.charAt(0) || 'U'}</span>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 bg-black/45 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 backdrop-blur-[1px]">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/>
+                          <circle cx="12" cy="13" r="4"/>
+                        </svg>
+                      </div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".jpg,.jpeg,.png,.webp"
+                        className="hidden"
+                        onChange={handleProfilePicChange}
+                        id="profile-pic-input"
                       />
                     </div>
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 transition-colors bg-transparent border-0 cursor-pointer"
+                    >
+                      Change Photo
+                    </button>
                   </div>
 
-                  {/* AI Features Limit */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between text-[11px]">
-                      <span className="font-semibold text-slate-650 dark:text-zinc-400">AI Features Usage</span>
-                      <span className={`font-bold ${user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3 ? 'text-rose-500' : 'text-slate-800 dark:text-zinc-200'}`}>
-                        {user?.aiRequestCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '3'}
-                        {user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3 && ' (Over Limit)'}
-                      </span>
+                  {/* Inputs */}
+                  <div className="space-y-4">
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">Full Name</label>
+                      <input
+                        type="text"
+                        required
+                        value={profileName}
+                        onChange={(e) => setProfileName(e.target.value)}
+                        className="w-full px-4 py-2.5 text-xs bg-slate-50/50 dark:bg-zinc-800/25 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-medium transition-all"
+                        placeholder="Your Name"
+                        id="profile-name-input"
+                      />
                     </div>
-                    <div className="w-full bg-slate-200/60 dark:bg-zinc-805 h-2 rounded-full overflow-hidden p-[1px]">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${
-                          user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3
-                            ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
-                            : 'bg-gradient-to-r from-violet-500 to-indigo-500'
-                        }`}
-                        style={{
-                          width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.aiRequestCount || 0) / 3) * 100, 100)}%`
-                        }}
+
+                    <div className="space-y-1.5">
+                      <label className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={profileEmail}
+                        onChange={(e) => setProfileEmail(e.target.value)}
+                        className="w-full px-4 py-2.5 text-xs bg-slate-50/50 dark:bg-zinc-800/25 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500/15 focus:border-indigo-500 text-slate-800 dark:text-slate-100 font-medium transition-all"
+                        placeholder="your.email@example.com"
+                        id="profile-email-input"
                       />
                     </div>
                   </div>
                 </div>
 
-                {/* Subscription Action Trigger Card */}
-                <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-violet-50/50 dark:from-indigo-950/10 dark:via-purple-950/5 dark:to-zinc-950/20 p-3.5 rounded-2xl border border-indigo-100/50 dark:border-indigo-500/10 flex items-center justify-between gap-3 mt-1.5">
-                  {user?.subscriptionTier === 'pro' ? (
-                    <>
-                      <p className="text-[11px] text-slate-450 dark:text-zinc-500 leading-normal max-w-[200px]">
-                        You have unlimited access to all features. Need to downgrade?
-                      </p>
+                {/* Right Column: Billing, Subscriptions & Referrals */}
+                <div className="space-y-5">
+                  {/* Billing & Subscriptions */}
+                  <div className="space-y-3 bg-slate-50/50 dark:bg-zinc-950/10 p-4 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">
+                        Subscription & Usage
+                      </h3>
+                      <span className={`text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                        user?.subscriptionTier === 'pro'
+                          ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20'
+                          : 'bg-slate-100/70 dark:bg-zinc-800/60 text-slate-500 dark:text-zinc-400'
+                      }`}>
+                        {user?.subscriptionTier === 'pro' ? 'Pro Tier' : 'Free Tier'}
+                      </span>
+                    </div>
+
+                    {/* Usage Metrics */}
+                    <div className="space-y-3">
+                      {/* Tracked Jobs Limit */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-semibold text-slate-650 dark:text-zinc-400">Jobs Tracked</span>
+                          <span className={`font-bold ${user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5 ? 'text-rose-500' : 'text-slate-800 dark:text-zinc-200'}`}>
+                            {user?.jobCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '5'}
+                            {user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5 && ' (Limit Exceeded)'}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-200/60 dark:bg-zinc-805 h-2 rounded-full overflow-hidden p-[1px]">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              user?.subscriptionTier !== 'pro' && (user?.jobCount || 0) > 5
+                                ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                                : 'bg-gradient-to-r from-indigo-500 to-purple-500'
+                            }`}
+                            style={{
+                              width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.jobCount || 0) / 5) * 100, 100)}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* AI Features Limit */}
+                      <div className="space-y-1.5">
+                        <div className="flex justify-between text-[11px]">
+                          <span className="font-semibold text-slate-650 dark:text-zinc-400">AI Features Usage</span>
+                          <span className={`font-bold ${user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3 ? 'text-rose-500' : 'text-slate-800 dark:text-zinc-200'}`}>
+                            {user?.aiRequestCount || 0} / {user?.subscriptionTier === 'pro' ? '∞' : '3'}
+                            {user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3 && ' (Over Limit)'}
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-200/60 dark:bg-zinc-805 h-2 rounded-full overflow-hidden p-[1px]">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              user?.subscriptionTier !== 'pro' && (user?.aiRequestCount || 0) > 3
+                                ? 'bg-gradient-to-r from-rose-500 to-red-500 shadow-[0_0_8px_rgba(239,68,68,0.3)]'
+                                : 'bg-gradient-to-r from-violet-500 to-indigo-500'
+                            }`}
+                            style={{
+                              width: `${user?.subscriptionTier === 'pro' ? 100 : Math.min(((user?.aiRequestCount || 0) / 3) * 100, 100)}%`
+                            }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Subscription Action Trigger Card */}
+                    <div className="bg-gradient-to-br from-indigo-50/50 via-purple-50/30 to-violet-50/50 dark:from-indigo-950/10 dark:via-purple-950/5 dark:to-zinc-950/20 p-3 rounded-xl border border-indigo-100/50 dark:border-indigo-500/10 flex items-center justify-between gap-3 mt-1.5">
+                      {user?.subscriptionTier === 'pro' ? (
+                        <>
+                          <p className="text-[10px] text-slate-450 dark:text-zinc-500 leading-normal max-w-[140px]">
+                            Unlimited access enabled. Need to downgrade?
+                          </p>
+                          <button
+                            type="button"
+                            disabled={billingLoading}
+                            onClick={handleCancelSubscription}
+                            className="text-xs font-bold text-rose-500 hover:text-rose-600 disabled:opacity-50 flex items-center gap-1 cursor-pointer bg-transparent border-0 font-sans"
+                          >
+                            {billingLoading && <div className="w-3 h-3 border border-rose-500 border-t-transparent rounded-full animate-spin" />}
+                            Cancel Pro
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-[10px] text-slate-450 dark:text-zinc-455 leading-normal max-w-[150px]">
+                            Unlock unlimited jobs, resumes, imports, and AI matching.
+                          </p>
+                          <button
+                            type="button"
+                            disabled={billingLoading}
+                            onClick={handleUpgrade}
+                            className="text-[10px] font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg shadow-md shadow-indigo-500/10 active:scale-98 transition-all disabled:opacity-50 flex items-center gap-1 cursor-pointer shrink-0 border-0"
+                          >
+                            {billingLoading && <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />}
+                            Upgrade to Pro
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Referral Program */}
+                  <div className="pt-4 border-t border-slate-150 dark:border-zinc-800 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-[10px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider">
+                        Referral Program
+                      </h3>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        readOnly
+                        value={`${BACKEND}/r/${user?.referralCode || ''}`}
+                        className="w-full bg-slate-50/50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800 text-[11px] font-mono rounded-xl px-3 py-2 focus:outline-none text-slate-600 dark:text-slate-400 shrink min-w-0"
+                        id="referral-url-input"
+                      />
                       <button
                         type="button"
-                        disabled={billingLoading}
-                        onClick={handleCancelSubscription}
-                        className="text-xs font-bold text-rose-500 hover:text-rose-600 disabled:opacity-50 flex items-center gap-1 cursor-pointer bg-transparent border-0"
+                        onClick={() => {
+                          navigator.clipboard.writeText(`${BACKEND}/r/${user?.referralCode || ''}`);
+                          toast.success('Referral link copied to clipboard!');
+                        }}
+                        className="text-[11px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 border border-indigo-150/40 dark:border-indigo-500/20 px-3.5 py-2 rounded-xl hover:bg-indigo-100/70 dark:hover:bg-indigo-500/20 transition-all shrink-0 cursor-pointer"
                       >
-                        {billingLoading && <div className="w-3 h-3 border border-rose-500 border-t-transparent rounded-full animate-spin" />}
-                        Cancel Pro
+                        Copy
                       </button>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-[11px] text-slate-450 dark:text-zinc-455 leading-normal max-w-[210px]">
-                        Unlock unlimited jobs, resumes, search imports, and advanced AI matching.
-                      </p>
-                      <button
-                        type="button"
-                        disabled={billingLoading}
-                        onClick={handleUpgrade}
-                        className="text-[11px] font-bold bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white px-4 py-2 rounded-xl shadow-lg shadow-indigo-500/20 active:scale-98 transition-all disabled:opacity-50 flex items-center gap-1.5 cursor-pointer shrink-0 border-0"
-                      >
-                        {billingLoading && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />}
-                        Upgrade to Pro
-                      </button>
-                    </>
-                  )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 bg-slate-50/40 dark:bg-zinc-950/20 p-2.5 rounded-2xl border border-slate-150/40 dark:border-zinc-850/50">
+                      <div className="text-center py-1">
+                        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block mb-0.5">Link Clicks</span>
+                        <span className="text-lg font-extrabold text-slate-800 dark:text-slate-100 leading-none">{user?.referralClicks || 0}</span>
+                      </div>
+                      <div className="text-center py-1 border-l border-slate-200/50 dark:border-zinc-800/40">
+                        <span className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block mb-0.5">Pro Converts</span>
+                        <span className="text-lg font-extrabold text-indigo-500 dark:text-indigo-400 leading-none">{user?.referralConversions || 0}</span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
+
               </div>
 
               {/* Error Box */}
               {profileError && (
-                <div className="p-3 text-xs bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-600 dark:text-red-400 animate-fade-in">
+                <div className="p-3 mt-4 text-xs bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded-xl text-red-600 dark:text-red-400 animate-fade-in">
                   {profileError}
                 </div>
               )}
 
               {/* Success Box */}
               {profileSuccess && (
-                <div className="p-3 text-xs bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 animate-fade-in">
+                <div className="p-3 mt-4 text-xs bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-xl text-emerald-600 dark:text-emerald-400 animate-fade-in">
                   Profile updated successfully!
                 </div>
               )}
@@ -835,7 +921,7 @@ const Dashboard = () => {
                 type="button"
                 disabled={savingProfile}
                 onClick={() => setProfileModalOpen(false)}
-                className="flex-1 py-2.5 text-xs font-bold text-slate-600 dark:text-zinc-400 bg-slate-100 dark:bg-zinc-850 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer border-0"
+                className="flex-1 py-2.5 text-xs font-bold text-slate-600 dark:text-zinc-400 bg-slate-100/70 dark:bg-zinc-850/70 hover:bg-slate-200 dark:hover:bg-zinc-800 rounded-xl transition-all cursor-pointer border-0"
               >
                 Cancel
               </button>
@@ -859,7 +945,7 @@ const Dashboard = () => {
           </div>
         </div>
       )}
-      <ToastContainer toasts={toasts} />
+      {!propToast && <ToastContainer toasts={localToast.toasts} />}
     </div>
   );
 };
@@ -868,6 +954,9 @@ const Dashboard = () => {
 function App() {
   const dispatch = useDispatch();
   const { authenticated, isDark, user } = useSelector(state => state.auth);
+
+  const { toasts, success, error, info } = useToast();
+  const toast = { success, error, info };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -887,7 +976,7 @@ function App() {
     } else if (authResult === 'error') {
       const reason = params.get('reason') || 'unknown';
       window.history.replaceState({}, '', '/');
-      setTimeout(() => alert(`Sign-in failed: ${reason}`), 100);
+      setTimeout(() => toast.error(`Sign-in failed: ${reason}`), 100);
     }
 
     axios
@@ -926,7 +1015,8 @@ function App() {
               tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               referralCode: res.data.referralCode || '',
               referralClicks: res.data.referralClicks || 0,
-              referralConversions: res.data.referralConversions || 0
+              referralConversions: res.data.referralConversions || 0,
+              onboardingCompleted: res.data.onboardingCompleted
             },
             resumeName: res.data.resumeName || null,
             resumeData: res.data.resumeData || null,
@@ -985,7 +1075,8 @@ function App() {
               tokenUsage: res.data.tokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
               referralCode: res.data.referralCode || '',
               referralClicks: res.data.referralClicks || 0,
-              referralConversions: res.data.referralConversions || 0
+              referralConversions: res.data.referralConversions || 0,
+              onboardingCompleted: res.data.onboardingCompleted
             },
             resumeName: res.data.resumeName || null,
             resumeData: res.data.resumeData || null,
@@ -1002,25 +1093,34 @@ function App() {
     return (
       <>
         <InteractiveBackground />
-        <Routes>
-          <Route path="/" element={<HomePage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
-          <Route path="/pricing" element={<PricingPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
-          <Route path="/faq" element={<FAQPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
-          <Route path="/privacy" element={<PrivacyPolicyPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
-          <Route path="/terms" element={<TermsPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
-          <Route path="/contact" element={<ContactPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <ToastContainer toasts={toasts} />
+        <Suspense fallback={<TabLoader />}>
+          <Routes>
+            <Route path="/" element={<HomePage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+            <Route path="/pricing" element={<PricingPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+            <Route path="/faq" element={<FAQPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+            <Route path="/privacy" element={<PrivacyPolicyPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+            <Route path="/terms" element={<TermsPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+            <Route path="/contact" element={<ContactPage isDark={isDark} onToggleTheme={toggleThemeHandler} />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </>
     );
   }
+
+  const showOnboarding = authenticated && user && !user.onboardingCompleted;
 
   // Gated: only paid users can access dashboard
   if (user?.subscriptionTier !== 'pro') {
     return (
       <>
         <InteractiveBackground />
-        <PaymentGate user={user} onUpgradeSuccess={handleUpgradeSuccess} handleLogout={handleLogout} />
+        <ToastContainer toasts={toasts} />
+        {showOnboarding && <OnboardingModal user={user} toast={toast} />}
+        <Suspense fallback={<TabLoader />}>
+          <PaymentGate user={user} onUpgradeSuccess={handleUpgradeSuccess} handleLogout={handleLogout} />
+        </Suspense>
       </>
     );
   }
@@ -1028,7 +1128,13 @@ function App() {
   return (
     <>
       <InteractiveBackground />
-      <Dashboard />
+      <ToastContainer toasts={toasts} />
+      {showOnboarding && <OnboardingModal user={user} toast={toast} />}
+      <Routes>
+        <Route path="/app" element={<Navigate to="/app/jobs" replace />} />
+        <Route path="/app/:tab" element={<Dashboard toast={toast} />} />
+        <Route path="*" element={<RedirectToApp />} />
+      </Routes>
     </>
   );
 }

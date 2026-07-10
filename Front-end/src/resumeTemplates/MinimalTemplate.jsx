@@ -1,6 +1,13 @@
 import React from 'react';
-import { TEMPLATE_TOKENS, resolveTheme } from './templateSchema.js';
+import { TEMPLATE_TOKENS, resolveTheme, resolvePadding } from './templateSchema.js';
 import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, SectionActiveContext } from '../components/InlineCVEditor.jsx';
+
+const SummaryIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
+const ExperienceIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
+const EducationIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c0 2 2 3 6 3s6-1 6-3v-5"/></svg>;
+const SkillsIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+const ProjectsIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>;
+const CertificationsIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>;
 
 /**
  * Minimal Template — ultra-clean, typography-first, whitespace-focused.
@@ -11,6 +18,7 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   const s = TEMPLATE_TOKENS.minimal.styles(t);
   const skills = resumeData.skills || {};
   const allSkills = [...(skills.technical || []), ...(skills.tools || [])];
+  const bodyPadding = resolvePadding('minimal', t.margins);
 
   const updPI = (k) => (v) => onUpdate?.({ personalInfo: { ...p, [k]: v } });
   const updSummary = (v) => onUpdate?.({ summary: v });
@@ -70,7 +78,7 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   const ThinLine = () => <hr style={s.thinLine} />;
 
   return (
-    <div style={{ fontFamily: TEMPLATE_TOKENS.minimal.fontFamily, fontSize: TEMPLATE_TOKENS.minimal.fontSize, color: '#374151', background: '#fff', padding: TEMPLATE_TOKENS.minimal.bodyPadding, maxWidth: TEMPLATE_TOKENS.minimal.maxWidth, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
+    <div style={{ fontFamily: TEMPLATE_TOKENS.minimal.fontFamily, fontSize: TEMPLATE_TOKENS.minimal.fontSize, color: '#374151', background: '#fff', padding: bodyPadding, maxWidth: TEMPLATE_TOKENS.minimal.maxWidth, margin: '0 auto', boxSizing: 'border-box', width: '100%' }}>
 
       {/* Name — split weight trick: first name bold, rest light */}
       <div style={s.name}>
@@ -98,20 +106,26 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* About / Summary */}
       {(resumeData.summary || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Summary" onDelete={() => onUpdate?.({ summary: '' })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>About</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-sec-0">
+              {t.showIcons && <SummaryIcon />}
+              About
+            </div>
             <ThinLine />
-            <div style={s.summary}><ML value={resumeData.summary || ''} onChange={updSummary} placeholder="Brief professional overview..." /></div>
+            <div style={s.summary} data-block data-block-id="summary-body"><ML value={resumeData.summary || ''} onChange={updSummary} placeholder="Brief professional overview..." /></div>
           </div>
         </SectionWrapper>
       )}
 
       {/* Experience */}
       {((resumeData.experience || []).length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Experience" onAdd={addExp} onDelete={() => onUpdate?.({ experience: [] })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Experience</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-sec-1">
+              {t.showIcons && <ExperienceIcon />}
+              Experience
+            </div>
             <ThinLine />
             {(resumeData.experience || []).map((exp, i) => (
               <BlockWrapper key={i} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
@@ -142,14 +156,16 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Skills */}
       {(allSkills.length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Skills" onDelete={() => onUpdate?.({ skills: { technical: [], tools: [], soft: [], languages: [] } })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Skills</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-sec-2">
+              {t.showIcons && <SkillsIcon />}
+              Skills
+            </div>
             <ThinLine />
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '4px' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px', marginBottom: '4px' }} data-block data-block-id="skills-main">
               <EditableSkillChips items={[...(skills.technical || []), ...(skills.tools || [])]}
                 onChange={(v) => {
-                  // split first half to technical, rest to tools — simplified for minimal
                   const mid = Math.ceil(v.length / 2);
                   updSkills('technical')(v.slice(0, mid));
                   updSkills('tools')(v.slice(mid));
@@ -172,9 +188,12 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Education */}
       {((resumeData.education || []).length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Education" onAdd={addEdu} onDelete={() => onUpdate?.({ education: [] })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Education</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-sec-3">
+              {t.showIcons && <EducationIcon />}
+              Education
+            </div>
             <ThinLine />
             {(resumeData.education || []).map((edu, i) => (
               <BlockWrapper key={i} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
@@ -201,9 +220,12 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
 
       {/* Projects */}
       {((resumeData.projects || []).length > 0 || editMode) && (
-        <SectionWrapper editMode={editMode}>
+        <SectionWrapper editMode={editMode} sectionLabel="Projects" onAdd={addPr} onDelete={() => onUpdate?.({ projects: [] })}>
           <div style={s.section}>
-            <div style={s.sectionTitle}>Projects</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-sec-4">
+              {t.showIcons && <ProjectsIcon />}
+              Projects
+            </div>
             <ThinLine />
             {(resumeData.projects || []).map((pr, i) => (
               <BlockWrapper key={i} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
@@ -227,15 +249,37 @@ const MinimalTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
       )}
 
       {/* Certifications */}
-      {(resumeData.certifications || []).length > 0 && (
-        <SectionWrapper editMode={editMode}>
+      {((resumeData.certifications || []).length > 0 || editMode) && (
+        <SectionWrapper
+          editMode={editMode}
+          sectionLabel="Certifications"
+          onAdd={() => onUpdate?.({ certifications: [...(resumeData.certifications || []), { name: '', issuer: '' }] })}
+          onDelete={() => onUpdate?.({ certifications: [] })}
+        >
           <div style={s.section}>
-            <div style={s.sectionTitle}>Certifications</div>
+            <div style={s.sectionTitle} data-heading="true" data-block-id="heading-sec-5">
+              {t.showIcons && <CertificationsIcon />}
+              Certifications
+            </div>
             <ThinLine />
-            {resumeData.certifications.map((c, i) => (
-              <div key={i} style={{ fontSize: '8.5pt', color: '#4b5563', marginBottom: '4px' }}>
-                {c.name}{c.issuer ? ` — ${c.issuer}` : ''}{c.date ? ` (${c.date})` : ''}
-              </div>
+            {(resumeData.certifications || []).map((c, i) => (
+              <BlockWrapper key={i} id={`certification-${i}`} editMode={editMode} onDelete={() => onUpdate?.({ certifications: (resumeData.certifications || []).filter((_, idx) => idx !== i) })}>
+                <div style={{ fontSize: '8.5pt', color: '#4b5563', marginBottom: '4px' }}>
+                  <span style={{ fontWeight: '600' }}>
+                    <T value={c.name || ''} onChange={(v) => {
+                      const next = [...(resumeData.certifications || [])];
+                      next[i] = { ...next[i], name: v };
+                      onUpdate?.({ certifications: next });
+                    }} placeholder="Certification" />
+                  </span>
+                  {' — '}
+                  <T value={c.issuer || ''} onChange={(v) => {
+                    const next = [...(resumeData.certifications || [])];
+                    next[i] = { ...next[i], issuer: v };
+                    onUpdate?.({ certifications: next });
+                  }} placeholder="Issuer" />
+                </div>
+              </BlockWrapper>
             ))}
           </div>
         </SectionWrapper>

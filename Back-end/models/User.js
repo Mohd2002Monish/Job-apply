@@ -92,18 +92,31 @@ const userSchema = new mongoose.Schema({
   resumePath: { type: String, default: '' },
   resumes: { type: [resumeSchema], default: [] },
   activeResumeId: { type: String, default: '' },
-    targetProfile: {
-      targetRole: { type: String, default: '' },
-      targetLocation: { type: String, default: '' },
-      salaryExpectation: { type: Number, default: 0 },
-      digestEnabled: { type: Boolean, default: false },
-      digestFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' }
-    },
+  onboardingCompleted: { type: Boolean, default: false },
+  targetProfile: {
+    targetRole: { type: String, default: '' },
+    targetLocation: { type: String, default: '' },
+    workStyle: { type: String, enum: ['remote', 'hybrid', 'onsite'], default: 'remote' },
+    experienceLevel: { type: String, enum: ['fresher', 'junior', 'mid', 'senior'], default: 'fresher' },
+    salaryExpectation: { type: Number, default: 0 },
+    digestEnabled: { type: Boolean, default: false },
+    digestFrequency: { type: String, enum: ['daily', 'weekly'], default: 'daily' }
+  },
     subscriptionTier: { type: String, enum: ['free', 'pro'], default: 'free' },
     stripeCustomerId: { type: String, default: '' },
     stripeSubscriptionId: { type: String, default: '' },   // Stripe subscription ID
     razorpaySubscriptionId: { type: String, default: '' }, // Razorpay subscription ID
     aiRequestCount: { type: Number, default: 0 },
+    aiModelPreference: { type: String, default: 'gemini-2.5-flash' },
+    preferences: {
+      aiModelForResume: { type: String, default: 'gemini-1.5-pro' },
+      aiModelForCoverLetter: { type: String, default: 'gemini-1.5-pro' },
+      aiModelForOutreach: { type: String, default: 'gpt-4o' },
+      aiModelForInterview: { type: String, default: 'gemini-2.5-flash' },
+      defaultResumeTemplate: { type: String, default: 'profile-classic' },
+      defaultCoverLetterLength: { type: String, default: 'medium' },
+      defaultEmailWordCount: { type: Number, default: 100 }
+    },
     role: { type: String, enum: ['user', 'owner'], default: 'user' },
     tokenUsage: {
       promptTokens: { type: Number, default: 0 },

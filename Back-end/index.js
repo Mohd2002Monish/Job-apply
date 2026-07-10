@@ -36,7 +36,8 @@ app.use(globalLimiter);
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 app.use(cors({
   origin: (origin, callback) => {
-    const allowed = ["http://localhost:5173", "http://localhost:5174", "http://localhost:4173"];
+    // 5173/5174 vite dev, 4173 vite preview, 8081 expo web (Mobile-App)
+    const allowed = ["http://localhost:5173", "http://localhost:5174", "http://localhost:4173", "http://localhost:8081"];
     if (!origin || allowed.includes(origin) || origin.startsWith("chrome-extension://")) {
       callback(null, true);
     } else {
@@ -52,8 +53,9 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 3mb limit: WYSIWYG resume exports POST the rendered editor HTML for pixel-perfect PDFs
+app.use(express.json({ limit: '3mb' }));
+app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(cookieParser());
 
 const path = require("path");
@@ -61,9 +63,15 @@ app.use(express.static(path.join(__dirname, "public")));
 
 // ─── MongoDB ───────────────────────────────────────────────────────────────────
 let dbConnected = false;
+const seedAiModels = require("./utils/seedAiModels");
+
 mongoose
   .connect(process.env.MONGODB_URI)
-  .then(() => { console.log("MongoDB connected"); dbConnected = true; })
+  .then(async () => {
+    console.log("MongoDB connected");
+    dbConnected = true;
+    await seedAiModels();
+  })
   .catch((err) => {
     console.error("MongoDB error:", err.message);
   });

@@ -16,6 +16,87 @@ const getGemini = () => {
   return _geminiClient;
 };
 
+const getOpenAI = () => {
+  if (!_openaiClient) {
+    if (!process.env.OPENAI_API_KEY || process.env.OPENAI_API_KEY === 'YOUR_OPENAI_API_KEY_HERE') {
+      throw new Error("OPENAI_API_KEY is not configured.");
+    }
+    _openaiClient = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY
+    });
+  }
+  return _openaiClient;
+};
+
+/**
+ * Directly calls the Anthropic Claude API via native fetch.
+ * Returns an OpenAI-compatible completion object.
+ */
+const callClaudeAPI = async (model, messages, temperature = 0.7) => {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey || apiKey === 'YOUR_ANTHROPIC_API_KEY_HERE') {
+    throw new Error("ANTHROPIC_API_KEY is not configured.");
+  }
+
+  // Claude requires system prompt separated from messages
+  const systemMessage = messages.find(m => m.role === 'system');
+  const userMessages = messages
+    .filter(m => m.role !== 'system')
+    .map(m => ({
+      role: m.role === 'assistant' ? 'assistant' : 'user',
+      content: m.content
+    }));
+
+  // Map to standard Anthropic model identifiers
+  let claudeModel = 'claude-3-5-sonnet-20241022';
+  if (model === 'claude-3-5-haiku') {
+    claudeModel = 'claude-3-5-haiku-20241022';
+  }
+
+  const payload = {
+    model: claudeModel,
+    max_tokens: 4000,
+    messages: userMessages,
+    temperature: temperature || 0.7
+  };
+
+  if (systemMessage) {
+    payload.system = systemMessage.content;
+  }
+
+  const response = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Anthropic API error: ${response.status} - ${errorText}`);
+  }
+
+  const data = await response.json();
+  const content = data.content?.[0]?.text || '';
+
+  return {
+    choices: [{
+      message: {
+        role: 'assistant',
+        content: content
+      }
+    }],
+    usage: {
+      prompt_tokens: data.usage?.input_tokens || 0,
+      completion_tokens: data.usage?.output_tokens || 0,
+      total_tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0)
+    }
+  };
+};
+
 const getClientForModel = (modelName) => {
   const model = modelName || "gemini-2.5-flash";
   const isOpenAi = model.startsWith("gpt-");
@@ -25,12 +106,7 @@ const getClientForModel = (modelName) => {
                          process.env.OPENAI_API_KEY !== 'YOUR_OPENAI_API_KEY_HERE' && 
                          process.env.OPENAI_API_KEY.trim() !== '';
     if (hasOpenAiKey) {
-      if (!_openaiClient) {
-        _openaiClient = new OpenAI({
-          apiKey: process.env.OPENAI_API_KEY
-        });
-      }
-      return { client: _openaiClient, modelName: model };
+      return { client: getOpenAI(), modelName: model };
     } else {
       console.warn(`⚠️ OpenAI API Key not configured. Falling back to Gemini equivalent for model ${model}`);
       const geminiFallback = model === "gpt-4o" ? "gemini-1.5-pro" : "gemini-2.5-flash";
@@ -72,46 +148,170 @@ const extractJson = (text) => {
 };
 
 /**
- * Automatically retries OpenAI/Gemini completions on 429 status code with exponential backoff.
+ * Unified completion engine. Automatically routes to Google Gemini, OpenAI ChatGPT, or
+ * Anthropic Claude, and falls back to healthy backup engines if the requested LLM fails.
  */
-const createChatCompletionWithRetry = async (params, retries = 3, delay = 2000) => {
+const createChatCompletionWithRetry = async (params, retries = 3, initialDelay = 2000) => {
   const contextStore = require('./contextStore');
   const contextReq = contextStore.getStore();
   const req = params.req || contextReq;
   delete params.req;
 
-  const requestedModel = req?.body?.aiModel || req?.query?.aiModel || params.model || "gemini-2.5-flash";
-  const { client, modelName } = getClientForModel(requestedModel);
+  // Infer task/usecase from prompt text to resolve preference
+  const prefs = req?.user?.preferences;
+  let taskModel = null;
 
-  params.model = modelName;
+  if (prefs) {
+    let inferredUseCase = null;
+    const promptText = params.messages?.map(m => m.content).join(" ").toLowerCase() || "";
+    
+    if (promptText.includes("ats") || promptText.includes("applicant tracking system") || promptText.includes("job description fields")) {
+      inferredUseCase = "ats";
+    } else if (promptText.includes("tailor") || promptText.includes("gap analysis") || promptText.includes("keyword suggestions")) {
+      inferredUseCase = "tailoring";
+    } else if (promptText.includes("cover letter")) {
+      inferredUseCase = "cover-letter";
+    } else if (promptText.includes("outreach") || promptText.includes("recruiter reply") || promptText.includes("reply to recruiter") || promptText.includes("pitch")) {
+      inferredUseCase = "outreach";
+    } else if (promptText.includes("interview question") || promptText.includes("grade the candidate") || promptText.includes("mock interview") || promptText.includes("practice")) {
+      inferredUseCase = "interview";
+    }
 
-  for (let i = 0; i <= retries; i++) {
-    try {
-      const completion = await client.chat.completions.create(params);
-      if (req && completion.usage) {
-        if (!req.tokenUsage) {
-          req.tokenUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
-        }
-        req.tokenUsage.prompt_tokens = (req.tokenUsage.prompt_tokens || 0) + (completion.usage.prompt_tokens || 0);
-        req.tokenUsage.completion_tokens = (req.tokenUsage.completion_tokens || 0) + (completion.usage.completion_tokens || 0);
-        req.tokenUsage.total_tokens = (req.tokenUsage.total_tokens || 0) + (completion.usage.total_tokens || 0);
+    if (inferredUseCase === 'ats' || inferredUseCase === 'tailoring') {
+      taskModel = prefs.aiModelForResume;
+    } else if (inferredUseCase === 'cover-letter') {
+      taskModel = prefs.aiModelForCoverLetter;
+    } else if (inferredUseCase === 'outreach') {
+      taskModel = prefs.aiModelForOutreach;
+    } else if (inferredUseCase === 'interview') {
+      taskModel = prefs.aiModelForInterview;
+    }
+  }
+
+  // Resolve target model: Task Model > User global preference > Request payload > Params default
+  const userModel = taskModel || req?.user?.aiModelPreference;
+  const requestedModel = userModel || req?.body?.aiModel || req?.query?.aiModel || params.model || "gemini-2.5-flash";
+
+  let targetProvider = null;
+  try {
+    const AiModel = require('../models/AiModel');
+    const dbModel = await AiModel.findOne({ modelId: requestedModel.toLowerCase() });
+    if (dbModel) {
+      if (dbModel.provider === 'Google Gemini') targetProvider = 'gemini';
+      else if (dbModel.provider === 'OpenAI') targetProvider = 'openai';
+      else if (dbModel.provider === 'Anthropic Claude') targetProvider = 'claude';
+    }
+  } catch (err) {
+    console.warn("Could not query AiModel database collection, falling back to prefix matching:", err.message);
+  }
+
+  if (!targetProvider) {
+    if (requestedModel.startsWith("gemini-")) {
+      targetProvider = 'gemini';
+    } else if (requestedModel.startsWith("gpt-") || requestedModel.startsWith("o1-") || requestedModel.startsWith("o3-")) {
+      targetProvider = 'openai';
+    } else if (requestedModel.startsWith("claude-")) {
+      targetProvider = 'claude';
+    } else {
+      targetProvider = 'gemini'; // default
+    }
+  }
+
+  // Build fallback execution chain
+  const chain = [];
+  if (targetProvider === "gemini") {
+    chain.push({ provider: "gemini", model: requestedModel });
+    chain.push({ provider: "openai", model: "gpt-4o-mini" });
+    chain.push({ provider: "claude", model: "claude-3-5-haiku" });
+  } else if (targetProvider === "openai") {
+    chain.push({ provider: "openai", model: requestedModel });
+    chain.push({ provider: "gemini", model: "gemini-2.5-flash" });
+    chain.push({ provider: "claude", model: "claude-3-5-haiku" });
+  } else if (targetProvider === "claude") {
+    chain.push({ provider: "claude", model: requestedModel });
+    chain.push({ provider: "gemini", model: "gemini-2.5-flash" });
+    chain.push({ provider: "openai", model: "gpt-4o-mini" });
+  }
+
+  let lastError = null;
+
+  for (const step of chain) {
+    let delay = initialDelay;
+
+    // Check if the required API key is configured
+    if (step.provider === "gemini") {
+      const hasKey = process.env.GEMINI_API_KEY && process.env.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY_HERE';
+      if (!hasKey) {
+        console.warn("Gemini API key is missing. Skipping to next provider in fallback chain.");
+        continue;
       }
-      return completion;
-    } catch (error) {
-      const isRateLimit = error.status === 429 || 
-                          (error.message && error.message.includes('429')) || 
-                          (error.message && error.message.toLowerCase().includes('rate limit')) ||
-                          (error.message && error.message.toLowerCase().includes('too many requests'));
-                          
-      if (isRateLimit && i < retries) {
-        console.warn(`⚠️ API 429 rate limit hit. Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        delay *= 2.5; // exponential backoff
-      } else {
-        throw error;
+    } else if (step.provider === "openai") {
+      const hasKey = process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'YOUR_OPENAI_API_KEY_HERE';
+      if (!hasKey) {
+        console.warn("OpenAI API key is missing. Skipping to next provider in fallback chain.");
+        continue;
+      }
+    } else if (step.provider === "claude") {
+      const hasKey = process.env.ANTHROPIC_API_KEY && process.env.ANTHROPIC_API_KEY !== 'YOUR_ANTHROPIC_API_KEY_HERE';
+      if (!hasKey) {
+        console.warn("Anthropic Claude API key is missing. Skipping to next provider in fallback chain.");
+        continue;
+      }
+    }
+
+    for (let i = 0; i <= retries; i++) {
+      try {
+        let completion;
+
+        if (step.provider === "gemini") {
+          const client = getGemini();
+          completion = await client.chat.completions.create({
+            ...params,
+            model: step.model
+          });
+        } else if (step.provider === "openai") {
+          const client = getOpenAI();
+          completion = await client.chat.completions.create({
+            ...params,
+            model: step.model
+          });
+        } else if (step.provider === "claude") {
+          completion = await callClaudeAPI(step.model, params.messages, params.temperature);
+        }
+
+        // Record token usage if present
+        if (req && completion.usage) {
+          if (!req.tokenUsage) {
+            req.tokenUsage = { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 };
+          }
+          req.tokenUsage.prompt_tokens = (req.tokenUsage.prompt_tokens || 0) + (completion.usage.prompt_tokens || 0);
+          req.tokenUsage.completion_tokens = (req.tokenUsage.completion_tokens || 0) + (completion.usage.completion_tokens || 0);
+          req.tokenUsage.total_tokens = (req.tokenUsage.total_tokens || 0) + (completion.usage.total_tokens || 0);
+        }
+
+        console.log(`[AI Routing] Successfully generated completion using ${step.provider} (${step.model})`);
+        return completion;
+
+      } catch (error) {
+        const isRateLimit = error.status === 429 || 
+                            (error.message && error.message.includes('429')) || 
+                            (error.message && error.message.toLowerCase().includes('rate limit')) ||
+                            (error.message && error.message.toLowerCase().includes('too many requests'));
+
+        if (isRateLimit && i < retries) {
+          console.warn(`[AI Routing] Rate limit hit for ${step.provider} (${step.model}). Retrying in ${delay}ms... (Attempt ${i + 1}/${retries})`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2.5; // exponential backoff
+        } else {
+          console.warn(`[AI Routing] ${step.provider} (${step.model}) failed: ${error.message}`);
+          lastError = error;
+          break; // break retry loop to try next provider in fallback chain
+        }
       }
     }
   }
+
+  throw new Error(`All AI completion providers failed. Last error: ${lastError?.message}`);
 };
 
 /**
@@ -172,7 +372,12 @@ const generateEmailContent = async (job, resumeData) => {
     const openai = getGemini();
     const candidateContext = formatResumeContext(resumeData);
 
-    const prompt = `Write a short, professional, and concise job application email. The tone should be formal, confident, and approachable. Use natural everyday English with a professional tone.
+    const contextStore = require('./contextStore');
+    const req = contextStore.getStore();
+    const prefs = req?.user?.preferences;
+    const wordCount = prefs?.defaultEmailWordCount || 100;
+
+    const prompt = `Write a professional, concise job application email (around ${wordCount} words). The tone should be formal, confident, and approachable. Use natural everyday English with a professional tone.
 
 Here is the Candidate's Resume Profile:
 ${candidateContext}
@@ -188,7 +393,7 @@ Requirements for the email:
 4. Express enthusiasm for potential next steps — open to further discussion or interviews.
 5. A warm and professional closing, signed with the candidate's name.
 
-Return ONLY the email body. Do not include a subject line, Markdown formatting, or extra text. Keep it tight and professional.`;
+Return ONLY the email body. Do not include a subject line, Markdown formatting, or extra text. Keep it tight, professional, and close to ${wordCount} words.`;
 
     const completion = await createChatCompletionWithRetry({
       model: "gemini-2.5-flash",
@@ -310,9 +515,6 @@ Rules:
   }
 };
 
-/**
- * Generate a full cover letter.
- */
 const generateCoverLetter = async (job, resumeData) => {
   try {
     const openai = getGemini();
@@ -321,7 +523,18 @@ const generateCoverLetter = async (job, resumeData) => {
       ? `Dear ${job.hrName},`
       : 'Dear Hiring Manager,';
 
-    const prompt = `Write a formal and professional cover letter (about 300 words) tailored to the job posting.
+    const contextStore = require('./contextStore');
+    const req = contextStore.getStore();
+    const prefs = req?.user?.preferences;
+
+    let targetWords = '300';
+    if (prefs?.defaultCoverLetterLength === 'short') {
+      targetWords = '150';
+    } else if (prefs?.defaultCoverLetterLength === 'long') {
+      targetWords = '500';
+    }
+
+    const prompt = `Write a formal and professional cover letter (about ${targetWords} words) tailored to the job posting.
 
 ${job.hrName ? `The hiring manager's name is ${job.hrName}. Use this for the salutation.` : ''}
 ${job.companyName ? `The company is ${job.companyName}.` : ''}

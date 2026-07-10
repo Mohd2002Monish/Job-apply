@@ -14,7 +14,7 @@ const DiffSection = ({ title, hasChanges, defaultOpen = false, children }) => {
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50 dark:bg-zinc-800/50 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-slate-50/50 dark:bg-zinc-800/30 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
       >
         <div className="flex items-center gap-2">
           <span className="text-xs font-bold text-slate-700 dark:text-zinc-300">{title}</span>
@@ -27,7 +27,7 @@ const DiffSection = ({ title, hasChanges, defaultOpen = false, children }) => {
         </span>
       </button>
       {isOpen && (
-        <div className="p-4 bg-white dark:bg-zinc-900 border-t border-slate-200 dark:border-zinc-800">
+        <div className="p-4 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border-t border-slate-200 dark:border-zinc-800">
           {children}
         </div>
       )}

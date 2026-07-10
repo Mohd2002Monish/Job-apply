@@ -11,7 +11,7 @@ import {
   ClockIcon
 } from './Icons';
 import ResumeDiffViewer from './ResumeDiffViewer';
-import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
+import { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -35,7 +35,7 @@ const MicrosoftIcon = () => (
 
 export default function OutreachModal({ job, user, onClose, onSuccess, initialStep = 'edit' }) {
   const [step, setStep] = useState(initialStep || 'edit');
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
+  const selectedAiModel = getStoredAiModel();
   const [coverLetter, setCoverLetter] = useState(job.coverLetter || '');
   const [atsScore, setAtsScore] = useState(job.atsAnalysis?.score ?? null);
   const [atsAnalysis, setAtsAnalysis] = useState(job.atsAnalysis || null);
@@ -366,12 +366,6 @@ export default function OutreachModal({ job, user, onClose, onSuccess, initialSt
           </div>
 
           <div className="flex items-center gap-2">
-            <AiModelSelector 
-              selectedModel={selectedAiModel} 
-              onSelectModel={setSelectedAiModel} 
-              compact={true} 
-              currentUseCase={step === 'review' ? 'email-outreach' : 'tailoring'}
-            />
 
             <div className="flex items-center bg-bg-app border border-border-card rounded-xl p-1 text-xs font-bold">
               <button

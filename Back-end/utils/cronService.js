@@ -75,6 +75,50 @@ const startCronJob = () => {
         }
 
         try {
+          // Check for recruiter replies before sending follow-up
+          if (job.gmailThreadId) {
+            const jobProvider = job.emailProvider || 'google';
+            let hasReply = false;
+            let replyDate = null;
+
+            try {
+              if (jobProvider === 'microsoft') {
+                if (user.microsoftTokens) {
+                  const { getValidMicrosoftToken, checkOutlookThreadForReply } = require('./microsoftService');
+                  const fakeStore = { tokens: user.microsoftTokens };
+                  const fakeAuthStore = {
+                    set: async (email, updatedStore) => {
+                      user.microsoftTokens = updatedStore.tokens;
+                      await user.save();
+                    }
+                  };
+                  const token = await getValidMicrosoftToken(user.email, fakeStore, fakeAuthStore);
+                  const replyResult = await checkOutlookThreadForReply(job.gmailThreadId, user.email, token);
+                  hasReply = replyResult.hasReply;
+                  replyDate = replyResult.replyDate;
+                }
+              } else {
+                if (user.googleTokens) {
+                  const { checkThreadForReply } = require('./emailService');
+                  const replyResult = await checkThreadForReply(job.gmailThreadId, user.googleTokens);
+                  hasReply = replyResult.hasReply;
+                  replyDate = replyResult.replyDate;
+                }
+              }
+
+              if (hasReply) {
+                console.log(`ℹ️ Recruiter has replied to job ${job._id}. Cancelling automated follow-up.`);
+                job.hasReply = true;
+                job.repliedAt = replyDate || new Date();
+                job.followUpStatus = 'none';
+                await job.save();
+                continue; // Skip follow-up email dispatch
+              }
+            } catch (replyErr) {
+              console.error(`⚠️ Failed to check replies for job ${job._id} before follow-up:`, replyErr.message);
+            }
+          }
+
           console.log(`Sending automated follow-up for Job: ${job.job} to Recruiter: ${job.email}`);
           await processJobFollowUp(job, user);
           console.log(`✅ Automated follow-up sent successfully for job: ${job._id}`);

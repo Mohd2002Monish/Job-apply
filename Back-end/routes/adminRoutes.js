@@ -23,6 +23,11 @@ const {
   deletePaymentConfig,
   testGatewayConnection,
 } = require('../controllers/paymentConfigController');
+const {
+  getAdminAiModels,
+  upsertAiModel,
+  deleteAiModel
+} = require('../controllers/aiModelController');
 const { authenticate, requireAuth, requireOwner } = require('../middlewares/authMiddleware');
 
 const router = express.Router();
@@ -49,6 +54,11 @@ router.get('/payment-config', authenticate, requireAuth, requireOwner, getPaymen
 router.post('/payment-config', authenticate, requireAuth, requireOwner, upsertPaymentConfig);
 router.delete('/payment-config/:id', authenticate, requireAuth, requireOwner, deletePaymentConfig);
 router.post('/payment-config/:id/test', authenticate, requireAuth, requireOwner, testGatewayConnection);
+
+// AI Models Management (Owner Only)
+router.get('/ai-models', authenticate, requireAuth, requireOwner, getAdminAiModels);
+router.post('/ai-models', authenticate, requireAuth, requireOwner, upsertAiModel);
+router.delete('/ai-models/:id', authenticate, requireAuth, requireOwner, deleteAiModel);
 
 module.exports = router;
 

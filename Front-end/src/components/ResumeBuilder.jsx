@@ -1,17 +1,34 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import axios from 'axios';
-import {
-  DownloadIcon, LayersIcon, CheckCircleIcon,
-  ChevronDownIcon, ChevronUpIcon, TrashIcon, XIcon, MailIcon, EditIcon, WandIcon,
-} from './Icons';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
-import { setResumesInfo, setAuth } from '../store/authSlice';
+import { setAuth, setResumesInfo } from '../store/authSlice';
+import ConfirmModal from './ConfirmModal';
 import InlineCVEditor, { useDebounce } from './InlineCVEditor.jsx';
-import AiModelSelector, { getStoredAiModel } from './AiModelSelector';
+import { captureResumeExportHTML } from '../utils/resumeExportCapture.js';
+import { getStoredAiModel } from './AiModelSelector';
 
 const BACKEND = 'http://localhost:3000';
+
+// ─── SVG Icons ────────────────────────────────────────────────────────────────
+const BackArrowIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5M5 12l7-7M5 12l7 7"/></svg>;
+const BrushIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/><path d="M7.5 10.5c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5z"/><path d="M11.5 7.5c.828 0 1.5-.672 1.5-1.5S12.328 4.5 11.5 4.5 10 5.172 10 6s.672 1.5 1.5 1.5z"/><path d="M16.5 9.5c.828 0 1.5-.672 1.5-1.5s-.672-1.5-1.5-1.5-1.5.672-1.5 1.5.672 1.5 1.5 1.5z"/><path d="M6 14c0-2 2-3 6-3s6 1 6 3-2 5-6 5-6-3-6-5z"/></svg>;
+const SparklesIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707m0-12.728l.707.707m10.607 10.607l.707.707M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"/></svg>;
+const ExportIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>;
+const DesktopIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>;
+const MobileIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12" y2="18"/></svg>;
+const PageLayoutIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></svg>;
+const DotsIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>;
+const BinIcon = () => <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>;
+const PencilIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>;
+const SettingsSliderIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>;
+const AddIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
+const ChevronDownIcon = () => <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>;
+const HandIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M18 11V6a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v5m0 0V5a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v6m0 0V7a2 2 0 0 0-2-2v0a2 2 0 0 0-2 2v10a6 6 0 0 0 6 6v0a6 6 0 0 0 6-6v-4"/></svg>;
+const LayersIcon = () => <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>;
+const CheckCircleIcon = () => <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>;
+const MailIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>;
 
 // ─── Template definitions (for selector screen) ───────────────────────────────
 const TEMPLATES = [
@@ -22,7 +39,6 @@ const TEMPLATES = [
   { id: 'minimal', name: 'Minimal', desc: 'Ultra-clean whitespace, typography-first', accent: '#111111' },
 ];
 
-// Templates with inline editor support (V1)
 const INLINE_SUPPORTED = new Set(['classic', 'profile-classic', 'modern', 'profile-modern', 'minimal']);
 
 const FORMATS = [
@@ -31,41 +47,79 @@ const FORMATS = [
   { id: 'jpg', label: 'JPG' },
 ];
 
-// ─── ColorPickerField (used in Design panel) ──────────────────────────────────
+// ─── ColorPickerField ──────────────────────────────────────────────────────────
 const ColorPickerField = ({ label, value, defaultValue, onChange }) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-    <input type="color" value={value || defaultValue} onChange={(e) => onChange(e.target.value)}
-      style={{ width: '28px', height: '28px', borderRadius: '4px', cursor: 'pointer', border: 'none', padding: '0' }} />
-    <div>
-      <div style={{ fontSize: '10px', color: '#64748b' }}>{label}</div>
-      <div style={{ fontSize: '9px', color: '#94a3b8', fontFamily: 'monospace' }}>{value || defaultValue}</div>
+  <div className="flex items-center justify-between border border-slate-100 dark:border-zinc-800 rounded-xl p-2 bg-slate-50/50 dark:bg-zinc-950/20">
+    <div className="flex items-center gap-3">
+      <div className="relative w-8 h-8 rounded-lg overflow-hidden border border-slate-200 dark:border-zinc-700 cursor-pointer shadow-sm shrink-0">
+        <input 
+          type="color" 
+          value={value || defaultValue} 
+          onChange={(e) => onChange(e.target.value)}
+          className="absolute inset-[-4px] w-[calc(100%+8px)] h-[calc(100%+8px)] p-0 m-0 border-0 cursor-pointer"
+        />
+      </div>
+      <div>
+        <div className="text-[10px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">{label}</div>
+        <div className="text-[11px] font-semibold text-slate-700 dark:text-slate-350 font-mono mt-0.5">{value || defaultValue}</div>
+      </div>
     </div>
-    {value && value !== defaultValue && (
-      <button onClick={() => onChange('')} style={{ fontSize: '9px', color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>Reset</button>
-    )}
+    <div className="flex items-center gap-1.5">
+      <span className="text-slate-300 dark:text-zinc-700"><PencilIcon /></span>
+      {value && value !== defaultValue && (
+        <button 
+          onClick={() => onChange('')} 
+          className="text-[10px] font-bold text-red-500 hover:text-red-600 bg-red-50 dark:bg-red-950/20 px-2 py-0.5 rounded-md transition-colors"
+        >
+          Reset
+        </button>
+      )}
+    </div>
   </div>
 );
 
 // ─── Main Component ───────────────────────────────────────────────────────────
-
-const ResumeBuilder = ({ user, initialResumeData }) => {
+const ResumeBuilder = ({ user, initialResumeData, toast, onUploadClick }) => {
   const dispatch = useDispatch();
   const { resumes, activeResumeId } = useSelector(state => state.auth);
 
   const [resumeData, setResumeData] = useState(initialResumeData || null);
   const [selectedTemplate, setSelectedTemplate] = useState(
-    () => localStorage.getItem('rb_template') || 'classic'
+    () => localStorage.getItem('rb_template') || user?.preferences?.defaultResumeTemplate || 'classic'
   );
   const [step, setStep] = useState('select'); // 'select' | 'edit'
   const [templatePreviews, setTemplatePreviews] = useState({});
   const [exporting, setExporting] = useState(null);
   const [exportError, setExportError] = useState('');
   const [saveStatus, setSaveStatus] = useState(''); // '' | 'saving' | 'saved' | 'error'
-  const [historyOpen, setHistoryOpen] = useState(false);
+  const [resumeToDelete, setResumeToDelete] = useState(null);
+
+  // Canvas zoom & viewMode
+  const [zoom, setZoom] = useState(1);
+  const [viewMode, setViewMode] = useState('page'); // 'desktop' | 'mobile' | 'page'
+  const [pageCount, setPageCount] = useState(1);
+
+  // Phones: auto-fit the 794px A4 canvas to the viewport width so the whole
+  // page is visible without horizontal panning. Users can still pinch/zoom
+  // via the zoom controls afterwards.
+  useEffect(() => {
+    const fitZoom = () => {
+      if (window.innerWidth < 768) {
+        const fit = Math.min(1, (window.innerWidth - 24) / 794);
+        setZoom(Math.max(0.3, Math.round(fit * 100) / 100));
+      }
+    };
+    fitZoom();
+    window.addEventListener('resize', fitZoom);
+    return () => window.removeEventListener('resize', fitZoom);
+  }, []);
 
   // Panels
-  const [designOpen, setDesignOpen] = useState(false);
+  const [designOpen, setDesignOpen] = useState(true); // default open on split
   const [coverLetterOpen, setCoverLetterOpen] = useState(false);
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [resumeOpen, setResumeOpen] = useState(false);
 
   // Cover Letter
   const [jobs, setJobs] = useState([]);
@@ -74,9 +128,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   const [generatingCoverLetter, setGeneratingCoverLetter] = useState(false);
   const [savingCoverLetter, setSavingCoverLetter] = useState(false);
   const [exportingCoverLetter, setExportingCoverLetter] = useState(null);
-  const [selectedAiModel, setSelectedAiModel] = useState(getStoredAiModel());
-
-  const saveTimer = useRef(null);
+  const selectedAiModel = getStoredAiModel();
 
   // ── Sync resumeData when parent sends a new one ──────────────────────────
   useEffect(() => {
@@ -124,7 +176,6 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   }, [step, resumeData, templatePreviews]);
 
   // ── Debounced autosave ───────────────────────────────────────────────────
-  // Debounce the resumeData by 1500ms, then persist
   const debouncedResumeData = useDebounce(resumeData, 1500);
   const isFirstRender = useRef(true);
 
@@ -148,7 +199,6 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   const handleUpdate = useCallback((patch) => {
     setResumeData(prev => {
       if (!prev) return prev;
-      // Deep merge personalInfo / skills objects, shallow merge everything else
       const next = { ...prev };
       Object.entries(patch).forEach(([key, val]) => {
         if (val && typeof val === 'object' && !Array.isArray(val)) {
@@ -166,11 +216,24 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
     setExporting(format);
     setExportError('');
     try {
-      const styleEl = document.getElementById('cv-dynamic-margins');
+      // Let hover/active editor chrome unmount and the page-break engine
+      // settle before snapshotting the DOM (clicking Export blurs the canvas,
+      // which triggers a relayout).
+      await new Promise((r) => setTimeout(r, 150));
+
+      const styleEl = document.getElementById('cv-pdf-margins');
       const injectedStyles = styleEl ? styleEl.textContent : '';
+
+      // PDF/JPG print the editor's exact rendered DOM — pixel-perfect WYSIWYG.
+      // DOCX stays data-driven (it is a reflowable format by nature).
+      const exportHtml = (format === 'pdf' || format === 'jpg')
+        ? captureResumeExportHTML(resumeData?.theme)
+        : null;
 
       const res = await axios.post(`${BACKEND}/export-resume`, {
         templateId: selectedTemplate, format, resumeData, injectedStyles,
+        exportHtml: exportHtml || undefined,
+        pageCount,
       }, { responseType: 'blob', timeout: 60000 });
       const mimes = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', jpg: 'image/jpeg' };
       const blob = new Blob([res.data], { type: mimes[format] });
@@ -190,8 +253,13 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
     setStep('edit');
   };
 
-  const handleDeleteResume = async (id) => {
-    if (!confirm('Delete this resume?')) return;
+  const handleDeleteResume = (id) => {
+    setResumeToDelete(id);
+  };
+
+  const executeDeleteResume = async () => {
+    if (!resumeToDelete) return;
+    const id = resumeToDelete;
     try {
       const res = await axios.post(`${BACKEND}/resume/delete`, { id });
       dispatch(setResumesInfo({ resumes: res.data.resumes, activeResumeId: res.data.activeResumeId }));
@@ -206,6 +274,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
         }
       }
     } catch (err) { console.error('Delete error:', err.message); }
+    finally { setResumeToDelete(null); }
   };
 
   const handleSwitchResume = async (id) => {
@@ -214,7 +283,6 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
       dispatch(setAuth({ authenticated: true, user, resumeName: res.data.resumeFileName, resumeData: res.data.resumeData }));
       dispatch(setResumesInfo({ resumes, activeResumeId: id }));
       setResumeData(res.data.resumeData);
-      setHistoryOpen(false);
     } catch (err) { console.error('Switch error:', err.message); }
   };
 
@@ -251,7 +319,11 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
       setCoverLetterText(res.data.coverLetter);
       setJobs(prev => prev.map(j => j._id === selectedJobId ? { ...j, coverLetter: res.data.coverLetter } : j));
     } catch (err) {
-      alert('Failed: ' + (err.response?.data?.error || err.message));
+      if (toast) {
+        toast.error('Failed to generate cover letter: ' + (err.response?.data?.error || err.message));
+      } else {
+        alert('Failed: ' + (err.response?.data?.error || err.message));
+      }
     } finally { setGeneratingCoverLetter(false); }
   };
 
@@ -262,7 +334,11 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
       await axios.patch(`${BACKEND}/jobs/${selectedJobId}`, { coverLetter: coverLetterText });
       setJobs(prev => prev.map(j => j._id === selectedJobId ? { ...j, coverLetter: coverLetterText } : j));
     } catch (err) {
-      alert('Save failed: ' + (err.response?.data?.error || err.message));
+      if (toast) {
+        toast.error('Save failed: ' + (err.response?.data?.error || err.message));
+      } else {
+        alert('Save failed: ' + (err.response?.data?.error || err.message));
+      }
     } finally { setSavingCoverLetter(false); }
   };
 
@@ -277,7 +353,13 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
       const a = document.createElement('a');
       a.href = url; a.download = `cover_letter_${selectedJobId}.${format}`; a.click();
       URL.revokeObjectURL(url);
-    } catch (_) { alert('Export failed.'); }
+    } catch (_) {
+      if (toast) {
+        toast.error('Export failed.');
+      } else {
+        alert('Export failed.');
+      }
+    }
     finally { setExportingCoverLetter(null); }
   };
 
@@ -285,20 +367,50 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   const updTheme = (k, v) => handleUpdate({ theme: { ...(resumeData?.theme || {}), [k]: v } });
   const activeTpl = TEMPLATES.find(t => t.id === selectedTemplate) || TEMPLATES[0];
 
+  const handleResetTheme = () => {
+    handleUpdate({
+      theme: {
+        primary: activeTpl.accent,
+        secondary: '#3b82f6',
+        fontHeading: 'Poppins',
+        fontBody: 'Inter',
+        pageSize: 'A4',
+        margins: 'normal',
+        showIcons: true,
+        sectionDividers: true,
+      }
+    });
+  };
+
+  // Appends empty experience block to expand pages naturally
+  const handleAddPage = () => {
+    handleUpdate({
+      experience: [
+        ...(resumeData.experience || []),
+        { role: 'New Role', company: 'Add experience to build page content', startDate: '', endDate: '', achievements: [] }
+      ]
+    });
+    if (toast) toast.info('Appended dummy experience block to extend canvas height.');
+  };
+
+  // Zoom helpers
+  const handleZoomOut = () => setZoom(z => Math.max(0.75, z - 0.15));
+  const handleZoomIn = () => setZoom(z => Math.min(1.25, z + 0.15));
+
   // ── Empty state ──────────────────────────────────────────────────────────
   if (!resumeData) {
     return (
-      <div className="card shadow-sm mb-6">
+      <div className="card shadow-sm mb-6 max-w-2xl mx-auto mt-10">
         <div className="flex flex-col items-center justify-center py-20 px-6 text-center">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-50 to-violet-50 dark:from-indigo-500/10 dark:to-violet-500/10 flex items-center justify-center text-indigo-500 dark:text-indigo-400 mb-5 shadow-sm">
-            <LayersIcon size={28} />
+            <LayersIcon />
           </div>
           <h3 className="text-base font-bold text-slate-800 dark:text-slate-100 mb-2">No resume uploaded yet</h3>
-          <p className="text-sm text-slate-400 dark:text-zinc-500 max-w-xs mb-5">
-            Upload your resume — AI will parse and structure it, then you can pick a template and edit directly on the CV.
+          <p className="text-sm text-slate-450 dark:text-zinc-500 max-w-xs mb-5">
+            Upload your resume first. AI will parse and structure it, then you can customize and design it dynamically.
           </p>
-          <button onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className="btn-primary text-sm">
-            ↑ Upload Resume
+          <button onClick={() => onUploadClick?.()} className="btn-primary text-sm font-semibold flex items-center gap-1.5">
+            <AddIcon /> Upload Resume
           </button>
         </div>
       </div>
@@ -310,88 +422,49 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
   // ── Template Selector Screen ─────────────────────────────────────────────
   if (step === 'select') {
     return (
-      <div className="space-y-6 mb-6">
-        {/* Hero CTA */}
+      <div className="max-w-6xl mx-auto space-y-6 py-6 px-4">
+        {/* Hero Header */}
         <div className="card shadow-sm overflow-hidden">
-          <div className="relative px-6 py-5 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600">
+          <div className="relative px-6 py-6 bg-gradient-to-r from-indigo-600 via-violet-600 to-purple-600">
             <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
             <div className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-2 mb-1.5">
                   <div className="w-6 h-6 rounded-md bg-white/20 flex items-center justify-center">
-                    <LayersIcon size={13} className="text-white" />
+                    <LayersIcon />
                   </div>
-                  <span className="text-xs font-semibold text-indigo-200 uppercase tracking-wider">Resume Builder</span>
+                  <span className="text-xs font-bold text-indigo-200 uppercase tracking-widest">Resume Builder</span>
                 </div>
                 <h2 className="text-xl font-bold text-white">{p.name || 'Your Resume'}</h2>
-                <p className="text-indigo-200 text-sm mt-0.5">{p.jobTitle || 'Ready to build your perfect resume'}</p>
+                <p className="text-indigo-150 text-sm mt-0.5">{p.jobTitle || 'Ready to build your perfect resume'}</p>
               </div>
               <button
                 onClick={() => setStep('edit')}
-                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-indigo-700 font-semibold text-sm shadow-lg hover:shadow-xl hover:bg-indigo-50 transition-all duration-200 active:scale-95"
+                className="flex-shrink-0 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-indigo-700 font-bold text-sm shadow-md hover:bg-indigo-50 transition-all duration-200 active:scale-95"
               >
-                <EditIcon size={14} />
-                Continue editing
+                <PencilIcon />
+                Continue Editing
               </button>
             </div>
           </div>
-
-          {/* Resume history */}
-          {resumes && resumes.length > 1 && (
-            <div className="border-t border-slate-100 dark:border-zinc-800">
-              <button
-                onClick={() => setHistoryOpen(!historyOpen)}
-                className="w-full flex items-center justify-between px-5 py-3 text-xs font-semibold text-slate-500 dark:text-zinc-400 hover:bg-slate-50 dark:hover:bg-zinc-800/40 transition-colors"
-              >
-                <span className="flex items-center gap-1.5">
-                  <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 text-[9px] font-bold">{resumes.length}</span>
-                  Saved Resumes
-                </span>
-                {historyOpen ? <ChevronUpIcon size={12} /> : <ChevronDownIcon size={12} />}
-              </button>
-              {historyOpen && (
-                <div className="px-4 pb-3 grid grid-cols-1 sm:grid-cols-2 gap-2 animate-fade-in">
-                  {resumes.map(r => (
-                    <div key={r.id} className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${r.id === activeResumeId ? 'border-indigo-200 dark:border-indigo-500/30 bg-indigo-50 dark:bg-indigo-500/10' : 'border-slate-200 dark:border-zinc-800 hover:border-slate-300 dark:hover:border-zinc-700 bg-white dark:bg-zinc-900'}`}>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold truncate ${r.id === activeResumeId ? 'text-indigo-700 dark:text-indigo-400' : 'text-slate-700 dark:text-slate-300'}`}>
-                          {r.title}
-                          {r.id === activeResumeId && <span className="ml-1.5 text-[9px] bg-indigo-100 dark:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 rounded-full">Active</span>}
-                        </p>
-                        <p className="text-[10px] text-slate-400 dark:text-zinc-500 truncate mt-0.5">{r.resumeFileName}</p>
-                      </div>
-                      <div className="flex items-center gap-1 ml-2">
-                        {r.id !== activeResumeId && (
-                          <button onClick={() => handleSwitchResume(r.id)} className="text-[10px] px-2 py-1 rounded-md bg-slate-100 dark:bg-zinc-700 text-slate-600 dark:text-zinc-300 hover:bg-indigo-100 dark:hover:bg-indigo-500/20 hover:text-indigo-700 dark:hover:text-indigo-400 font-medium transition-colors">Switch</button>
-                        )}
-                        {r.id !== activeResumeId && (
-                          <button onClick={() => handleDeleteResume(r.id)} className="p-1 text-slate-300 dark:text-zinc-600 hover:text-red-500 transition-colors"><TrashIcon size={11} /></button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {/* Template Grid */}
         <div>
           <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Choose a Template</h3>
-              <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Select a design — you'll edit directly on the CV</p>
+              <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">Choose a Template</h3>
+              <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Select a layout to launch the real-time canvas editor.</p>
             </div>
-            <span className="text-xs text-slate-400 dark:text-zinc-500 hidden sm:block">You can switch anytime</span>
+            <span className="text-xs text-slate-450 dark:text-zinc-500 hidden sm:block">Templates can be switched anytime.</span>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {TEMPLATES.map(t => (
               <button
                 key={t.id}
                 onClick={() => handleSelectTemplate(t.id)}
-                className={`group relative flex flex-col rounded-xl border-2 overflow-hidden text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${selectedTemplate === t.id ? 'border-indigo-400 dark:border-indigo-500 shadow-md shadow-indigo-100 dark:shadow-indigo-500/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-300 dark:hover:border-zinc-600'}`}
+                className={`group relative flex flex-col rounded-xl border-2 overflow-hidden text-left transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${selectedTemplate === t.id ? 'border-indigo-400 dark:border-indigo-500 shadow-md shadow-indigo-100 dark:shadow-indigo-500/10' : 'border-slate-200 dark:border-zinc-700 hover:border-slate-350 dark:hover:border-zinc-650'}`}
               >
                 <div className="aspect-[3/4] w-full bg-white flex items-center justify-center p-1 transition-transform duration-300 group-hover:scale-105 origin-center overflow-hidden">
                   <div className="w-full h-full relative">
@@ -414,21 +487,21 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
                 </div>
 
                 {selectedTemplate === t.id && (
-                  <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-indigo-500 flex items-center justify-center shadow-sm">
-                    <CheckCircleIcon size={12} className="text-white" />
+                  <div className="absolute top-2.5 right-2.5 w-5 h-5 rounded-full bg-indigo-550 flex items-center justify-center shadow-sm">
+                    <CheckCircleIcon />
                   </div>
                 )}
 
-                <div className="px-2.5 py-2.5 bg-white dark:bg-zinc-800 border-t border-slate-100 dark:border-zinc-700">
-                  <p className={`text-xs font-bold ${selectedTemplate === t.id ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>{t.name}</p>
-                  <p className="text-[10px] text-slate-400 dark:text-zinc-500 mt-0.5 leading-tight">{t.desc}</p>
+                <div className="px-3 py-3 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border-t border-slate-100 dark:border-zinc-800">
+                  <p className={`text-xs font-bold ${selectedTemplate === t.id ? 'text-indigo-650 dark:text-indigo-400' : 'text-slate-800 dark:text-slate-200'}`}>{t.name}</p>
+                  <p className="text-[10px] text-slate-450 dark:text-zinc-550 mt-0.5 leading-tight">{t.desc}</p>
                   {INLINE_SUPPORTED.has(t.id) && (
-                    <span className="text-[8px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-medium mt-1 inline-block">Inline editing</span>
+                    <span className="text-[8px] bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.5 rounded-full font-bold mt-1.5 inline-block">Inline Editing</span>
                   )}
                 </div>
 
                 <div className={`absolute inset-0 flex items-center justify-center transition-opacity duration-200 opacity-0 group-hover:opacity-100 bg-slate-900/40 backdrop-blur-sm`}>
-                  <span className="px-4 py-1.5 rounded-full bg-white text-slate-900 text-xs font-bold shadow-lg">Use This</span>
+                  <span className="px-4 py-1.5 rounded-full bg-white text-slate-900 text-xs font-bold shadow-lg">Use This Layout</span>
                 </div>
               </button>
             ))}
@@ -438,180 +511,271 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
     );
   }
 
-  // ── Inline Editor Screen ─────────────────────────────────────────────────
+  // ── Inline Editor Screen ─────────────────────────────────────────────
   const supportsInline = INLINE_SUPPORTED.has(selectedTemplate);
+  const theme = resumeData.theme || {};
 
   return (
-    <div className="mb-6">
-      {/* ── Top Toolbar ── */}
-      <div style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 40,
-        background: 'var(--bg-card, white)',
-        borderBottom: '1px solid #e2e8f0',
-        padding: '8px 12px',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '8px',
-        flexWrap: 'wrap',
-        marginBottom: '0',
-        backdropFilter: 'blur(8px)',
-      }} className="dark:bg-zinc-900/95 dark:border-zinc-800">
-
-        {/* Back to templates */}
-        <button
-          onClick={() => setStep('select')}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-zinc-400 hover:text-slate-900 dark:hover:text-slate-100 transition-colors group"
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="group-hover:-translate-x-0.5 transition-transform">
-            <path d="M19 12H5M5 12l7-7M5 12l7 7" />
-          </svg>
-          Templates
-        </button>
-        <span className="text-slate-200 dark:text-zinc-700">|</span>
-
-        {/* Template pills */}
-        <div className="flex items-center gap-1 overflow-x-auto pb-0.5 flex-1 min-w-0">
-          {TEMPLATES.filter(t => INLINE_SUPPORTED.has(t.id) || t.id === selectedTemplate).map(t => (
-            <button
-              key={t.id}
-              onClick={() => { setSelectedTemplate(t.id); localStorage.setItem('rb_template', t.id); }}
-              className={`flex-shrink-0 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${selectedTemplate === t.id ? 'bg-indigo-600 text-white shadow-sm' : 'bg-slate-100 dark:bg-zinc-800 text-slate-600 dark:text-zinc-400 hover:bg-slate-200 dark:hover:bg-zinc-700'}`}
-            >
-              {t.name}
-            </button>
-          ))}
-        </div>
-
-        {/* Save status */}
-        {saveStatus && (
-          <span className={`text-[10px] font-medium flex-shrink-0 flex items-center gap-1 ${saveStatus === 'saved' ? 'text-emerald-500' : saveStatus === 'saving' ? 'text-amber-500' : 'text-red-500'}`}>
-            {saveStatus === 'saving' && <div className="w-2.5 h-2.5 border border-amber-500 border-t-transparent rounded-full animate-spin" />}
-            {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved' : 'Save failed'}
-          </span>
-        )}
-
-        {/* Design button */}
-        <div style={{ position: 'relative' }}>
+    <div className="flex flex-col h-[calc(100vh-64px)] w-full overflow-hidden bg-slate-50 dark:bg-zinc-950">
+      
+      {/* ── Top Header Toolbar ── */}
+      <header className="h-14 border-b border-slate-200 dark:border-zinc-850 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl px-4 flex items-center justify-between shrink-0 z-30 shadow-sm">
+        <div className="flex items-center gap-3">
           <button
-            onClick={() => { setDesignOpen(o => !o); setCoverLetterOpen(false); }}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${designOpen ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-300 hover:border-indigo-300'}`}
+            onClick={() => setStep('select')}
+            className="p-2 rounded-xl text-slate-500 dark:text-zinc-400 hover:text-slate-800 dark:hover:text-slate-100 hover:bg-slate-50 dark:hover:bg-zinc-800 transition-colors"
           >
-            🎨 Design
+            <BackArrowIcon />
           </button>
-          {designOpen && (
-            <div style={{
-              position: 'absolute',
-              top: 'calc(100% + 8px)',
-              right: 0,
-              background: 'white',
-              border: '1px solid #e2e8f0',
-              borderRadius: '10px',
-              padding: '14px',
-              boxShadow: '0 8px 30px rgba(0,0,0,0.12)',
-              zIndex: 100,
-              minWidth: '200px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '10px',
-            }} className="dark:bg-zinc-900 dark:border-zinc-700">
-              <div style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Theme Colors</div>
-              <ColorPickerField label="Primary Color" value={resumeData.theme?.primary} defaultValue={activeTpl.accent} onChange={v => updTheme('primary', v)} />
-              {activeTpl.id?.includes('modern') && (
-                <ColorPickerField label="Secondary Color" value={resumeData.theme?.secondary} defaultValue="#3b82f6" onChange={v => updTheme('secondary', v)} />
-              )}
-              {/* Photo upload */}
-              <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px', marginTop: '4px' }}>
-                <div style={{ fontSize: '10px', fontWeight: '600', color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px' }}>Profile Photo</div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  {p.picture ? (
-                    <img src={p.picture} alt="Profile" style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover' }} />
-                  ) : (
-                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: '#f1f5f9', border: '1px solid #e2e8f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '10px', color: '#94a3b8' }}>None</div>
-                  )}
-                  <div>
-                    <input type="file" accept="image/*" id="photo-upload" style={{ display: 'none' }}
-                      onChange={(e) => {
-                        const file = e.target.files[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onload = (ev) => handleUpdate({ personalInfo: { ...p, picture: ev.target.result } });
-                          reader.readAsDataURL(file);
-                        }
-                      }} />
-                    <label htmlFor="photo-upload" style={{ fontSize: '10px', color: '#6366f1', cursor: 'pointer', fontWeight: '600' }}>Upload photo</label>
-                    {p.picture && <button onClick={() => handleUpdate({ personalInfo: { ...p, picture: '' } })} style={{ display: 'block', fontSize: '9px', color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', padding: '0', marginTop: '2px' }}>Remove</button>}
-                  </div>
+          <div className="flex flex-col">
+            <h1 className="text-sm font-bold text-slate-800 dark:text-slate-100 leading-none">Resume Builder</h1>
+            <div className="flex items-center gap-1.5 mt-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              <span className="text-[10px] text-slate-400 dark:text-zinc-550 font-medium">
+                {saveStatus === 'saving' ? 'Autosaving...' : 'Autosaved'}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Middle Toolbar Control elements */}
+        <div className="hidden md:flex items-center gap-4">
+          {/* Resume Selector */}
+          <div className="flex items-center gap-1.5 mr-2">
+            <span className="hidden lg:inline text-[11px] font-bold text-slate-400 dark:text-zinc-500 uppercase tracking-wider">Resume</span>
+            <div className="relative flex items-center gap-1">
+              <button
+                id="rb-resume-select-btn"
+                onClick={() => { setResumeOpen(o => !o); setTemplateOpen(false); setExportOpen(false); }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-50 dark:bg-zinc-950 text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors max-w-[150px] truncate"
+              >
+                {resumes.find(r => r.id === activeResumeId)?.title || 'Select Resume'}
+                <ChevronDownIcon />
+              </button>
+
+              <button
+                onClick={() => onUploadClick?.()}
+                className="p-1.5 rounded-xl border border-slate-200 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 text-slate-500 hover:text-slate-850 dark:text-zinc-400 dark:hover:text-slate-100 transition-colors flex items-center justify-center"
+                title="Upload/Create New Resume"
+              >
+                <AddIcon />
+              </button>
+
+              {resumeOpen && (
+                <div className="absolute top-full left-0 mt-1.5 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 rounded-xl p-1.5 shadow-xl z-50 min-w-[200px] max-h-60 overflow-y-auto">
+                  {resumes.map(r => (
+                    <div
+                      key={r.id}
+                      onClick={() => { handleSwitchResume(r.id); setResumeOpen(false); }}
+                      className={`group flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-left transition-colors cursor-pointer ${r.id === activeResumeId ? 'bg-indigo-50 dark:bg-indigo-550/10 text-indigo-700 dark:text-indigo-400' : 'text-slate-655 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
+                    >
+                      <span className="truncate pr-4">{r.title}</span>
+                      {r.id === activeResumeId ? (
+                        <CheckCircleIcon />
+                      ) : (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); handleDeleteResume(r.id); setResumeOpen(false); }}
+                          className="p-0.5 rounded text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 opacity-0 group-hover:opacity-100 transition-all shrink-0"
+                        >
+                          <BinIcon />
+                        </button>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
-          )}
-        </div>
+          </div>
 
-        {/* Cover Letter */}
-        <button
-          onClick={() => { setCoverLetterOpen(o => !o); setDesignOpen(false); }}
-          className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all ${coverLetterOpen ? 'border-violet-400 bg-violet-50 dark:bg-violet-500/10 text-violet-700 dark:text-violet-400' : 'border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-slate-300 hover:border-violet-300'}`}
-        >
-          <MailIcon size={11} /> Cover Letter
-        </button>
+          {/* Template picker selector */}
+          <div className="flex items-center gap-1.5">
+            <span className="hidden lg:inline text-[11px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider">Template</span>
+            <div className="relative">
+              <button
+                id="rb-template-select-btn"
+                onClick={() => { setTemplateOpen(o => !o); setResumeOpen(false); setExportOpen(false); }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 border border-slate-200 dark:border-zinc-800 rounded-xl bg-slate-50 dark:bg-zinc-950 text-xs font-bold text-slate-700 dark:text-slate-350 hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              >
+                {TEMPLATES.find(t => t.id === selectedTemplate)?.name || 'Classic'}
+                <ChevronDownIcon />
+              </button>
+              {templateOpen && (
+                <div className="absolute top-full left-0 mt-1.5 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 rounded-xl p-1.5 shadow-xl z-50 min-width-[160px]">
+                  {TEMPLATES.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => { setSelectedTemplate(t.id); localStorage.setItem('rb_template', t.id); setTemplateOpen(false); }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold text-left transition-colors ${selectedTemplate === t.id ? 'bg-indigo-50 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400' : 'text-slate-650 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-zinc-800'}`}
+                    >
+                      {t.name}
+                      {selectedTemplate === t.id && <CheckCircleIcon />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
-        {/* Export buttons */}
-        <div className="flex items-center gap-1">
-          {FORMATS.map(f => (
-            <button
-              key={f.id}
-              onClick={() => handleExport(f.id)}
-              disabled={!!exporting}
-              className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:border-indigo-300 dark:hover:border-indigo-600 hover:text-indigo-700 dark:hover:text-indigo-400 transition-all disabled:opacity-50"
+          {/* View mode device preview selector */}
+          <div className="flex border border-slate-100 dark:border-zinc-800 rounded-xl p-0.5 bg-slate-50 dark:bg-zinc-950">
+            <button 
+              onClick={() => setViewMode('page')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'page' ? 'bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-450 hover:text-slate-600'}`}
             >
-              {exporting === f.id ? <div className="w-3 h-3 border border-current border-t-transparent rounded-full animate-spin" /> : <DownloadIcon size={11} />}
-              {f.label}
+              <PageLayoutIcon />
             </button>
-          ))}
+            <button 
+              onClick={() => setViewMode('desktop')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'desktop' ? 'bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-450 hover:text-slate-600'}`}
+            >
+              <DesktopIcon />
+            </button>
+            <button 
+              onClick={() => setViewMode('mobile')}
+              className={`p-1.5 rounded-lg transition-all ${viewMode === 'mobile' ? 'bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-slate-450 hover:text-slate-600'}`}
+            >
+              <MobileIcon />
+            </button>
+          </div>
         </div>
-      </div>
 
-      {exportError && <p className="text-xs text-red-500 dark:text-red-400 px-3 py-2">{exportError}</p>}
+        {/* Right Toolbar Actions */}
+        <div className="flex items-center gap-2">
+          {/* Design panel toggle */}
+          <button
+            onClick={() => setDesignOpen(o => !o)}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${designOpen ? 'border-indigo-400 bg-indigo-50/50 text-indigo-700 dark:text-indigo-400' : 'border-slate-200 dark:border-zinc-800 text-slate-655 hover:border-slate-350 dark:text-slate-350 dark:hover:border-zinc-700'}`}
+          >
+            <BrushIcon />
+            <span className="hidden lg:inline">Design</span>
+          </button>
 
-      {/* ── Main layout ── */}
-      <div style={{ display: 'flex', gap: '0', minHeight: '85vh', alignItems: 'flex-start' }}>
+          {/* AI Cover letter assistant */}
+          <button
+            onClick={() => { setCoverLetterOpen(o => !o); setDesignOpen(false); }}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold border transition-all ${coverLetterOpen ? 'border-violet-400 bg-violet-50/50 text-violet-700 dark:text-violet-400' : 'border-slate-200 dark:border-zinc-800 text-slate-655 hover:border-slate-350 dark:text-slate-350 dark:hover:border-zinc-700'}`}
+          >
+            <SparklesIcon />
+            <span className="hidden lg:inline">AI Assistant</span>
+          </button>
 
-        {/* ── Cover Letter Drawer ── */}
-        {coverLetterOpen && (
-          <div style={{
-            width: '340px',
-            minWidth: '300px',
-            borderRight: '1px solid #e2e8f0',
-            background: 'white',
-            display: 'flex',
-            flexDirection: 'column',
-            maxHeight: '85vh',
-            overflowY: 'auto',
-            position: 'sticky',
-            top: '56px',
-            flexShrink: 0,
-          }} className="dark:bg-zinc-900 dark:border-zinc-800">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-800 flex-shrink-0">
-              <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wide">Cover Letter</span>
-              <button onClick={() => setCoverLetterOpen(false)} className="p-1 text-slate-400 hover:text-slate-700 transition-colors"><XIcon size={13} /></button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {/* AI Model selector */}
-              <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">AI Engine</label>
-                <AiModelSelector 
-                  selectedModel={selectedAiModel} 
-                  onSelectModel={setSelectedAiModel} 
-                  compact={true} 
-                  currentUseCase="detailed-cover-letter" 
-                />
+          {/* Export button */}
+          <div className="relative">
+            <button
+              onClick={() => setExportOpen(o => !o)}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold shadow-md hover:shadow-lg transition-all"
+            >
+              {exporting ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" /> : <ExportIcon />}
+              <span className="hidden lg:inline">Export</span>
+              <ChevronDownIcon />
+            </button>
+            {exportOpen && (
+              <div className="absolute top-full right-0 mt-1.5 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border border-slate-200 dark:border-zinc-800 rounded-xl p-1.5 shadow-xl z-50 min-width-[140px]">
+                {FORMATS.map(f => (
+                  <button
+                    key={f.id}
+                    onClick={() => { handleExport(f.id); setExportOpen(false); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-350 hover:bg-slate-50 dark:hover:bg-zinc-800 rounded-lg text-left"
+                  >
+                    <ExportIcon />
+                    <span>{f.label}</span>
+                  </button>
+                ))}
               </div>
+            )}
+          </div>
+        </div>
+      </header>
 
-              {/* Job selector */}
+      {/* Main Workspace Area */}
+      <div className="flex-1 flex overflow-hidden relative">
+
+        {/* ── CENTER EDITOR PANEL (Canvas workspace) ── */}
+        <div className="flex-1 flex flex-col relative overflow-hidden bg-slate-100 dark:bg-zinc-950">
+          
+          {/* Scrollable Canvas container */}
+          <div className="flex-1 overflow-auto flex items-start justify-center p-6 relative">
+            <div className={`${viewMode === 'mobile' ? 'max-w-xs' : viewMode === 'desktop' ? 'max-w-4xl' : 'max-w-full'} transition-all duration-300 w-full flex justify-center`}>
+              {supportsInline ? (
+                <InlineCVEditor
+                  resumeData={resumeData}
+                  onUpdate={handleUpdate}
+                  selectedTemplate={selectedTemplate}
+                  saveStatus={saveStatus}
+                  zoom={zoom}
+                  onPageCountChange={setPageCount}
+                />
+              ) : (
+                <div className="flex flex-col items-center gap-4 py-20 text-center max-w-sm">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500 text-xl">
+                    <PencilIcon />
+                  </div>
+                  <div>
+                    <p className="font-bold text-slate-800 dark:text-slate-200">Inline Editing coming soon</p>
+                    <p className="text-xs text-slate-450 dark:text-zinc-550 mt-1">
+                      This template doesn't support live editing yet. Switch layouts to continue.
+                    </p>
+                  </div>
+                  <button onClick={() => setStep('select')} className="btn-primary text-xs font-semibold">Choose layout</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Floating zoom and view controls at the bottom */}
+          <div className="h-11 bg-white/90 dark:bg-zinc-900/90 backdrop-blur border-t border-slate-200 dark:border-zinc-800 flex items-center justify-between px-6 shrink-0 z-10 shadow-[0_-2px_10px_rgba(0,0,0,0.02)]">
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={handleZoomOut} 
+                className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm font-bold flex items-center justify-center"
+              >
+                -
+              </button>
+              <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 w-10 text-center font-mono">
+                {Math.round(zoom * 100)}%
+              </span>
+              <button 
+                onClick={handleZoomIn} 
+                className="w-6 h-6 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 text-sm font-bold flex items-center justify-center"
+              >
+                +
+              </button>
+            </div>
+
+            {/* Middle: Add Page button */}
+            <button 
+              onClick={handleAddPage}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-dashed border-slate-300 hover:border-slate-400 text-xs font-semibold text-slate-655 hover:text-slate-850 dark:border-zinc-850 dark:hover:border-zinc-750 dark:text-slate-400 dark:hover:text-slate-200 bg-slate-50/50 hover:bg-slate-100/50 dark:bg-zinc-950/20 transition-all"
+            >
+              <AddIcon />
+              <span>Add Page</span>
+            </button>
+
+            <div className="flex items-center gap-3">
+              <button className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-zinc-850" title="Hand Tool">
+                <HandIcon />
+              </button>
+
+              <div className="flex items-center gap-1 text-[11px] font-bold text-slate-555 dark:text-slate-400 font-sans">
+                <span>Page 1 of {pageCount}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── COVER LETTER SIDE DRAWER (conditionally slided open) ── */}
+        {coverLetterOpen && (
+          <aside className="w-80 border-l border-slate-200 dark:border-zinc-800 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl flex flex-col shrink-0 z-20 shadow-xl overflow-y-auto">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-zinc-850 shrink-0">
+              <span className="text-[10px] font-bold text-slate-700 dark:text-slate-350 uppercase tracking-widest">AI Cover Letter</span>
+              <button onClick={() => setCoverLetterOpen(false)} className="p-1.5 rounded-lg hover:bg-slate-50 text-slate-400 hover:text-slate-700 transition-colors">
+                ✕
+              </button>
+            </div>
+            
+            <div className="flex-1 p-4 space-y-4 overflow-y-auto scrollbar-thin">
               <div>
-                <label className="block text-xs font-medium text-slate-500 dark:text-zinc-400 mb-1.5 uppercase tracking-wide">Target Job</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-zinc-550 uppercase tracking-wider mb-1.5">Target Job</label>
                 {jobs.length > 0 ? (
                   <Select
                     value={jobs.map(j => ({ value: j._id, label: `${j.job} · ${j.email}` })).find(o => o.value === selectedJobId)}
@@ -621,7 +785,7 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
                     id="resume-cover-job-select"
                   />
                 ) : (
-                  <p className="text-xs text-slate-400 dark:text-zinc-500">No jobs found. Add contacts in Outreach first.</p>
+                  <p className="text-xs text-slate-450 dark:text-zinc-500">No applications tracked. Add contacts in Outreach first.</p>
                 )}
               </div>
 
@@ -630,78 +794,202 @@ const ResumeBuilder = ({ user, initialResumeData }) => {
                   <div className="flex items-center justify-between">
                     <div className="flex gap-1">
                       {[{ f: 'pdf', label: 'PDF' }, { f: 'docx', label: 'DOCX' }].map(({ f, label }) => (
-                        <button key={f} onClick={() => handleExportCoverLetter(f)} disabled={exportingCoverLetter === f} className="btn-ghost text-xs px-2 py-1">
-                          {exportingCoverLetter === f ? <div className="w-3 h-3 border border-indigo-600 border-t-transparent rounded-full animate-spin" /> : <DownloadIcon size={11} />}
-                          {label}
+                        <button key={f} onClick={() => handleExportCoverLetter(f)} disabled={exportingCoverLetter === f} className="inline-flex items-center gap-1 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 px-2 py-1 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300">
+                          {exportingCoverLetter === f ? <div className="w-2.5 h-2.5 border border-indigo-650 border-t-transparent rounded-full animate-spin" /> : <ExportIcon />}
+                          <span>{label}</span>
                         </button>
                       ))}
                     </div>
-                    <button onClick={handleSaveCoverLetter} disabled={savingCoverLetter} className="btn-primary text-xs px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700">
-                      {savingCoverLetter ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircleIcon size={11} />}
-                      Save
+                    <button onClick={handleSaveCoverLetter} disabled={savingCoverLetter} className="inline-flex items-center gap-1 bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1 rounded-lg text-[10px] font-bold">
+                      {savingCoverLetter ? <div className="w-2.5 h-2.5 border border-white border-t-transparent rounded-full animate-spin" /> : <CheckCircleIcon />}
+                      <span>Save</span>
                     </button>
                   </div>
                   <textarea
                     value={coverLetterText}
                     onChange={(e) => setCoverLetterText(e.target.value)}
-                    rows={22}
-                    className="input w-full font-mono text-xs leading-relaxed p-3 bg-slate-50 dark:bg-zinc-950/40 border-slate-200 dark:border-zinc-800 resize-y"
+                    rows={18}
+                    className="w-full font-mono text-xs leading-relaxed p-3 bg-slate-50 dark:bg-zinc-950/40 border border-slate-200 dark:border-zinc-800 rounded-xl focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-y"
                   />
                 </div>
               ) : selectedJobId ? (
-                <div className="flex flex-col items-center justify-center py-10 border border-dashed border-slate-200 dark:border-zinc-800 rounded-xl text-center space-y-3">
-                  <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center text-indigo-600"><MailIcon size={18} /></div>
+                <div className="flex flex-col items-center justify-center py-10 border border-dashed border-slate-200 dark:border-zinc-800 rounded-2xl text-center space-y-3">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 dark:bg-indigo-550/10 flex items-center justify-center text-indigo-600"><MailIcon /></div>
                   <div>
-                    <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">No cover letter yet</p>
-                    <p className="text-xs text-slate-400 dark:text-zinc-500 mt-0.5">Generate an AI-tailored cover letter</p>
+                    <p className="text-xs font-bold text-slate-700 dark:text-slate-300">No cover letter generated</p>
+                    <p className="text-[10px] text-slate-450 dark:text-zinc-550 mt-0.5">Let AI structure a tailored application letter.</p>
                   </div>
-                  <button onClick={handleGenerateCoverLetter} disabled={generatingCoverLetter} className="btn-primary text-xs">
-                    {generatingCoverLetter ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <WandIcon size={12} />}
-                    {generatingCoverLetter ? 'Generating…' : 'Generate Letter'}
+                  <button onClick={handleGenerateCoverLetter} disabled={generatingCoverLetter} className="inline-flex items-center gap-1 px-3 py-1.5 bg-indigo-650 text-white rounded-lg text-[10px] font-bold">
+                    {generatingCoverLetter ? <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" /> : <SparklesIcon />}
+                    <span>{generatingCoverLetter ? 'Generating...' : 'Generate Letter'}</span>
                   </button>
                 </div>
               ) : null}
             </div>
-          </div>
+          </aside>
         )}
 
-        {/* ── CV Canvas ── */}
-        <div style={{
-          flex: 1,
-          overflowY: 'auto',
-          overflowX: 'auto',
-          padding: '24px 16px',
-          background: '#f1f5f9',
-          minHeight: '85vh',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-        }} className="dark:bg-zinc-950">
-          {supportsInline ? (
-            <InlineCVEditor
-              resumeData={resumeData}
-              onUpdate={handleUpdate}
-              selectedTemplate={selectedTemplate}
-              saveStatus={saveStatus}
-            />
-          ) : (
-            /* Fallback: template doesn't have inline editor yet — show notice */
-            <div className="flex flex-col items-center gap-4 py-20 text-center max-w-sm">
-              <div className="w-12 h-12 rounded-2xl bg-amber-50 dark:bg-amber-500/10 flex items-center justify-center text-amber-500 text-xl">
-                <EditIcon size={20} />
-              </div>
-              <div>
-                <p className="font-semibold text-slate-800 dark:text-slate-200">Inline editing coming soon</p>
-                <p className="text-sm text-slate-400 dark:text-zinc-500 mt-1">
-                  This template doesn't support inline editing yet.<br />
-                  Switch to <strong>Classic, Modern, or Minimal</strong> to edit directly on the CV.
-                </p>
-              </div>
-              <button onClick={() => setStep('select')} className="btn-primary text-sm">Choose a template</button>
+        {/* ── RIGHT SIDE PANEL (Design sidebar) ── */}
+        {designOpen && (
+          <aside className="w-64 bg-white/75 dark:bg-zinc-900/70 backdrop-blur-xl border-l border-slate-200 dark:border-zinc-850 flex flex-col shrink-0 select-none overflow-y-auto p-4 space-y-5">
+            <div className="flex items-center gap-2 border-b border-slate-100 dark:border-zinc-850 pb-3 shrink-0">
+              <span className="text-slate-400"><SettingsSliderIcon /></span>
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-100 uppercase tracking-widest">Design Options</span>
             </div>
-          )}
-        </div>
+
+            {/* Theme Colors */}
+            <div className="space-y-2">
+              <span className="text-[9px] font-extrabold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block">Theme Colors</span>
+              <ColorPickerField label="Primary Color" value={theme.primary} defaultValue={activeTpl.accent} onChange={v => updTheme('primary', v)} />
+              {activeTpl.id?.includes('modern') && (
+                <ColorPickerField label="Secondary Color" value={theme.secondary} defaultValue="#3b82f6" onChange={v => updTheme('secondary', v)} />
+              )}
+            </div>
+
+            {/* Profile Photo */}
+            <div className="space-y-2 pt-3 border-t border-slate-100 dark:border-zinc-850">
+              <span className="text-[9px] font-extrabold text-slate-400 dark:text-zinc-550 uppercase tracking-wider block">Profile Photo</span>
+              <div className="flex items-center gap-3 bg-slate-50/40 dark:bg-zinc-950/20 p-2 rounded-xl border border-slate-150/40 dark:border-zinc-850/50">
+                {p.picture ? (
+                  <img src={p.picture} alt="Profile preview" className="w-10 h-10 rounded-full object-cover border border-slate-200 dark:border-zinc-700 shadow-sm shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-full bg-slate-100/70 dark:bg-zinc-800/60 border border-slate-200 dark:border-zinc-750 flex items-center justify-center text-[10px] text-slate-400 font-bold shrink-0">None</div>
+                )}
+                <div className="flex flex-col gap-0.5">
+                  <input 
+                    type="file" 
+                    accept="image/*" 
+                    id="design-photo-upload" 
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => handleUpdate({ personalInfo: { ...p, picture: ev.target.result } });
+                        reader.readAsDataURL(file);
+                      }
+                    }} 
+                  />
+                  <label htmlFor="design-photo-upload" className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 cursor-pointer hover:underline">Change</label>
+                  {p.picture && (
+                    <button onClick={() => handleUpdate({ personalInfo: { ...p, picture: '' } })} className="text-[9px] font-bold text-red-500 hover:text-red-600 bg-transparent border-0 text-left cursor-pointer">Delete</button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Font settings */}
+            <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-zinc-850">
+              <span className="text-[9px] font-extrabold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block">Font Customization</span>
+              
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase">Heading Font</label>
+                <select
+                  value={theme.fontHeading || 'Poppins'}
+                  onChange={e => updTheme('fontHeading', e.target.value)}
+                  className="w-full text-xs font-semibold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg p-2 focus:outline-none"
+                >
+                  <option value="Poppins">Poppins</option>
+                  <option value="Outfit">Outfit</option>
+                  <option value="Playfair Display">Playfair Display</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Inter">Inter</option>
+                  <option value="Montserrat">Montserrat</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase">Body Font</label>
+                <select
+                  value={theme.fontBody || 'Inter'}
+                  onChange={e => updTheme('fontBody', e.target.value)}
+                  className="w-full text-xs font-semibold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg p-2 focus:outline-none"
+                >
+                  <option value="Inter">Inter</option>
+                  <option value="Roboto">Roboto</option>
+                  <option value="Open Sans">Open Sans</option>
+                  <option value="Georgia">Georgia</option>
+                  <option value="Arial">Arial</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Page & Layout settings */}
+            <div className="space-y-3 pt-3 border-t border-slate-100 dark:border-zinc-850">
+              <span className="text-[9px] font-extrabold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block">Page &amp; Layout</span>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase">Page Size</label>
+                <select
+                  value={theme.pageSize || 'A4'}
+                  onChange={e => updTheme('pageSize', e.target.value)}
+                  className="w-full text-xs font-semibold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg p-2 focus:outline-none"
+                >
+                  <option value="A4">A4 (210 x 297 mm)</option>
+                  <option value="Letter">Letter (8.5 x 11 in)</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-[9px] font-bold text-slate-400 dark:text-zinc-555 uppercase">Margins</label>
+                <select
+                  value={theme.margins || 'normal'}
+                  onChange={e => updTheme('margins', e.target.value)}
+                  className="w-full text-xs font-semibold bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-850 rounded-lg p-2 focus:outline-none"
+                >
+                  <option value="normal">Normal</option>
+                  <option value="compact">Compact</option>
+                  <option value="wide">Wide</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Section Style toggles */}
+            <div className="space-y-3.5 pt-3 border-t border-slate-100 dark:border-zinc-850">
+              <span className="text-[9px] font-extrabold text-slate-400 dark:text-zinc-555 uppercase tracking-wider block">Section Style</span>
+              
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-650 dark:text-slate-350">Show Icons</span>
+                <button
+                  onClick={() => updTheme('showIcons', theme.showIcons !== false ? false : true)}
+                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors border border-transparent focus:outline-none ${theme.showIcons !== false ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-zinc-800'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${theme.showIcons !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-semibold text-slate-650 dark:text-slate-350">Section Dividers</span>
+                <button
+                  onClick={() => updTheme('sectionDividers', theme.sectionDividers !== false ? false : true)}
+                  className={`w-9 h-5 flex items-center rounded-full p-0.5 transition-colors border border-transparent focus:outline-none ${theme.sectionDividers !== false ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-zinc-800'}`}
+                >
+                  <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform ${theme.sectionDividers !== false ? 'translate-x-4' : 'translate-x-0'}`} />
+                </button>
+              </div>
+            </div>
+
+            {/* Reset Theme options */}
+            <div className="pt-4 border-t border-slate-100 dark:border-zinc-850 shrink-0">
+              <button 
+                onClick={handleResetTheme}
+                className="w-full py-2 bg-slate-50 dark:bg-zinc-950 border border-slate-200 dark:border-zinc-800 hover:bg-slate-100 dark:hover:bg-zinc-850 text-slate-600 dark:text-slate-450 hover:text-slate-800 dark:hover:text-slate-200 rounded-xl text-xs font-bold transition-colors"
+              >
+                Reset to Default
+              </button>
+            </div>
+          </aside>
+        )}
       </div>
+
+      {/* Confirmation delete dialog modal */}
+      <ConfirmModal
+        isOpen={resumeToDelete !== null}
+        title="Delete Resume"
+        message="Are you sure you want to delete this resume? This action cannot be undone."
+        onConfirm={executeDeleteResume}
+        onCancel={() => setResumeToDelete(null)}
+      />
     </div>
   );
 };

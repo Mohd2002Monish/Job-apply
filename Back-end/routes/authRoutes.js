@@ -10,7 +10,8 @@ const {
   status,
   logout,
   updateProfile,
-  getProfile
+  getProfile,
+  onboard
 } = require('../controllers/authController');
 const { authenticate, requireAuth } = require('../middlewares/authMiddleware');
 const { validate, profileUpdateSchema } = require('../middlewares/validate');
@@ -40,6 +41,30 @@ const profilePicUpload = multer({
   limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
 });
 
+const { getActiveAiModels } = require('../controllers/aiModelController');
+
+// Multer (resume upload for onboarding)
+const uploadsDir = path.join(__dirname, '..', 'public', 'uploads');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const resumeStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadsDir),
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `resume_${Date.now()}${ext}`);
+  },
+});
+
+const resumeUpload = multer({
+  storage: resumeStorage,
+  fileFilter: (req, file, cb) => {
+    const allowedExts = ['.pdf', '.doc', '.docx', '.jpg', '.jpeg', '.png', '.webp'];
+    const ext = path.extname(file.originalname).toLowerCase();
+    allowedExts.includes(ext) ? cb(null, true) : cb(new Error('Only PDF, Word, or Image files allowed'));
+  },
+  limits: { fileSize: 15 * 1024 * 1024 }
+});
+
 router.get('/google', googleAuth);
 router.get('/google/callback', googleCallback);
 router.get('/microsoft', microsoftAuth);
@@ -48,5 +73,7 @@ router.get('/status', authenticate, status);
 router.post('/logout', logout);
 router.get('/profile', authenticate, requireAuth, getProfile);
 router.post('/profile/update', authenticate, requireAuth, profilePicUpload.single('picture'), validate(profileUpdateSchema), updateProfile);
+router.post('/onboard', authenticate, requireAuth, resumeUpload.single('resume'), onboard);
+router.get('/ai-models', getActiveAiModels);
 
 module.exports = router;

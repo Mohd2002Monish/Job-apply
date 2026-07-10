@@ -187,9 +187,9 @@ const getResumeData = async (req, res) => {
 };
 
 const exportUserResume = async (req, res) => {
-  const { templateId = 'classic', format = 'pdf', resumeData: clientData, injectedStyles = '' } = req.body;
+  const { templateId = 'classic', format = 'pdf', resumeData: clientData, injectedStyles = '', exportHtml = '', pageCount = 0 } = req.body;
   const user = req.user;
-  
+
   try {
     const active = getActiveResume(user);
     let resumeData = clientData || (active ? active.resumeData : null);
@@ -198,8 +198,8 @@ const exportUserResume = async (req, res) => {
       return res.status(404).json({ error: 'No resume data found. Please upload and parse a resume first.' });
     }
 
-    console.log(`Exporting resume: format=${format}, template=${templateId}`);
-    const { buffer, mime, ext } = await exportResume(resumeData, templateId, format, injectedStyles);
+    console.log(`Exporting resume: format=${format}, template=${templateId}, wysiwyg=${!!exportHtml}`);
+    const { buffer, mime, ext } = await exportResume(resumeData, templateId, format, injectedStyles, { exportHtml, pageCount });
     const filename = `resume_${templateId}_${Date.now()}.${ext}`;
 
     res.setHeader('Content-Type', mime);

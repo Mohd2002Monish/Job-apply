@@ -283,11 +283,34 @@ const InteractiveBackground = () => {
   }, [isDark]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className="fixed inset-0 pointer-events-none -z-10 block transition-opacity duration-500"
-      style={{ mixBlendMode: isDark ? 'screen' : 'multiply' }}
-    />
+    <div className="fixed inset-0 pointer-events-none -z-10 overflow-hidden" aria-hidden="true">
+      {/* Layer 1: slow-drifting aurora gradient blobs */}
+      <div
+        className="aurora-blob w-[42rem] h-[42rem] -top-40 -left-32"
+        style={{ background: isDark ? 'rgba(99, 102, 241, 0.14)' : 'rgba(99, 102, 241, 0.12)' }}
+      />
+      <div
+        className="aurora-blob w-[38rem] h-[38rem] top-1/3 -right-40"
+        style={{ background: isDark ? 'rgba(168, 85, 247, 0.12)' : 'rgba(168, 85, 247, 0.10)', animationDelay: '-9s', animationDuration: '32s' }}
+      />
+      <div
+        className="aurora-blob w-[36rem] h-[36rem] -bottom-40 left-1/4"
+        style={{ background: isDark ? 'rgba(45, 212, 191, 0.10)' : 'rgba(20, 184, 166, 0.09)', animationDelay: '-18s', animationDuration: '38s' }}
+      />
+
+      {/* Layer 2: fine dot-grid texture */}
+      <div className="absolute inset-0 bg-dot-grid" />
+
+      {/* Layer 3: particle constellation canvas */}
+      <canvas
+        ref={canvasRef}
+        className="absolute inset-0 block transition-opacity duration-500"
+        style={{ mixBlendMode: isDark ? 'screen' : 'multiply' }}
+      />
+
+      {/* Layer 4: film grain */}
+      <div className="absolute inset-0 bg-noise" />
+    </div>
   );
 };
 

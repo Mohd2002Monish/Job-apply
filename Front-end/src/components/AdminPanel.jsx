@@ -4,6 +4,7 @@ import axios from 'axios';
 import Select from 'react-select';
 import { getReactSelectStyles } from '../utils/reactSelectStyles';
 import PaymentGatewayPanel from './PaymentGatewayPanel';
+import ConfirmModal from './ConfirmModal';
 
 const BACKEND = 'http://localhost:3000';
 
@@ -66,12 +67,19 @@ const CreditCardIcon = ({ size = 20, className = '' }) => (
   </svg>
 );
 
+const SparkleIcon = ({ size = 20, className = '' }) => (
+  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+  </svg>
+);
+
 export default function AdminPanel() {
   const [activeTab, setActiveTab] = useState('users');
   const [stats, setStats] = useState(null);
   const [users, setUsers] = useState([]);
   const [packages, setPackages] = useState([]);
   const [coupons, setCoupons] = useState([]);
+  const [aiModels, setAiModels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
@@ -80,13 +88,11 @@ export default function AdminPanel() {
 
   const [showPkgModal, setShowPkgModal] = useState(false);
   const [pkgForm, setPkgForm] = useState({
-    name: '',
-    description: '',
-    priceINR: 999,
-    priceUSD: 12,
-    duration: 'monthly',
+    title: '',
+    priceINR: 1999,
+    priceUSD: 29,
     features: '',
-    isPopular: false
+    isActive: true
   });
 
   const [showCouponModal, setShowCouponModal] = useState(false);
@@ -98,21 +104,34 @@ export default function AdminPanel() {
     expiresAt: ''
   });
 
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
+  const [showAiModal, setShowAiModal] = useState(false);
+  const [aiForm, setAiForm] = useState({
+    modelId: '',
+    name: '',
+    provider: 'Google Gemini',
+    caption: '',
+    isActive: true
+  });
+
   const fetchData = async () => {
     try {
       setLoading(true);
       setError('');
-      const [statsRes, usersRes, pkgsRes, couponsRes] = await Promise.all([
+      const [statsRes, usersRes, pkgsRes, couponsRes, aiRes] = await Promise.all([
         axios.get(`${BACKEND}/admin/stats`, { withCredentials: true }),
         axios.get(`${BACKEND}/admin/users`, { withCredentials: true }),
         axios.get(`${BACKEND}/admin/packages`, { withCredentials: true }),
-        axios.get(`${BACKEND}/admin/coupons`, { withCredentials: true })
+        axios.get(`${BACKEND}/admin/coupons`, { withCredentials: true }),
+        axios.get(`${BACKEND}/admin/ai-models`, { withCredentials: true })
       ]);
 
       if (statsRes.data.success) setStats(statsRes.data.stats);
       if (usersRes.data.success) setUsers(usersRes.data.users);
       if (pkgsRes.data.success) setPackages(pkgsRes.data.packages);
       if (couponsRes.data.success) setCoupons(couponsRes.data.coupons);
+      if (aiRes.data.success) setAiModels(aiRes.data.models);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.error || 'Failed to fetch administrative data.');
@@ -124,6 +143,90 @@ export default function AdminPanel() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleCreateAiModel = async (e) => {
+    e.preventDefault();
+    try {
+      setError('');
+      setSuccessMsg('');
+      const res = await axios.post(`${BACKEND}/admin/ai-models`, aiForm, { withCredentials: true });
+      if (res.data.success) {
+        setSuccessMsg(res.data.message);
+        setShowAiModal(false);
+        const aiRes = await axios.get(`${BACKEND}/admin/ai-models`, { withCredentials: true });
+        if (aiRes.data.success) setAiModels(aiRes.data.models);
+        setAiForm({ modelId: '', name: '', provider: 'Google Gemini', caption: '', isActive: true });
+        setTimeout(() => setSuccessMsg(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to save AI model.');
+    }
+  };
+
+  const handleToggleAiActive = async (model) => {
+    try {
+      setError('');
+      setSuccessMsg('');
+      const res = await axios.post(`${BACKEND}/admin/ai-models`, {
+        ...model,
+        isActive: !model.isActive
+      }, { withCredentials: true });
+      if (res.data.success) {
+        setSuccessMsg(`Successfully toggled active status for ${model.name}`);
+        setAiModels(aiModels.map(m => m._id === model._id ? { ...m, isActive: !m.isActive } : m));
+        setTimeout(() => setSuccessMsg(''), 3000);
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to toggle AI model active status.');
+    }
+  };
+
+  const handleDeleteAiModel = (modelId, name) => {
+    setDeleteConfirm({ type: 'model', id: modelId, name });
+  };
+
+  const handleDeletePackage = (pkgId) => {
+    setDeleteConfirm({ type: 'package', id: pkgId });
+  };
+
+  const handleDeleteCoupon = (couponId) => {
+    setDeleteConfirm({ type: 'coupon', id: couponId });
+  };
+
+  const executeDelete = async () => {
+    if (!deleteConfirm) return;
+    const { type, id } = deleteConfirm;
+    try {
+      setError('');
+      setSuccessMsg('');
+      if (type === 'model') {
+        const res = await axios.delete(`${BACKEND}/admin/ai-models/${id}`, { withCredentials: true });
+        if (res.data.success) {
+          setSuccessMsg(res.data.message);
+          setAiModels(aiModels.filter(m => m._id !== id));
+          setTimeout(() => setSuccessMsg(''), 3000);
+        }
+      } else if (type === 'package') {
+        const res = await axios.delete(`${BACKEND}/admin/packages/${id}`, { withCredentials: true });
+        if (res.data.success) {
+          setSuccessMsg('Package deleted.');
+          setPackages(packages.filter(p => p._id !== id));
+          setTimeout(() => setSuccessMsg(''), 3000);
+        }
+      } else if (type === 'coupon') {
+        const res = await axios.delete(`${BACKEND}/admin/coupons/${id}`, { withCredentials: true });
+        if (res.data.success) {
+          setSuccessMsg('Coupon deleted.');
+          setCoupons(coupons.filter(c => c._id !== id));
+          setTimeout(() => setSuccessMsg(''), 3000);
+        }
+      }
+    } catch (err) {
+      setError(err.response?.data?.error || `Failed to delete ${type}.`);
+    } finally {
+      setDeleteConfirm(null);
+    }
+  };
 
   const handleTierChange = async (userId, newTier) => {
     try {
@@ -159,20 +262,7 @@ export default function AdminPanel() {
     }
   };
 
-  const handleDeletePackage = async (pkgId) => {
-    if (!window.confirm('Are you sure you want to delete this package?')) return;
-    try {
-      setError('');
-      const res = await axios.delete(`${BACKEND}/admin/packages/${pkgId}`, { withCredentials: true });
-      if (res.data.success) {
-        setSuccessMsg('Package deleted.');
-        setPackages(packages.filter(p => p._id !== pkgId));
-        setTimeout(() => setSuccessMsg(''), 3000);
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete package.');
-    }
-  };
+  // Handled dynamically via executeDelete
 
   const handleCreateCoupon = async (e) => {
     e.preventDefault();
@@ -205,20 +295,7 @@ export default function AdminPanel() {
     }
   };
 
-  const handleDeleteCoupon = async (couponId) => {
-    if (!window.confirm('Are you sure you want to delete this coupon?')) return;
-    try {
-      setError('');
-      const res = await axios.delete(`${BACKEND}/admin/coupons/${couponId}`, { withCredentials: true });
-      if (res.data.success) {
-        setSuccessMsg('Coupon deleted.');
-        setCoupons(coupons.filter(c => c._id !== couponId));
-        setTimeout(() => setSuccessMsg(''), 3000);
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to delete coupon.');
-    }
-  };
+  // Handled dynamically via executeDelete
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -307,6 +384,17 @@ export default function AdminPanel() {
         >
           <CreditCardIcon size={16} />
           Payment Gateways
+        </button>
+        <button
+          onClick={() => setActiveTab('aiModels')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all btn-tactile ${
+            activeTab === 'aiModels'
+              ? 'bg-brand-primary text-white shadow-md'
+              : 'bg-bg-card text-text-muted hover:text-text-main hover:bg-bg-card-hover border border-border-card'
+          }`}
+        >
+          <SparkleIcon size={16} />
+          AI Engines ({aiModels.length})
         </button>
       </div>
 
@@ -770,14 +858,19 @@ export default function AdminPanel() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block font-bold text-text-muted mb-1">Discount Type</label>
-                  <select
-                    value={couponForm.discountType}
-                    onChange={e => setCouponForm({ ...couponForm, discountType: e.target.value })}
-                    className="w-full p-2.5 border border-border-card bg-bg-app rounded-xl text-text-main"
-                  >
-                    <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (Flat)</option>
-                  </select>
+                  <Select
+                    value={[
+                      { value: 'percentage', label: 'Percentage (%)' },
+                      { value: 'fixed', label: 'Fixed Amount (Flat)' }
+                    ].find(o => o.value === couponForm.discountType)}
+                    onChange={selected => setCouponForm({ ...couponForm, discountType: selected.value })}
+                    options={[
+                      { value: 'percentage', label: 'Percentage (%)' },
+                      { value: 'fixed', label: 'Fixed Amount (Flat)' }
+                    ]}
+                    styles={getReactSelectStyles()}
+                    id="coupon-discount-type-select"
+                  />
                 </div>
                 <div>
                   <label className="block font-bold text-text-muted mb-1">Discount Value</label>
@@ -824,12 +917,208 @@ export default function AdminPanel() {
         document.body
       )}
 
+      {/* TAB 5: AI ENGINES MANAGER */}
+      {activeTab === 'aiModels' && (
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-text-main">AI Intelligence Engines</h2>
+              <p className="text-xs text-text-muted">Register and configure custom Large Language Models for users.</p>
+            </div>
+            <button
+              onClick={() => setShowAiModal(true)}
+              className="bg-brand-primary text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-md btn-tactile"
+            >
+              + Add AI Model
+            </button>
+          </div>
+
+          <div className="bg-bg-card border border-border-card rounded-2xl shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="bg-bg-app border-b border-border-card text-text-muted font-bold uppercase tracking-wider">
+                    <th className="p-4">Provider</th>
+                    <th className="p-4">Model ID</th>
+                    <th className="p-4">Display Name</th>
+                    <th className="p-4">Short Caption</th>
+                    <th className="p-4 text-center">Status</th>
+                    <th className="p-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-card/60">
+                  {aiModels.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="p-8 text-center text-text-muted">
+                        No AI models registered.
+                      </td>
+                    </tr>
+                  ) : (
+                    aiModels.map((model) => (
+                      <tr key={model._id} className="hover:bg-bg-card-hover/20">
+                        <td className="p-4 font-bold text-text-main">{model.provider}</td>
+                        <td className="p-4 font-mono text-[11px] text-text-muted">{model.modelId}</td>
+                        <td className="p-4 font-semibold text-text-main">{model.name}</td>
+                        <td className="p-4 text-text-muted">{model.caption || 'None'}</td>
+                        <td className="p-4 text-center">
+                          <button
+                            onClick={() => handleToggleAiActive(model)}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-lg border btn-tactile ${
+                              model.isActive
+                                ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20'
+                                : 'bg-slate-500/10 text-slate-500 border-slate-500/20'
+                            }`}
+                          >
+                            {model.isActive ? 'Active' : 'Inactive'}
+                          </button>
+                        </td>
+                        <td className="p-4 text-right">
+                          {model.isCustom ? (
+                            <button
+                              onClick={() => handleDeleteAiModel(model._id, model.name)}
+                              className="text-red-500 hover:text-red-700 font-bold hover:underline btn-tactile"
+                            >
+                              Delete
+                            </button>
+                          ) : (
+                            <span className="text-[10px] font-bold text-text-muted px-2 py-1 bg-bg-app border border-border-card rounded-md select-none">
+                              System Default
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI MODEL CREATION MODAL */}
+      {showAiModal && createPortal(
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-[2px] flex items-center justify-center p-4 z-[9999] animate-fade-in">
+          <div className="bg-bg-card border border-border-card rounded-[24px] shadow-2xl w-full max-w-md overflow-hidden animate-slide-up">
+            <div className="p-6 border-b border-border-card flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-text-main">Add AI Model</h3>
+              <button
+                onClick={() => setShowAiModal(false)}
+                className="text-text-muted hover:text-text-main"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth="2.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreateAiModel} className="p-6 space-y-4 text-xs text-text-main">
+              <div>
+                <label className="block font-bold text-text-muted mb-1">Provider Engine</label>
+                <Select
+                  value={[
+                    { value: 'Google Gemini', label: 'Google Gemini' },
+                    { value: 'OpenAI', label: 'OpenAI' },
+                    { value: 'Anthropic Claude', label: 'Anthropic Claude' }
+                  ].find(o => o.value === aiForm.provider)}
+                  onChange={selected => setAiForm({ ...aiForm, provider: selected.value })}
+                  options={[
+                    { value: 'Google Gemini', label: 'Google Gemini' },
+                    { value: 'OpenAI', label: 'OpenAI' },
+                    { value: 'Anthropic Claude', label: 'Anthropic Claude' }
+                  ]}
+                  styles={getReactSelectStyles()}
+                  id="admin-provider-engine-select"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-text-muted mb-1">Model Identifier ID (e.g. gpt-4.5-turbo)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="gemini-2.0-pro-exp"
+                  value={aiForm.modelId}
+                  onChange={e => setAiForm({ ...aiForm, modelId: e.target.value })}
+                  className="w-full p-2.5 border border-border-card bg-bg-app rounded-xl text-text-main font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-text-muted mb-1">Display Name (e.g. Gemini 2.0 Pro)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Gemini 2.0 Pro"
+                  value={aiForm.name}
+                  onChange={e => setAiForm({ ...aiForm, name: e.target.value })}
+                  className="w-full p-2.5 border border-border-card bg-bg-app rounded-xl text-text-main"
+                />
+              </div>
+
+              <div>
+                <label className="block font-bold text-text-muted mb-1">Short Caption / Description</label>
+                <input
+                  type="text"
+                  placeholder="Ultra-quality deep tailoring"
+                  value={aiForm.caption}
+                  onChange={e => setAiForm({ ...aiForm, caption: e.target.value })}
+                  className="w-full p-2.5 border border-border-card bg-bg-app rounded-xl text-text-main"
+                />
+              </div>
+
+              <div className="flex items-center gap-2 pt-2">
+                <input
+                  type="checkbox"
+                  id="ai-model-active"
+                  checked={aiForm.isActive}
+                  onChange={e => setAiForm({ ...aiForm, isActive: e.target.checked })}
+                  className="w-4 h-4 border border-border-card bg-bg-app rounded-md cursor-pointer accent-brand-primary"
+                />
+                <label htmlFor="ai-model-active" className="font-bold text-text-muted cursor-pointer select-none">
+                  Enable model immediately for all users
+                </label>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-card">
+                <button
+                  type="button"
+                  onClick={() => setShowAiModal(false)}
+                  className="px-4 py-2 font-bold text-text-muted hover:text-text-main btn-tactile"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 font-bold text-white bg-brand-primary rounded-xl shadow-md btn-tactile"
+                >
+                  Register Model
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* TAB 4: PAYMENT GATEWAYS */}
       {activeTab === 'gateways' && (
         <div className="bg-bg-card border border-border-card rounded-2xl shadow-sm p-6">
           <PaymentGatewayPanel />
         </div>
       )}
+      <ConfirmModal
+        isOpen={deleteConfirm !== null}
+        title={`Delete ${deleteConfirm?.type === 'model' ? 'AI Model' : deleteConfirm?.type === 'package' ? 'Package' : 'Coupon'}`}
+        message={
+          deleteConfirm?.type === 'model'
+            ? `Are you sure you want to delete AI model "${deleteConfirm?.name}"?`
+            : deleteConfirm?.type === 'package'
+            ? 'Are you sure you want to delete this subscription package?'
+            : 'Are you sure you want to delete this promo coupon?'
+        }
+        onConfirm={executeDelete}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

@@ -1,11 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, Text, View, FlatList, TouchableOpacity, SafeAreaView, ActivityIndicator, Alert, Modal, TextInput } from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
+import { api } from '@/constants/api';
 import OutreachModal from '@/components/OutreachModal';
+import DiscoverModal from '@/components/DiscoverModal';
+import FinderModal from '@/components/FinderModal';
+import SettingsModal from '@/components/SettingsModal';
+import InterviewPrepModal from '@/components/InterviewPrepModal';
+import SalaryModal from '@/components/SalaryModal';
+
+// Mirrors the web app's StatusBadge: Replied > Opened > Sent > Pending
+const StatusBadge = ({ job }: { job: any }) => {
+  const status = job.hasReply
+    ? { label: 'Replied', color: '#10b981', bg: 'rgba(16,185,129,0.12)' }
+    : job.isOpened
+    ? { label: 'Opened', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)' }
+    : job.isEmailSent
+    ? { label: 'Sent', color: '#818cf8', bg: 'rgba(99,102,241,0.14)' }
+    : { label: 'Pending', color: '#a1a1aa', bg: 'rgba(161,161,170,0.12)' };
+  return (
+    <View style={[styles.badge, { backgroundColor: status.bg, borderColor: status.color }]}>
+      <Text style={[styles.badgeText, { color: status.color }]}>{status.label}</Text>
+    </View>
+  );
+};
 
 export default function HomeScreen() {
   const { token, user } = useAuth();
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   
   const [isAddModalVisible, setAddModalVisible] = useState(false);
@@ -16,15 +38,22 @@ export default function HomeScreen() {
   const [selectedJob, setSelectedJob] = useState(null);
   const [isOutreachVisible, setOutreachVisible] = useState(false);
   const [isPrepVisible, setPrepVisible] = useState(false);
+  const [isSalaryVisible, setSalaryVisible] = useState(false);
+  const [isDiscoverVisible, setDiscoverVisible] = useState(false);
+  const [isFinderVisible, setFinderVisible] = useState(false);
+  const [isSettingsVisible, setSettingsVisible] = useState(false);
 
   const fetchJobs = async () => {
     try {
       setLoading(true);
-      const res = await fetch('http://localhost:3000/jobs', {
+      const res = await fetch(api('/jobs'), {
         headers: { Authorization: `Bearer ${token}` }
       });
       const data = await res.json();
-      if (Array.isArray(data)) setJobs(data);
+      // GET /jobs returns a paginated object { jobs, totalJobs, ... }, not a
+      // bare array. Accept either shape so the list actually populates.
+      const list = Array.isArray(data) ? data : (data?.jobs ?? []);
+      setJobs(list);
     } catch (err) {
       console.error(err);
     } finally {
@@ -51,12 +80,12 @@ export default function HomeScreen() {
     if (!newJobUrl && !newJobEmail) return;
     setIsExtracting(true);
     try {
-      const payload = { url: newJobUrl };
+      const payload: any = { url: newJobUrl };
       if (newJobEmail) payload.email = newJobEmail;
 
       let res;
       if (newJobUrl) {
-        res = await fetch('http://localhost:3000/jobs/extract-url', {
+        res = await fetch(api('/jobs/extract-url'), {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -66,7 +95,7 @@ export default function HomeScreen() {
         });
       } else {
         // Email only, no URL
-        res = await fetch('http://localhost:3000/jobs', {
+        res = await fetch(api('/jobs'), {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
@@ -86,16 +115,16 @@ export default function HomeScreen() {
       setAddModalVisible(false);
       setNewJobUrl('');
       fetchJobs();
-    } catch (err) {
+    } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
       setIsExtracting(false);
     }
   };
 
-  const deleteJob = async (id) => {
+  const deleteJob = async (id: string) => {
     try {
-      await fetch(`http://localhost:3000/jobs/${id}`, {
+      await fetch(api(`/jobs/${id}`), {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -105,13 +134,14 @@ export default function HomeScreen() {
     }
   };
 
-  const renderJob = ({ item }) => (
+  const renderJob = ({ item }: { item: any }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <View style={{ flex: 1 }}>
           <Text style={styles.jobTitle}>{item.job || 'Unknown Title'}</Text>
           <Text style={styles.companyName}>{item.companyName || 'Unknown Company'}</Text>
         </View>
+        <StatusBadge job={item} />
         <TouchableOpacity onPress={() => deleteJob(item._id)} style={styles.deleteBtn}>
           <Text style={styles.deleteText}>X</Text>
         </TouchableOpacity>
@@ -137,14 +167,24 @@ export default function HomeScreen() {
           <Text style={styles.actionButtonText}>Outreach</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.prepButton} 
+        <TouchableOpacity
+          style={styles.prepButton}
           onPress={() => {
             setSelectedJob(item);
             setPrepVisible(true);
           }}
         >
           <Text style={styles.prepButtonText}>Prep</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.salaryButton}
+          onPress={() => {
+            setSelectedJob(item);
+            setSalaryVisible(true);
+          }}
+        >
+          <Text style={styles.prepButtonText}>Salary</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -153,8 +193,21 @@ export default function HomeScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>RecoCareer.ai</Text>
-        <Text style={styles.headerSubtitle}>Jobs Dashboard</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headerTitle}>RecoCareer.ai</Text>
+          <Text style={styles.headerSubtitle}>Jobs Dashboard</Text>
+        </View>
+        <View style={styles.headerActions}>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => setDiscoverVisible(true)}>
+            <Text style={styles.headerBtnText}>Discover</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={() => setFinderVisible(true)}>
+            <Text style={styles.headerBtnText}>Finder</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.accountBtn} onPress={() => setSettingsVisible(true)}>
+            <Text style={styles.accountText}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {loading ? (
@@ -231,34 +284,57 @@ export default function HomeScreen() {
         }} 
       />
 
-      {/* Prep Modal Placeholder */}
-      <Modal visible={isPrepVisible} animationType="slide" presentationStyle="pageSheet">
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>AI Interview Prep</Text>
-            <TouchableOpacity onPress={() => setPrepVisible(false)}>
-              <Text style={styles.cancelText}>Done</Text>
-            </TouchableOpacity>
-          </View>
-          <View style={styles.modalContent}>
-            <Text style={{ color: '#f4f4f5', fontSize: 16, textAlign: 'center', marginTop: 40 }}>
-              AI Interview Carousel and Auto-Grading will load here for {selectedJob?.companyName}.
-            </Text>
-          </View>
-        </SafeAreaView>
-      </Modal>
+      <InterviewPrepModal
+        visible={isPrepVisible}
+        job={selectedJob}
+        token={token}
+        onClose={() => { setPrepVisible(false); setSelectedJob(null); }}
+      />
+
+      <SalaryModal
+        visible={isSalaryVisible}
+        job={selectedJob}
+        token={token}
+        onClose={() => { setSalaryVisible(false); setSelectedJob(null); }}
+      />
+
+      <DiscoverModal
+        visible={isDiscoverVisible}
+        token={token}
+        onClose={() => setDiscoverVisible(false)}
+        onImported={fetchJobs}
+      />
+
+      <FinderModal
+        visible={isFinderVisible}
+        token={token}
+        onClose={() => setFinderVisible(false)}
+        onImported={fetchJobs}
+      />
+
+      <SettingsModal
+        visible={isSettingsVisible}
+        onClose={() => setSettingsVisible(false)}
+      />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#09090b' },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a', backgroundColor: '#09090b' },
+  header: { flexDirection: 'row', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a', backgroundColor: '#09090b' },
   headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
   headerSubtitle: { fontSize: 14, color: '#a1a1aa', marginTop: 4 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  headerBtn: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: 8, backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a' },
+  headerBtnText: { color: '#e4e4e7', fontSize: 12, fontWeight: '600' },
+  accountBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' },
+  accountText: { color: '#fff', fontSize: 15, fontWeight: 'bold' },
   listContainer: { padding: 16, paddingBottom: 100 },
   card: { backgroundColor: '#18181b', borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 12 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 12 },
+  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 999, borderWidth: 1 },
+  badgeText: { fontSize: 11, fontWeight: '700' },
   jobTitle: { fontSize: 18, fontWeight: 'bold', color: '#f4f4f5' },
   companyName: { fontSize: 14, color: '#a1a1aa', marginTop: 2 },
   deleteBtn: { padding: 4 },
@@ -271,6 +347,7 @@ const styles = StyleSheet.create({
   actionButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
   prepButton: { flex: 1, backgroundColor: '#10b981', paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
   prepButtonText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
+  salaryButton: { flex: 1, backgroundColor: '#8b5cf6', paddingVertical: 10, borderRadius: 8, alignItems: 'center' },
   emptyText: { color: '#71717a', textAlign: 'center', marginTop: 40, fontSize: 16 },
   fab: { position: 'absolute', bottom: 20, right: 20, width: 60, height: 60, borderRadius: 30, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center', shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 4 },
   fabText: { color: '#fff', fontSize: 32, fontWeight: '300', marginTop: -4 },

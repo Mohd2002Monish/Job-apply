@@ -2,10 +2,23 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
+import { api, API_BASE_URL } from '@/constants/api';
 
 WebBrowser.maybeCompleteAuthSession();
 
-export const AuthContext = createContext({
+type AuthContextType = {
+  token: string | null;
+  user: any;
+  pendingMailto: string | null;
+  clearPendingMailto: () => void;
+  loginWithGoogle: () => Promise<void>;
+  loginWithMicrosoft: () => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+  isLoading: boolean;
+};
+
+export const AuthContext = createContext<AuthContextType>({
   token: null,
   user: null,
   pendingMailto: null,
@@ -13,14 +26,15 @@ export const AuthContext = createContext({
   loginWithGoogle: async () => {},
   loginWithMicrosoft: async () => {},
   logout: async () => {},
+  refreshUser: async () => {},
   isLoading: true,
 });
 
-export function AuthProvider({ children }) {
-  const [token, setToken] = useState(null);
-  const [user, setUser] = useState(null);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [pendingMailto, setPendingMailto] = useState(null);
+  const [pendingMailto, setPendingMailto] = useState<string | null>(null);
 
   const incomingUrl = Linking.useURL();
 
@@ -34,9 +48,9 @@ export function AuthProvider({ children }) {
 
   const clearPendingMailto = () => setPendingMailto(null);
 
-  const fetchUserStatus = async (jwt) => {
+  const fetchUserStatus = async (jwt: string) => {
     try {
-      const res = await fetch('http://localhost:3000/auth/status', {
+      const res = await fetch(api('/auth/status'), {
         headers: { Authorization: `Bearer ${jwt}` }
       });
       const data = await res.json();
@@ -63,16 +77,17 @@ export function AuthProvider({ children }) {
     });
   }, []);
 
-  const handleOAuthLogin = async (providerUrl) => {
+  const handleOAuthLogin = async (providerUrl: string) => {
     try {
       const redirectUri = Linking.createURL('/login');
-      const authUrl = `http://localhost:3000${providerUrl}?redirect_uri=${encodeURIComponent(redirectUri)}`;
+      const authUrl = `${API_BASE_URL}${providerUrl}?redirect_uri=${encodeURIComponent(redirectUri)}`;
       
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       
       if (result.type === 'success' && result.url) {
         const urlParams = Linking.parse(result.url);
-        const jwt = urlParams.queryParams?.token;
+        const rawToken = urlParams.queryParams?.token;
+        const jwt = Array.isArray(rawToken) ? rawToken[0] : rawToken;
         if (jwt) {
           await AsyncStorage.setItem('reco_jwt', jwt);
           setToken(jwt);
@@ -93,8 +108,14 @@ export function AuthProvider({ children }) {
     setUser(null);
   };
 
+  // Re-pull /auth/status so screens can sync user state after mutations
+  // (e.g. the Builder refreshing resumeName/resumeData after an upload).
+  const refreshUser = async () => {
+    if (token) await fetchUserStatus(token);
+  };
+
   return (
-    <AuthContext.Provider value={{ token, user, pendingMailto, clearPendingMailto, loginWithGoogle, loginWithMicrosoft, logout, isLoading }}>
+    <AuthContext.Provider value={{ token, user, pendingMailto, clearPendingMailto, loginWithGoogle, loginWithMicrosoft, logout, refreshUser, isLoading }}>
       {children}
     </AuthContext.Provider>
   );
