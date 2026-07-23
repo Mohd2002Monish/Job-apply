@@ -67,7 +67,7 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip;
     scroll-behavior: smooth;
   }
 
@@ -75,7 +75,7 @@
     @apply bg-bg-app text-text-main;
     transition: background-color 0.2s ease, color 0.2s ease;
     max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Custom scrollbar */
@@ -497,4 +497,27 @@
   .animate-pulse-glow {
     animation: none;
   }
+}
+
+/* ── Resume Builder layer contract ──────────────────────────────────────────
+   .canvas-layer   — the printable Resume Canvas. Contains only document
+                     content; must render identically on screen, in PDF
+                     exports, and in print.
+   .overlay-layer  — editor-owned chrome hosted outside the canvas.
+   .editor-only /
+   [data-editor-ui] — editing chrome nested inside the canvas. Always
+                     absolutely positioned (zero layout footprint), hidden
+                     in print, and stripped from export snapshots.
+   .print-only     — content that only appears in print/export.           */
+.editor-only { }
+@media print {
+  .editor-only,
+  [data-editor-ui],
+  .overlay-layer {
+    display: none !important;
+  }
+}
+.print-only { display: none !important; }
+@media print {
+  .print-only { display: block !important; }
 }

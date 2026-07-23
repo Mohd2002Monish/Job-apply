@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import PublicLayout from '../components/PublicLayout';
 
 const ChevronIcon = ({ open }) => (
@@ -123,6 +123,7 @@ const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 const FAQPage = ({ isDark, onToggleTheme }) => {
   const [openItems, setOpenItems] = useState({});
   const [query, setQuery] = useState('');
+  const [activeId, setActiveId] = useState('');
 
   const toggle = (key) => {
     setOpenItems(prev => ({ ...prev, [key]: !prev[key] }));
@@ -138,6 +139,24 @@ const FAQPage = ({ isDark, onToggleTheme }) => {
       }))
       .filter(cat => cat.items.length > 0);
   }, [query]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = categories.map(c => document.getElementById(slugify(c.title))).filter(Boolean);
+      const scrollPos = window.scrollY + 140;
+
+      for (let i = elements.length - 1; i >= 0; i--) {
+        if (elements[i] && elements[i].offsetTop <= scrollPos) {
+          setActiveId(elements[i].id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const totalCount = categories.reduce((n, c) => n + c.items.length, 0);
 
@@ -159,7 +178,7 @@ const FAQPage = ({ isDark, onToggleTheme }) => {
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
           {/* Sticky rail: search + topic anchors */}
-          <aside className="lg:sticky lg:top-24 space-y-4">
+          <aside className="lg:sticky lg:top-20 space-y-4">
             <div className="glass-panel p-1.5">
               <div className="relative">
                 <svg className="w-4 h-4 text-text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24">
@@ -175,17 +194,25 @@ const FAQPage = ({ isDark, onToggleTheme }) => {
               </div>
             </div>
 
-            <nav className="glass-panel p-2 hidden lg:block">
-              {categories.map(({ title, items }) => (
-                <a
-                  key={title}
-                  href={`#${slugify(title)}`}
-                  className="flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-medium text-text-muted hover:text-text-main hover:bg-white/40 dark:hover:bg-white/5 transition-colors"
-                >
-                  {title}
-                  <span className="text-[10px] font-mono text-text-muted/70">{items.length}</span>
-                </a>
-              ))}
+            <nav className="glass-panel p-2 hidden lg:block rounded-3xl space-y-1">
+              {categories.map(({ title, items }) => {
+                const id = slugify(title);
+                const isActive = activeId === id;
+                return (
+                  <a
+                    key={title}
+                    href={`#${id}`}
+                    className={`flex items-center justify-between px-3.5 py-2.5 rounded-2xl text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-brand-primary/10 text-brand-primary font-bold border border-brand-primary/20 shadow-xs'
+                        : 'text-text-muted hover:text-text-main hover:bg-white/40 dark:hover:bg-white/5 border border-transparent'
+                    }`}
+                  >
+                    <span>{title}</span>
+                    <span className={`text-[10px] font-mono ${isActive ? 'text-brand-primary font-bold' : 'text-text-muted/70'}`}>{items.length}</span>
+                  </a>
+                );
+              })}
             </nav>
           </aside>
 

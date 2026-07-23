@@ -35,8 +35,11 @@ export const captureResumeExportHTML = (theme = {}) => {
 
   const clone = layer.cloneNode(true);
 
-  // Strip editor chrome. All interactive controls in the editor are <button>
-  // elements and resumes contain none, so this is a safe blanket rule.
+  // Strip the editor overlay layer. Every piece of editing chrome is tagged
+  // data-editor-ui / .editor-only and positioned out of the document flow, so
+  // removing it cannot shift a single pixel of canvas content.
+  clone.querySelectorAll('[data-editor-ui], .editor-only').forEach((el) => el.remove());
+  // Safety net: resumes contain no <button> elements, only the editor does.
   clone.querySelectorAll('button').forEach((el) => el.remove());
   clone.querySelectorAll('[contenteditable]').forEach((el) => el.removeAttribute('contenteditable'));
 
