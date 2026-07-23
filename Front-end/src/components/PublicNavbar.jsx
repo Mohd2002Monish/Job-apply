@@ -71,8 +71,8 @@ const PublicNavbar = ({ isDark, onToggleTheme }) => {
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           scrolled
-            ? 'bg-bg-app/80 backdrop-blur-md border-b border-border-card shadow-sm'
-            : 'bg-transparent'
+            ? 'bg-bg-app/95 backdrop-blur-xl border-b border-border-card shadow-md'
+            : 'bg-bg-app/90 backdrop-blur-lg border-b border-border-card/60'
         }`}
       >
         <div className="max-w-6xl mx-auto px-5 py-3.5 flex items-center justify-between gap-6">
