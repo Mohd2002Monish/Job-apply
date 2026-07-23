@@ -195,20 +195,51 @@ const ResumeBuilder = ({ user, initialResumeData, toast, onUploadClick }) => {
     persist();
   }, [debouncedResumeData]);
 
-  // ── handleUpdate — merge patch into local state ──────────────────────────
+  // ── handleUpdate — merge patch into local state, tracking undo history ──
+  const resumeDataRef = useRef(resumeData);
+  useEffect(() => { resumeDataRef.current = resumeData; }, [resumeData]);
+  const historyRef = useRef({ undo: [], redo: [] });
+
   const handleUpdate = useCallback((patch) => {
-    setResumeData(prev => {
-      if (!prev) return prev;
-      const next = { ...prev };
-      Object.entries(patch).forEach(([key, val]) => {
-        if (val && typeof val === 'object' && !Array.isArray(val)) {
-          next[key] = { ...(prev[key] || {}), ...val };
-        } else {
-          next[key] = val;
-        }
-      });
-      return next;
+    const prev = resumeDataRef.current;
+    if (!prev) return;
+    historyRef.current.undo.push(prev);
+    if (historyRef.current.undo.length > 50) historyRef.current.undo.shift();
+    historyRef.current.redo = [];
+    const next = { ...prev };
+    Object.entries(patch).forEach(([key, val]) => {
+      if (val && typeof val === 'object' && !Array.isArray(val)) {
+        next[key] = { ...(prev[key] || {}), ...val };
+      } else {
+        next[key] = val;
+      }
     });
+    setResumeData(next);
+  }, []);
+
+  // ── Undo / Redo (Cmd/Ctrl+Z, Shift for redo) ─────────────────────────────
+  // While the caret is inside a text field the browser's native text undo
+  // applies; the document-level history handles structural edits.
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'z') return;
+      const active = document.activeElement;
+      if (active?.isContentEditable || active?.tagName === 'INPUT' || active?.tagName === 'TEXTAREA') return;
+      e.preventDefault();
+      const h = historyRef.current;
+      const current = resumeDataRef.current;
+      if (e.shiftKey) {
+        if (!h.redo.length) return;
+        h.undo.push(current);
+        setResumeData(h.redo.pop());
+      } else {
+        if (!h.undo.length) return;
+        h.redo.push(current);
+        setResumeData(h.undo.pop());
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   // ── Export ───────────────────────────────────────────────────────────────

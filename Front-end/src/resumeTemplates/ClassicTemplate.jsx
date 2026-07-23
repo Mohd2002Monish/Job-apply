@@ -1,6 +1,6 @@
 import React from 'react';
 import { TEMPLATE_TOKENS, resolveTheme, resolvePadding } from './templateSchema.js';
-import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, SectionActiveContext } from '../components/InlineCVEditor.jsx';
+import { EditableText, EditableMultiline, EditableBullets, EditableSkillChips, BlockWrapper, SectionWrapper, AddItemOverlay, EDITOR_UI_PROPS } from '../components/InlineCVEditor.jsx';
 
 const SummaryIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>;
 const ExperienceIcon = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.75, flexShrink: 0 }}><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>;
@@ -19,12 +19,9 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
   const skills = resumeData.skills || {};
   const bodyPadding = resolvePadding('classic', t.margins);
 
-  const { isSectionActive } = React.useContext(SectionActiveContext);
-  const addBtn = (onClick, label) => (editMode && isSectionActive) ? (
-    <button onClick={onClick} style={{ width: '100%', padding: '6px', marginTop: '4px', background: 'transparent', border: '1px dashed #d1d5db', borderRadius: '4px', cursor: 'pointer', fontSize: '8pt', color: '#6b7280' }}>
-      {label}
-    </button>
-  ) : null;
+  // Overlay-layer add affordance — floats over the section margin, zero
+  // layout footprint, stripped from exports.
+  const addBtn = (onClick, label) => editMode ? <AddItemOverlay onClick={onClick} label={label} /> : null;
 
   const updPI = (k) => (v) => onUpdate?.({ personalInfo: { ...p, [k]: v } });
   const updSummary = (v) => onUpdate?.({ summary: v });
@@ -40,7 +37,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
     onUpdate?.({ experience: arr });
   };
   const addExp = () => {
-    const arr = [...(resumeData.experience || []), { role: 'New Role', company: 'Company', startDate: '', endDate: '', current: false, location: '', description: '', achievements: [] }];
+    const arr = [{ role: 'New Role', company: 'Company', startDate: '', endDate: '', current: false, location: '', description: '', achievements: [] }, ...(resumeData.experience || [])];
     onUpdate?.({ experience: arr });
   };
   const removeExp = (i) => {
@@ -61,7 +58,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
     onUpdate?.({ education: arr });
   };
   const addEdu = () => {
-    const arr = [...(resumeData.education || []), { institution: 'University', degree: 'Bachelor', field: '', startDate: '', endDate: '', gpa: '' }];
+    const arr = [{ institution: 'University', degree: 'Bachelor', field: '', startDate: '', endDate: '', gpa: '' }, ...(resumeData.education || [])];
     onUpdate?.({ education: arr });
   };
   const removeEdu = (i) => {
@@ -77,7 +74,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
     onUpdate?.({ projects: arr });
   };
   const addPr = () => {
-    const arr = [...(resumeData.projects || []), { name: 'New Project', description: '', techStack: [], url: '', github: '' }];
+    const arr = [{ name: 'New Project', description: '', techStack: [], url: '', github: '' }, ...(resumeData.projects || [])];
     onUpdate?.({ projects: arr });
   };
   const removePr = (i) => {
@@ -122,7 +119,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
       <hr style={s.divider} />
 
       {/* Summary */}
-      {(resumeData.summary || editMode) && (
+      {Boolean(resumeData.summary && resumeData.summary.trim()) && (
         <SectionWrapper editMode={editMode} sectionLabel="Summary" onDelete={() => onUpdate?.({ summary: '' })}>
           <div style={s.section}>
             <div style={s.sectionTitle} data-heading="true" data-block-id="heading-summary">
@@ -137,7 +134,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
       )}
 
       {/* Experience */}
-      {((resumeData.experience || []).length > 0 || editMode) && (
+      {(resumeData.experience || []).length > 0 && (
         <SectionWrapper editMode={editMode} sectionLabel="Experience" onAdd={addExp} onDelete={() => onUpdate?.({ experience: [] })}>
           <div style={s.section}>
             <div style={s.sectionTitle} data-heading="true" data-block-id="heading-experience">
@@ -145,7 +142,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
               Experience
             </div>
             {(resumeData.experience || []).map((exp, i) => (
-              <BlockWrapper key={i} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
+              <BlockWrapper key={exp.id || exp._id || `exp-${i}-${exp.role || ''}-${exp.company || ''}`} id={`experience-${i}`} editMode={editMode} onDelete={() => removeExp(i)} onMoveUp={i > 0 ? () => moveExp(i, -1) : null} onMoveDown={i < (resumeData.experience || []).length - 1 ? () => moveExp(i, 1) : null}>
                 <div style={s.expItem}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
@@ -172,13 +169,13 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
                 </div>
               </BlockWrapper>
             ))}
-            {addBtn(addExp, '+ Add Experience')}
+            {addBtn(addExp, 'Add Experience')}
           </div>
         </SectionWrapper>
       )}
 
       {/* Education */}
-      {((resumeData.education || []).length > 0 || editMode) && (
+      {(resumeData.education || []).length > 0 && (
         <SectionWrapper editMode={editMode} sectionLabel="Education" onAdd={addEdu} onDelete={() => onUpdate?.({ education: [] })}>
           <div style={s.section}>
             <div style={s.sectionTitle} data-heading="true" data-block-id="heading-education">
@@ -186,7 +183,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
               Education
             </div>
             {(resumeData.education || []).map((edu, i) => (
-              <BlockWrapper key={i} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
+              <BlockWrapper key={edu.id || edu._id || `edu-${i}-${edu.degree || ''}-${edu.institution || ''}`} id={`education-${i}`} editMode={editMode} onDelete={() => removeEdu(i)}>
                 <div style={{ marginBottom: '8px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
@@ -208,13 +205,13 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
                 </div>
               </BlockWrapper>
             ))}
-            {addBtn(addEdu, '+ Add Education')}
+            {addBtn(addEdu, 'Add Education')}
           </div>
         </SectionWrapper>
       )}
 
       {/* Skills */}
-      {(Object.values(skills).some(v => (v || []).length > 0) || editMode) && (
+      {Object.values(skills).some(v => (v || []).length > 0) && (
         <SectionWrapper editMode={editMode} sectionLabel="Skills" onDelete={() => onUpdate?.({ skills: { technical: [], tools: [], soft: [], languages: [] } })}>
           <div style={s.section}>
             <div style={s.sectionTitle} data-heading="true" data-block-id="heading-skills">
@@ -224,7 +221,8 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
             {[['technical', 'Technical'], ['tools', 'Tools & Frameworks'], ['soft', 'Soft Skills'], ['languages', 'Languages']].map(([key, label]) => (
               (skills[key]?.length > 0 || editMode) && (
                 <div key={key} style={{ marginBottom: '6px' }} data-block data-block-id={`skills-${key}`}>
-                  {editMode && <div style={{ fontSize: '7.5pt', color: '#9ca3af', marginBottom: '3px' }}>{label}</div>}
+                  {/* Canvas content: rendered in every mode so screen = PDF */}
+                  <div style={{ fontSize: '7.5pt', color: '#9ca3af', marginBottom: '3px' }}>{label}</div>
                   <EditableSkillChips
                     items={skills[key] || []}
                     onChange={updSkills(key)}
@@ -239,7 +237,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
       )}
 
       {/* Projects */}
-      {((resumeData.projects || []).length > 0 || editMode) && (
+      {(resumeData.projects || []).length > 0 && (
         <SectionWrapper editMode={editMode} sectionLabel="Projects" onAdd={addPr} onDelete={() => onUpdate?.({ projects: [] })}>
           <div style={s.section}>
             <div style={s.sectionTitle} data-heading="true" data-block-id="heading-projects">
@@ -247,7 +245,7 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
               Projects
             </div>
             {(resumeData.projects || []).map((pr, i) => (
-              <BlockWrapper key={i} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
+              <BlockWrapper key={pr.id || pr._id || `pr-${i}-${pr.name || ''}`} id={`project-${i}`} editMode={editMode} onDelete={() => removePr(i)}>
                 <div style={s.expItem}>
                   <div style={s.jobTitle}>
                     <T value={pr.name || ''} onChange={updPr(i, 'name')} placeholder="Project Name" bold />
@@ -262,9 +260,31 @@ const ClassicTemplate = ({ resumeData = {}, onUpdate, editMode = true, theme: ra
                 </div>
               </BlockWrapper>
             ))}
-            {addBtn(addPr, '+ Add Project')}
+            {addBtn(addPr, 'Add Project')}
           </div>
         </SectionWrapper>
+      )}
+
+      {/* Restore Hidden Sections Toolbar */}
+      {editMode && (
+        <div {...EDITOR_UI_PROPS} style={{ marginTop: '16px', paddingTop: '10px', borderTop: '1px dashed #cbd5e1', display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: '8.5pt', fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: '4px' }}>Restore Section:</span>
+          {!resumeData.summary && (
+            <button onClick={() => updSummary('Brief professional overview...')} style={{ fontSize: '8pt', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 10px', borderRadius: '999px', cursor: 'pointer' }}>+ Professional Summary</button>
+          )}
+          {!(resumeData.experience || []).length && (
+            <button onClick={addExp} style={{ fontSize: '8pt', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 10px', borderRadius: '999px', cursor: 'pointer' }}>+ Experience</button>
+          )}
+          {!(resumeData.education || []).length && (
+            <button onClick={addEdu} style={{ fontSize: '8pt', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 10px', borderRadius: '999px', cursor: 'pointer' }}>+ Education</button>
+          )}
+          {!(resumeData.projects || []).length && (
+            <button onClick={addPr} style={{ fontSize: '8pt', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 10px', borderRadius: '999px', cursor: 'pointer' }}>+ Projects</button>
+          )}
+          {!Object.values(skills).some(v => (v || []).length > 0) && (
+            <button onClick={() => updSkills('technical')(['JavaScript', 'React'])} style={{ fontSize: '8pt', fontWeight: 600, color: '#4f46e5', background: '#eef2ff', border: '1px solid #c7d2fe', padding: '3px 10px', borderRadius: '999px', cursor: 'pointer' }}>+ Skills</button>
+          )}
+        </div>
       )}
     </div>
   );

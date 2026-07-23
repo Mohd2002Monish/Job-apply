@@ -33,6 +33,22 @@ const HandleIcon = () => (
 const BulletTrashIcon = () => <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>;
 const AddChipIcon = () => <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>;
 
+// ─── Layer contract ──────────────────────────────────────────────────────────
+// Everything rendered inside the CV canvas is either:
+//   1. Canvas content — printable, identical in editor / PDF / print.
+//   2. Overlay chrome — tagged with data-editor-ui + .editor-only, positioned
+//      absolutely (zero layout footprint), stripped from every export.
+// Overlay elements may reference canvas positions; canvas content must never
+// change size or position because an overlay appeared.
+export const EDITOR_UI_PROPS = { 'data-editor-ui': 'true', className: 'editor-only' };
+
+// Paste as plain text so external formatting never enters the document.
+const handlePlainPaste = (e) => {
+  e.preventDefault();
+  const text = e.clipboardData.getData('text/plain');
+  document.execCommand('insertText', false, text);
+};
+
 // ─── EditableText ─────────────────────────────────────────────────────────────
 export const EditableText = ({
   value = '',
@@ -70,17 +86,19 @@ export const EditableText = ({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); spanRef.current?.blur(); } }}
+      onPaste={handlePlainPaste}
       style={{
+        // Paint-only editing feedback: background + box-shadow never change
+        // the text metrics, so the canvas layout is identical to the export.
         outline: 'none',
         cursor: 'text',
         fontWeight: bold ? 'bold' : undefined,
         minWidth: '4px',
         display: 'inline-block',
         borderRadius: '3px',
-        padding: '1px 2px',
         background: focused ? 'rgba(99, 102, 241, 0.04)' : (hovered ? 'rgba(99, 102, 241, 0.02)' : 'transparent'),
-        borderBottom: focused ? '1.5px solid #6366f1' : '1.5px solid transparent',
-        transition: 'background-color 0.15s, border-color 0.15s',
+        boxShadow: focused ? 'inset 0 -1.5px 0 #6366f1' : 'none',
+        transition: 'background-color 0.15s, box-shadow 0.15s',
         color: isEmpty ? '#9ca3af' : undefined,
         ...style,
       }}
@@ -127,6 +145,7 @@ export const EditableMultiline = ({
       onBlur={handleBlur}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      onPaste={handlePlainPaste}
       style={{
         outline: 'none',
         cursor: 'text',
@@ -136,10 +155,9 @@ export const EditableMultiline = ({
         display: 'block',
         whiteSpace: 'pre-wrap',
         borderRadius: '3px',
-        padding: '2px 4px',
         background: focused ? 'rgba(99, 102, 241, 0.04)' : (hovered ? 'rgba(99, 102, 241, 0.02)' : 'transparent'),
-        borderBottom: focused ? '1.5px solid #6366f1' : '1.5px solid transparent',
-        transition: 'background-color 0.15s, border-color 0.15s',
+        boxShadow: focused ? 'inset 0 -1.5px 0 #6366f1' : 'none',
+        transition: 'background-color 0.15s, box-shadow 0.15s',
         color: isEmpty ? '#9ca3af' : undefined,
         ...style,
       }}
@@ -167,7 +185,7 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
 
   if (!editMode) {
     return (
-      <ul style={{ marginLeft: '16px', marginTop: '4px' }}>
+      <ul style={{ marginLeft: '16px', marginTop: '4px', listStyle: 'disc' }}>
         {items.map((b, i) => <li key={i} style={style}>{b}</li>)}
       </ul>
     );
@@ -178,7 +196,7 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
       {items.map((b, i) => (
         <li
           key={i}
-          style={{ ...style, position: 'relative', paddingRight: '24px' }}
+          style={{ ...style, position: 'relative' }}
           onMouseEnter={() => setHoveredIdx(i)}
           onMouseLeave={() => setHoveredIdx(null)}
         >
@@ -186,6 +204,7 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
             contentEditable
             suppressContentEditableWarning
             onBlur={(e) => update(i, e.target.textContent.trim())}
+            onPaste={handlePlainPaste}
             onKeyDown={(e) => {
               if (e.key === 'Enter') { e.preventDefault(); addBullet(); }
               if (e.key === 'Backspace' && e.target.textContent === '') { e.preventDefault(); remove(i); }
@@ -194,9 +213,7 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
               outline: 'none',
               minWidth: '4px',
               display: 'inline-block',
-              borderBottom: '1px solid transparent',
               borderRadius: '2px',
-              padding: '1px 2px',
               transition: 'background-color 0.15s',
             }}
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99, 102, 241, 0.02)'}
@@ -204,53 +221,60 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
           >
             {b}
           </span>
+          {/* Overlay: floats in the right margin, takes no layout space */}
           {isSectionActive && hoveredIdx === i && (
-            <button
-              onClick={() => remove(i)}
-              onMouseDown={(e) => e.preventDefault()}
-              style={{
-                position: 'absolute',
-                right: '2px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#ef4444',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '3px',
-                borderRadius: '4px',
-                transition: 'background 0.15s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-            >
-              <BulletTrashIcon />
-            </button>
+            <span {...EDITOR_UI_PROPS} style={{ position: 'absolute', right: '-20px', top: '50%', transform: 'translateY(-50%)', zIndex: 30 }}>
+              <button
+                onClick={() => remove(i)}
+                onMouseDown={(e) => e.preventDefault()}
+                style={{
+                  background: 'white',
+                  border: '1px solid #fecaca',
+                  cursor: 'pointer',
+                  color: '#ef4444',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '3px',
+                  borderRadius: '4px',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
+                  transition: 'background 0.15s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+              >
+                <BulletTrashIcon />
+              </button>
+            </span>
           )}
         </li>
       ))}
+      {/* Overlay: zero-height anchor — the button floats over the gap below */}
       {isSectionActive && (
-        <li style={{ listStyle: 'none', marginLeft: '-16px', marginTop: '3px' }}>
+        <li {...EDITOR_UI_PROPS} style={{ listStyle: 'none', marginLeft: '-16px', height: 0, position: 'relative', overflow: 'visible' }}>
           <button
             onClick={addBullet}
             style={{
+              position: 'absolute',
+              top: '1px',
+              left: 0,
               fontSize: '7.5pt',
               color: '#6366f1',
-              background: 'none',
-              border: 'none',
+              background: 'white',
+              border: '1px solid #e0e7ff',
               cursor: 'pointer',
-              padding: '2px 6px',
+              padding: '1px 6px',
               borderRadius: '6px',
               display: 'inline-flex',
               alignItems: 'center',
               gap: '4px',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+              zIndex: 30,
               transition: 'background 0.1s'
             }}
             onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99,102,241,0.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+            onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
           >
             <AddChipIcon />
             <span>Add bullet</span>
@@ -262,12 +286,16 @@ export const EditableBullets = ({ items = [], onChange, editMode, style = {} }) 
 };
 
 // ─── EditableSkillChips ───────────────────────────────────────────────────────
+// Chips render pixel-identical in every mode. Editing chrome (delete ×, add
+// popover) lives in absolutely-positioned overlay anchors with zero layout
+// footprint, so toggling edit state never reflows the document.
 export const EditableSkillChips = ({
   items = [], onChange, editMode, chipStyle = {}, label, inline = false, separator = ', ',
 }) => {
   const { isSectionActive } = useContext(SectionActiveContext);
   const [adding, setAdding] = useState(false);
   const [inputVal, setInputVal] = useState('');
+  const [hoveredIdx, setHoveredIdx] = useState(null);
   const inputRef = useRef(null);
 
   useEffect(() => { if (adding) inputRef.current?.focus(); }, [adding]);
@@ -281,133 +309,149 @@ export const EditableSkillChips = ({
 
   const isReallyEditing = editMode && isSectionActive;
 
-  if (!isReallyEditing) {
-    if (inline) return <span>{items.join(separator)}</span>;
-    return (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-        {items.map((s, i) => <span key={i} style={chipStyle}>{s}</span>)}
-      </div>
-    );
-  }
+  const removeOverlay = (i) => isReallyEditing && hoveredIdx === i && (
+    <span {...EDITOR_UI_PROPS} style={{ position: 'absolute', top: '-8px', right: '-8px', zIndex: 30 }}>
+      <button
+        onClick={() => remove(i)}
+        onMouseDown={(e) => e.preventDefault()}
+        title="Remove"
+        style={{
+          background: 'white',
+          border: '1px solid #fecaca',
+          cursor: 'pointer',
+          color: '#ef4444',
+          width: '15px',
+          height: '15px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: 0,
+          borderRadius: '50%',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <BulletTrashIcon />
+      </button>
+    </span>
+  );
 
-  if (inline) {
-    return (
-      <span>
-        {items.map((item, i) => (
-          <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: '2px' }}>
-            <span style={chipStyle}>{item}</span>
-            <button
-              onClick={() => remove(i)}
-              style={{
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: '#ef4444',
-                padding: '2px',
-                borderRadius: '3px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'background 0.1s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-              onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-            >
-              <BulletTrashIcon />
-            </button>
-            {i < items.length - 1 && <span style={{ color: '#9ca3af' }}>{separator}</span>}
-          </span>
-        ))}
-        {adding ? (
+  // Zero-size anchor holding the floating add button / input popover.
+  const addOverlay = isReallyEditing && (
+    <span {...EDITOR_UI_PROPS} style={{ position: 'relative', display: 'inline-block', width: 0, height: 0, overflow: 'visible', verticalAlign: 'top' }}>
+      {adding ? (
+        <span style={{
+          position: 'absolute', left: '6px', top: '-6px', zIndex: 40,
+          display: 'inline-flex', alignItems: 'center',
+          background: 'white', border: '1px solid #6366f1', borderRadius: '6px',
+          padding: '2px 6px', boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+        }}>
           <input ref={inputRef} value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmAdd(); } if (e.key === 'Escape') { setAdding(false); setInputVal(''); } }}
             onBlur={confirmAdd}
-            style={{ fontSize: 'inherit', border: 'none', borderBottom: '1.5px solid #6366f1', outline: 'none', width: '80px', background: 'transparent', fontFamily: 'inherit', color: 'inherit', padding: '0' }}
-            placeholder="Add..." />
-        ) : (
-          <button
-            onClick={() => setAdding(true)}
-            style={{
-              fontSize: '7.5pt',
-              color: '#6366f1',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '3px',
-              transition: 'background 0.1s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(99,102,241,0.05)'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
+            style={{ fontSize: '8pt', border: 'none', outline: 'none', width: '90px', background: 'transparent', fontFamily: 'inherit', color: '#374151', padding: 0 }}
+            placeholder={label ? `Add ${label}...` : 'Add...'} />
+        </span>
+      ) : (
+        <button
+          onClick={() => setAdding(true)}
+          title={label ? `Add ${label}` : 'Add'}
+          style={{
+            position: 'absolute', left: '5px', top: '-2px', zIndex: 30,
+            fontSize: '7.5pt', color: '#6366f1',
+            background: 'white', border: '1px solid #e0e7ff',
+            cursor: 'pointer', padding: '2px 5px', borderRadius: '6px',
+            display: 'inline-flex', alignItems: 'center', gap: '3px',
+            whiteSpace: 'nowrap', boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+            transition: 'background 0.1s',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = '#eef2ff'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'white'}
+        >
+          <AddChipIcon />
+        </button>
+      )}
+    </span>
+  );
+
+  if (inline) {
+    if (!editMode) return <span>{items.join(separator)}</span>;
+    return (
+      <span>
+        {items.map((item, i) => (
+          <span
+            key={i}
+            style={{ position: 'relative' }}
+            onMouseEnter={() => setHoveredIdx(i)}
+            onMouseLeave={() => setHoveredIdx(null)}
           >
-            <AddChipIcon />
-            <span>Add</span>
-          </button>
-        )}
+            <span style={chipStyle}>{item}</span>
+            {removeOverlay(i)}
+            {i < items.length - 1 ? separator : ''}
+          </span>
+        ))}
+        {addOverlay}
       </span>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
-      {label && <span style={{ fontSize: '7.5pt', color: '#9ca3af', marginRight: '4px' }}>{label}:</span>}
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
       {items.map((item, i) => (
-        <span key={i} style={{ ...chipStyle, display: 'inline-flex', alignItems: 'center', gap: '3px', paddingRight: '4px' }}>
-          {item}
-          <button
-            onClick={() => remove(i)}
-            onMouseDown={(e) => e.preventDefault()}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              color: '#ef4444',
-              padding: '2px',
-              borderRadius: '3px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.15s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#fef2f2'}
-            onMouseLeave={(e) => e.currentTarget.style.background = 'none'}
-          >
-            <BulletTrashIcon />
-          </button>
+        <span
+          key={i}
+          style={{ position: 'relative', display: 'inline-block' }}
+          onMouseEnter={() => setHoveredIdx(i)}
+          onMouseLeave={() => setHoveredIdx(null)}
+        >
+          <span style={chipStyle}>{item}</span>
+          {removeOverlay(i)}
         </span>
       ))}
-      {adding ? (
-        <input ref={inputRef} value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); confirmAdd(); } if (e.key === 'Escape') { setAdding(false); setInputVal(''); } }}
-          onBlur={confirmAdd}
-          style={{ ...chipStyle, border: '1px solid #6366f1', outline: 'none', width: '90px', background: 'white', fontFamily: 'inherit', padding: '2px 8px' }}
-          placeholder="Type..." />
-      ) : (
-        <button onClick={() => setAdding(true)}
-          style={{
-            ...chipStyle,
-            background: 'transparent',
-            border: '1px dashed #d1d5db',
-            color: '#6b7280',
-            cursor: 'pointer',
-            fontSize: '7.5pt',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '2px',
-            transition: 'border-color 0.15s, color 0.15s'
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.color = '#6366f1'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280'; }}
-        >
-          <AddChipIcon />
-          <span>Add</span>
-        </button>
-      )}
+      {addOverlay}
+    </div>
+  );
+};
+
+// ─── AddItemOverlay ───────────────────────────────────────────────────────────
+// Floating "+ Add" affordance for list sections. A zero-height block anchor
+// keeps it out of the document flow — the pill floats over the section's
+// bottom margin and is stripped from every export.
+export const AddItemOverlay = ({ onClick, label = 'Add' }) => {
+  const { isSectionActive } = useContext(SectionActiveContext);
+  if (!isSectionActive) return null;
+  return (
+    <div {...EDITOR_UI_PROPS} style={{ position: 'relative', height: 0, overflow: 'visible' }}>
+      <button
+        onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+        onMouseDown={(e) => e.preventDefault()}
+        style={{
+          position: 'absolute',
+          top: '3px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          fontSize: '7.5pt',
+          fontWeight: 600,
+          color: '#6366f1',
+          background: 'white',
+          border: '1px dashed #c7d2fe',
+          cursor: 'pointer',
+          padding: '2px 10px',
+          borderRadius: '999px',
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: '4px',
+          whiteSpace: 'nowrap',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
+          zIndex: 30,
+          transition: 'background 0.1s, border-color 0.1s',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = '#eef2ff'; e.currentTarget.style.borderColor = '#6366f1'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.borderColor = '#c7d2fe'; }}
+      >
+        <AddChipIcon />
+        <span>{label}</span>
+      </button>
     </div>
   );
 };
@@ -461,7 +505,7 @@ export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDow
 
   if (!editMode) return <>{children}</>;
 
-  const showHandle = (hovered || menuOpen) && isSectionActive;
+  const showHandle = hovered || menuOpen;
 
   return (
     <div
@@ -469,27 +513,25 @@ export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDow
       data-block
       data-block-id={blockId}
       style={{
+        // Paint-only hover feedback: the wrapper adds zero layout footprint,
+        // so edit mode and export share the exact same geometry.
         position: 'relative',
         borderRadius: '6px',
-        transition: 'background 0.12s, box-shadow 0.12s',
-        background: showHandle ? 'rgba(99,102,241,0.015)' : 'transparent',
-        boxShadow: showHandle ? '0 0 0 1px rgba(99,102,241,0.06)' : 'none',
-        padding: '4px',
-        margin: '-4px',
-        marginBottom: '12px'
+        transition: 'box-shadow 0.12s',
+        boxShadow: showHandle ? '0 0 0 4px rgba(99,102,241,0.02), 0 0 0 1px rgba(99,102,241,0.08)' : 'none',
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { if (!menuOpen) setHovered(false); }}
     >
-      {/* Notion-style floating handle — sits in the left margin */}
+      {/* Notion-style floating handle + quick remove (-) button — sits in left margin */}
       {showHandle && (
-        <div style={{ position: 'absolute', left: '-22px', top: '50%', transform: 'translateY(-50%)', zIndex: 50 }}>
+        <div {...EDITOR_UI_PROPS} style={{ position: 'absolute', left: '-30px', top: '50%', transform: 'translateY(-50%)', zIndex: 50, display: 'flex', alignItems: 'center', gap: '2px' }}>
           <button
             onClick={(e) => { e.stopPropagation(); setMenuOpen(o => !o); }}
             onMouseDown={(e) => e.preventDefault()}
             title="Block options"
             style={{
-              width: '18px', height: '24px',
+              width: '16px', height: '22px',
               background: menuOpen ? '#f1f5f9' : 'none',
               border: 'none', cursor: 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -503,12 +545,35 @@ export const BlockWrapper = ({ children, editMode, onDelete, onMoveUp, onMoveDow
             <HandleIcon />
           </button>
 
+          {onDelete && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              onMouseDown={(e) => e.preventDefault()}
+              title="Remove entry (-)"
+              style={{
+                width: '16px', height: '16px',
+                background: 'white',
+                border: '1px solid #fecaca',
+                cursor: 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                borderRadius: '999px', padding: '0',
+                color: '#ef4444',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                transition: 'background 0.1s, transform 0.1s',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = '#fef2f2'; e.currentTarget.style.transform = 'scale(1.15)'; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'white'; e.currentTarget.style.transform = 'scale(1)'; }}
+            >
+              <BulletTrashIcon />
+            </button>
+          )}
+
           {menuOpen && (
             <div
               ref={menuRef}
               style={{
                 position: 'absolute',
-                left: '24px',
+                left: '34px',
                 top: '50%',
                 transform: 'translateY(-40%)',
                 background: 'white',
@@ -565,15 +630,14 @@ export const SectionWrapper = ({ children, editMode, id, sectionLabel, onAdd, on
         data-section 
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        style={{ 
-          position: 'relative', 
+        style={{
+          // Outline + outline-offset are paint-only — no layout impact.
+          position: 'relative',
           outline: isActive ? '1.5px solid rgba(99, 102, 241, 0.25)' : '1.5px solid transparent',
           outlineOffset: '4px',
           borderRadius: '6px',
           cursor: 'pointer',
           transition: 'outline-color 0.15s',
-          padding: '2px',
-          margin: '-2px',
         }}
         onClick={(e) => {
           e.stopPropagation();
@@ -581,7 +645,7 @@ export const SectionWrapper = ({ children, editMode, id, sectionLabel, onAdd, on
         }}
       >
         {showControls && sectionLabel && (
-          <div style={{
+          <div {...EDITOR_UI_PROPS} style={{
             position: 'absolute',
             top: '-14px',
             right: '8px',
@@ -841,10 +905,10 @@ const CVCanvas = ({ resumeData, onUpdate, TemplateComponent, zoom = 1, onPageCou
               }} />
             ))}
 
-            {/* ── Single CV Render Layer ── */}
+            {/* ── Single CV Render Layer (Resume Canvas) ── */}
             <div
               ref={cvRef}
-              className="cv-mask-layer"
+              className="cv-mask-layer canvas-layer"
               style={{
                 width: '100%',
                 position: 'relative',
@@ -951,8 +1015,8 @@ const FloatingTextToolbar = () => {
 
       const rect = range.getBoundingClientRect();
       setCoords({
-        top: rect.top + window.scrollY - 36, // float 36px above selection
-        left: rect.left + window.scrollX + rect.width / 2
+        top: rect.top - 36, // viewport coords — toolbar is position:fixed
+        left: rect.left + rect.width / 2
       });
       setVisible(true);
     };
@@ -965,8 +1029,9 @@ const FloatingTextToolbar = () => {
 
   return (
     <div
+      {...EDITOR_UI_PROPS}
       style={{
-        position: 'absolute',
+        position: 'fixed',
         top: `${coords.top}px`,
         left: `${coords.left}px`,
         transform: 'translateX(-50%)',

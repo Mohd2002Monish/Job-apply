@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PublicLayout from '../components/PublicLayout';
 
 const terms = [
@@ -120,79 +120,141 @@ const splitTitle = (title) => {
 
 const sectionId = (title) => title.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
-const TermsPage = ({ isDark, onToggleTheme }) => (
-  <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
-    <section className="max-w-4xl mx-auto px-5 py-16 md:py-24">
-      {/* Editorial header */}
-      <div className="max-w-2xl mb-10 animate-fade-in">
-        <p className="kicker mb-4">Legal · updated July 9, 2026 · ~6 min read</p>
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text-main leading-[1.05] mb-5">
-          The deal, in writing.
-        </h1>
-        <p className="text-base md:text-lg text-text-muted leading-relaxed">
-          Twelve sections covering what you can expect from RecoCareer.ai and what
-          we expect from you. Using the service means you agree to all of it.
-        </p>
-      </div>
+const TermsPage = ({ isDark, onToggleTheme }) => {
+  const [activeId, setActiveId] = useState('');
 
-      {/* Horizontal jump bar */}
-      <div className="sticky top-[70px] z-20 -mx-5 px-5 py-3 mb-10">
-        <div className="glass-panel rounded-full px-2 py-1.5 flex gap-1 overflow-x-auto scrollbar-thin [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {terms.map(({ title }) => {
-            const { num, text } = splitTitle(title);
-            return (
-              <a
-                key={title}
-                href={`#${sectionId(title)}`}
-                className="shrink-0 whitespace-nowrap px-3.5 py-1.5 rounded-full text-xs font-medium text-text-muted hover:text-text-main hover:bg-white/50 dark:hover:bg-white/8 transition-colors"
-              >
-                <span className="font-mono text-[10px] text-brand-primary/70 mr-1.5">{num}</span>
-                {text}
-              </a>
-            );
-          })}
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = terms.map(s => document.getElementById(sectionId(s.title))).filter(Boolean);
+      const scrollPos = window.scrollY + 140;
+
+      for (let i = elements.length - 1; i >= 0; i--) {
+        if (elements[i] && elements[i].offsetTop <= scrollPos) {
+          setActiveId(elements[i].id);
+          break;
+        }
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
+      <section className="max-w-6xl mx-auto px-5 py-16 md:py-24">
+        {/* Editorial header */}
+        <div className="max-w-2xl mb-10 animate-fade-in">
+          <p className="kicker mb-4">Legal · updated July 9, 2026 · ~6 min read</p>
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text-main leading-[1.05] mb-5">
+            The deal, in writing.
+          </h1>
+          <p className="text-base md:text-lg text-text-muted leading-relaxed">
+            Twelve sections covering what you can expect from RecoCareer.ai and what
+            we expect from you. Using the service means you agree to all of it.
+          </p>
         </div>
-      </div>
 
-      {/* Continuous document */}
-      <div className="glass-panel p-7 md:p-10">
-        {terms.map(({ title, content }, i) => {
-          const { num, text } = splitTitle(title);
-          return (
-            <div
-              key={title}
-              id={sectionId(title)}
-              className={`scroll-mt-36 ${i > 0 ? 'mt-10 pt-10 border-t border-white/40 dark:border-white/8' : ''}`}
-            >
-              <div className="flex items-baseline gap-3 mb-4">
-                <span className="font-mono text-xs font-semibold text-brand-primary">{num}</span>
-                <h2 className="text-lg font-bold text-text-main">{text}</h2>
-              </div>
-              <div className="space-y-2.5 md:pl-8">
-                {content.split('\n').filter(Boolean).map((line, li) => (
-                  <p key={li} className="text-sm text-text-muted leading-relaxed">
-                    {line.startsWith('•') ? (
-                      <span className="flex items-start gap-2.5">
-                        <span className="text-brand-primary mt-[7px] flex-shrink-0 w-1 h-1 rounded-full bg-current" />
-                        <span dangerouslySetInnerHTML={{ __html: line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
-                      </span>
-                    ) : (
-                      <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
-                    )}
-                  </p>
-                ))}
-              </div>
+        {/* Mobile Sticky Horizontal Bar */}
+        <div className="lg:hidden sticky top-[64px] z-20 -mx-5 px-5 py-2.5 mb-8 bg-bg-app/90 backdrop-blur-md border-b border-border-card/40">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-thin [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1">
+            {terms.map(({ title }) => {
+              const id = sectionId(title);
+              const { num, text } = splitTitle(title);
+              const isActive = activeId === id;
+              return (
+                <a
+                  key={title}
+                  href={`#${id}`}
+                  className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-brand-primary text-white shadow-sm font-bold'
+                      : 'glass-chip text-text-muted hover:text-text-main'
+                  }`}
+                >
+                  <span className="font-mono opacity-80 mr-1">{num}</span>
+                  {text}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+          {/* Sticky Desktop TOC Box */}
+          <nav className="hidden lg:block lg:sticky lg:top-[84px] glass-panel p-3 rounded-3xl space-y-1">
+            <div className="px-3.5 py-2 mb-1 border-b border-border-card/40">
+              <span className="kicker text-[10px]">Table of Contents</span>
             </div>
-          );
-        })}
-      </div>
+            {terms.map(({ title }) => {
+              const id = sectionId(title);
+              const { num, text } = splitTitle(title);
+              const isActive = activeId === id;
+              return (
+                <a
+                  key={title}
+                  href={`#${id}`}
+                  className={`flex items-center justify-between px-3.5 py-2 rounded-2xl text-[13px] transition-all duration-200 ${
+                    isActive
+                      ? 'bg-brand-primary/10 text-brand-primary font-bold border border-brand-primary/20 shadow-xs'
+                      : 'text-text-muted hover:text-text-main hover:bg-white/40 dark:hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-baseline gap-2.5 truncate">
+                    <span className={`font-mono text-[10px] ${isActive ? 'text-brand-primary' : 'text-brand-primary/70'}`}>{num}</span>
+                    <span className="truncate leading-snug">{text}</span>
+                  </div>
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0 ml-2 animate-pulse" />
+                  )}
+                </a>
+              );
+            })}
+          </nav>
 
-      {/* Agreement notice */}
-      <div className="mt-8 glass-chip px-6 py-4 text-center text-sm text-text-muted">
-        By using RecoCareer.ai, you confirm that you have read, understood, and agree to these Terms of Service.
-      </div>
-    </section>
-  </PublicLayout>
-);
+          {/* Continuous document */}
+          <div className="lg:col-span-3 glass-panel p-7 md:p-10">
+            {terms.map(({ title, content }, i) => {
+              const { num, text } = splitTitle(title);
+              const id = sectionId(title);
+              return (
+                <div
+                  key={title}
+                  id={id}
+                  className={`scroll-mt-28 ${i > 0 ? 'mt-10 pt-10 border-t border-white/40 dark:border-white/8' : ''}`}
+                >
+                  <div className="flex items-baseline gap-3 mb-4">
+                    <span className="font-mono text-xs font-semibold text-brand-primary">{num}</span>
+                    <h2 className="text-lg font-bold text-text-main">{text}</h2>
+                  </div>
+                  <div className="space-y-2.5 md:pl-8">
+                    {content.split('\n').filter(Boolean).map((line, li) => (
+                      <p key={li} className="text-sm text-text-muted leading-relaxed">
+                        {line.startsWith('•') ? (
+                          <span className="flex items-start gap-2.5">
+                            <span className="text-brand-primary mt-[7px] flex-shrink-0 w-1 h-1 rounded-full bg-current" />
+                            <span dangerouslySetInnerHTML={{ __html: line.slice(1).trim().replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
+                          </span>
+                        ) : (
+                          <span dangerouslySetInnerHTML={{ __html: line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-text-main font-semibold">$1</strong>') }} />
+                        )}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Agreement notice */}
+        <div className="mt-8 glass-chip px-6 py-4 text-center text-sm text-text-muted">
+          By using RecoCareer.ai, you confirm that you have read, understood, and agree to these Terms of Service.
+        </div>
+      </section>
+    </PublicLayout>
+  );
+};
 
 export default TermsPage;

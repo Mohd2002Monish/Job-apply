@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import PublicLayout from '../components/PublicLayout';
 
 const sections = [
@@ -127,78 +127,140 @@ const tldr = [
   'Payments run through Razorpay (India) or Stripe (international) — we never store card details.',
 ];
 
-const PrivacyPolicyPage = ({ isDark, onToggleTheme }) => (
-  <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
-    <section className="max-w-6xl mx-auto px-5 py-16 md:py-24">
-      {/* Editorial header */}
-      <div className="max-w-2xl mb-12 animate-fade-in">
-        <p className="kicker mb-4">Legal · updated July 9, 2026</p>
-        <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text-main leading-[1.05] mb-5">
-          Your data, plainly.
-        </h1>
-        <p className="text-base md:text-lg text-text-muted leading-relaxed">
-          No legalese wall. This is exactly what we collect, why we collect it,
-          and how you get rid of it — written to be read.
-        </p>
-      </div>
+const PrivacyPolicyPage = ({ isDark, onToggleTheme }) => {
+  const [activeId, setActiveId] = useState('');
 
-      {/* TL;DR strip */}
-      <div className="glass-panel p-6 md:p-7 mb-12">
-        <p className="kicker mb-4">The short version</p>
-        <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
-          {tldr.map((point, i) => (
-            <li key={i} className="flex items-start gap-2.5 text-sm text-text-main">
-              <svg className="w-4 h-4 text-brand-accent mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              {point}
-            </li>
-          ))}
-        </ul>
-      </div>
+  useEffect(() => {
+    const handleScroll = () => {
+      const elements = sections.map(s => document.getElementById(sectionId(s.title))).filter(Boolean);
+      const scrollPos = window.scrollY + 140;
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
-        {/* Sticky TOC */}
-        <nav className="hidden lg:block lg:sticky lg:top-24 glass-panel p-2">
-          {sections.map(({ title }) => {
-            const { num, text } = splitTitle(title);
-            return (
-              <a
-                key={title}
-                href={`#${sectionId(title)}`}
-                className="flex items-baseline gap-2.5 px-3.5 py-2 rounded-2xl text-[13px] text-text-muted hover:text-text-main hover:bg-white/40 dark:hover:bg-white/5 transition-colors"
-              >
-                <span className="font-mono text-[10px] text-brand-primary/70">{num}</span>
-                <span className="leading-snug">{text}</span>
-              </a>
-            );
-          })}
-        </nav>
+      for (let i = elements.length - 1; i >= 0; i--) {
+        if (elements[i] && elements[i].offsetTop <= scrollPos) {
+          setActiveId(elements[i].id);
+          break;
+        }
+      }
+    };
 
-        {/* Continuous document */}
-        <div className="lg:col-span-3 glass-panel p-7 md:p-10">
-          {sections.map(({ title, content }, i) => {
-            const { num, text } = splitTitle(title);
-            return (
-              <div
-                key={title}
-                id={sectionId(title)}
-                className={`scroll-mt-24 ${i > 0 ? 'mt-10 pt-10 border-t border-white/40 dark:border-white/8' : ''}`}
-              >
-                <div className="flex items-baseline gap-3 mb-4">
-                  <span className="font-mono text-xs font-semibold text-brand-primary">{num}</span>
-                  <h2 className="text-lg font-bold text-text-main">{text}</h2>
-                </div>
-                <div className="space-y-2.5 md:pl-8">
-                  {renderContent(content)}
-                </div>
-              </div>
-            );
-          })}
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  return (
+    <PublicLayout isDark={isDark} onToggleTheme={onToggleTheme}>
+      <section className="max-w-6xl mx-auto px-5 py-16 md:py-24">
+        {/* Editorial header */}
+        <div className="max-w-2xl mb-12 animate-fade-in">
+          <p className="kicker mb-4">Legal · updated July 9, 2026</p>
+          <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-text-main leading-[1.05] mb-5">
+            Your data, plainly.
+          </h1>
+          <p className="text-base md:text-lg text-text-muted leading-relaxed">
+            No legalese wall. This is exactly what we collect, why we collect it,
+            and how you get rid of it — written to be read.
+          </p>
         </div>
-      </div>
-    </section>
-  </PublicLayout>
-);
+
+        {/* TL;DR strip */}
+        <div className="glass-panel p-6 md:p-7 mb-12">
+          <p className="kicker mb-4">The short version</p>
+          <ul className="grid sm:grid-cols-2 gap-x-8 gap-y-3">
+            {tldr.map((point, i) => (
+              <li key={i} className="flex items-start gap-2.5 text-sm text-text-main">
+                <svg className="w-4 h-4 text-brand-accent mt-0.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                {point}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Mobile Sticky Horizontal Bar */}
+        <div className="lg:hidden sticky top-[64px] z-20 -mx-5 px-5 py-2.5 mb-8 bg-bg-app/90 backdrop-blur-md border-b border-border-card/40">
+          <div className="flex gap-1.5 overflow-x-auto scrollbar-thin [scrollbar-width:none] [&::-webkit-scrollbar]:hidden py-1">
+            {sections.map(({ title }) => {
+              const id = sectionId(title);
+              const { num, text } = splitTitle(title);
+              const isActive = activeId === id;
+              return (
+                <a
+                  key={title}
+                  href={`#${id}`}
+                  className={`shrink-0 whitespace-nowrap px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                    isActive
+                      ? 'bg-brand-primary text-white shadow-sm font-bold'
+                      : 'glass-chip text-text-muted hover:text-text-main'
+                  }`}
+                >
+                  <span className="font-mono opacity-80 mr-1">{num}</span>
+                  {text}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8 items-start">
+          {/* Sticky Desktop TOC Box */}
+          <nav className="hidden lg:block lg:sticky lg:top-[84px] glass-panel p-3 rounded-3xl space-y-1">
+            <div className="px-3.5 py-2 mb-1 border-b border-border-card/40">
+              <span className="kicker text-[10px]">Table of Contents</span>
+            </div>
+            {sections.map(({ title }) => {
+              const id = sectionId(title);
+              const { num, text } = splitTitle(title);
+              const isActive = activeId === id;
+              return (
+                <a
+                  key={title}
+                  href={`#${id}`}
+                  className={`flex items-center justify-between px-3.5 py-2 rounded-2xl text-[13px] transition-all duration-200 ${
+                    isActive
+                      ? 'bg-brand-primary/10 text-brand-primary font-bold border border-brand-primary/20 shadow-xs'
+                      : 'text-text-muted hover:text-text-main hover:bg-white/40 dark:hover:bg-white/5 border border-transparent'
+                  }`}
+                >
+                  <div className="flex items-baseline gap-2.5 truncate">
+                    <span className={`font-mono text-[10px] ${isActive ? 'text-brand-primary' : 'text-brand-primary/70'}`}>{num}</span>
+                    <span className="truncate leading-snug">{text}</span>
+                  </div>
+                  {isActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-primary shrink-0 ml-2 animate-pulse" />
+                  )}
+                </a>
+              );
+            })}
+          </nav>
+
+          {/* Continuous document */}
+          <div className="lg:col-span-3 glass-panel p-7 md:p-10">
+            {sections.map(({ title, content }, i) => {
+              const { num, text } = splitTitle(title);
+              const id = sectionId(title);
+              return (
+                <div
+                  key={title}
+                  id={id}
+                  className={`scroll-mt-28 ${i > 0 ? 'mt-10 pt-10 border-t border-white/40 dark:border-white/8' : ''}`}
+                >
+                  <div className="flex items-baseline gap-3 mb-4">
+                    <span className="font-mono text-xs font-semibold text-brand-primary">{num}</span>
+                    <h2 className="text-lg font-bold text-text-main">{text}</h2>
+                  </div>
+                  <div className="space-y-2.5 md:pl-8">
+                    {renderContent(content)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </section>
+    </PublicLayout>
+  );
+};
 
 export default PrivacyPolicyPage;
