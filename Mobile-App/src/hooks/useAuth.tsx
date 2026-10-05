@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as WebBrowser from 'expo-web-browser';
 import * as Linking from 'expo-linking';
@@ -66,6 +67,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
+    // Check URL search parameters when returning from web OAuth redirect
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlToken = params.get('token');
+      if (urlToken) {
+        AsyncStorage.setItem('reco_jwt', urlToken);
+        setToken(urlToken);
+        fetchUserStatus(urlToken).finally(() => setIsLoading(false));
+        window.history.replaceState({}, document.title, window.location.pathname);
+        return;
+      }
+    }
+
     // Check AsyncStorage for existing token
     AsyncStorage.getItem('reco_jwt').then(storedToken => {
       if (storedToken) {
@@ -79,9 +93,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleOAuthLogin = async (providerUrl: string) => {
     try {
-      const redirectUri = Linking.createURL('/login');
+      const redirectUri = Platform.OS === 'web' && typeof window !== 'undefined'
+        ? window.location.origin
+        : Linking.createURL('/login');
+      
       const authUrl = `${API_BASE_URL}${providerUrl}?redirect_uri=${encodeURIComponent(redirectUri)}`;
       
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.location.href = authUrl;
+        return;
+      }
+
       const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUri);
       
       if (result.type === 'success' && result.url) {

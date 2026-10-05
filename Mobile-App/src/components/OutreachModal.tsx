@@ -1,9 +1,40 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Modal, TouchableOpacity, SafeAreaView, ScrollView, TextInput, ActivityIndicator, Alert } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Modal,
+  TouchableOpacity,
+  SafeAreaView,
+  ScrollView,
+  TextInput,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/constants/api';
+import { Theme, SharedStyles } from '@/constants/theme';
+import {
+  TargetIcon,
+  SendIcon,
+  CheckCircleIcon,
+  FileTextIcon,
+  XIcon,
+  BotIcon,
+  BriefcaseIcon,
+  UserIcon,
+} from '@/components/Icons';
 
-export default function OutreachModal({ visible, job, onClose }: { visible: boolean; job: any; onClose: () => void }) {
+export default function OutreachModal({
+  visible,
+  job,
+  onClose,
+}: {
+  visible: boolean;
+  job: any;
+  onClose: () => void;
+}) {
   const { token } = useAuth();
   const [isTailoring, setIsTailoring] = useState(false);
   const [coverLetter, setCoverLetter] = useState('');
@@ -12,8 +43,6 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
   const [ats, setAts] = useState<any>(null);
   const [isCalcAts, setIsCalcAts] = useState(false);
 
-  // Preload cover letter + ATS from the job, and reset when a different job
-  // is opened in the modal.
   useEffect(() => {
     setCoverLetter(job?.coverLetter || '');
     setAts(job?.atsAnalysis || null);
@@ -26,8 +55,6 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
   const handleTailorResume = async () => {
     setIsTailoring(true);
     try {
-      // Resume tailoring is queued server-side (returns 202) and runs in the
-      // background, so report it honestly rather than faking instant success.
       const res = await fetch(api('/resume/tailor'), {
         method: 'POST',
         headers: authHeaders,
@@ -35,7 +62,7 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to start tailoring');
-      Alert.alert('Tailoring started', data.message || 'Your resume is being tailored for this job. Check the Builder shortly.');
+      Alert.alert('Tailoring Queued', data.message || 'Your resume is being tailored for this position. Check the Builder tab shortly.');
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
@@ -82,8 +109,6 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
   const handleSendEmail = async () => {
     setIsSending(true);
     try {
-      // /apply sends the cover letter stored on the job, so persist any edits
-      // the user made in the text box before dispatching.
       if (coverLetter !== (job.coverLetter || '')) {
         await fetch(api(`/jobs/${job._id}`), {
           method: 'PATCH',
@@ -100,12 +125,10 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to send email');
 
-      // /apply returns { results: [{ jobId, success, error }] } — surface the
-      // per-job outcome instead of assuming success on a 200.
       const result = Array.isArray(data.results) ? data.results[0] : null;
       if (result && !result.success) throw new Error(result.error || 'Send failed');
 
-      Alert.alert('Sent', 'Application sent to the recruiter from your inbox.');
+      Alert.alert('Email Dispatched', 'Your customized outreach email was sent to the recruiter.');
       onClose();
     } catch (err: any) {
       Alert.alert('Error', err.message);
@@ -117,60 +140,129 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
+        {/* Modal Header */}
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>{job.job}</Text>
-            <Text style={styles.company}>{job.companyName}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title} numberOfLines={1}>{job.job || 'Position'}</Text>
+            <Text style={styles.company} numberOfLines={1}>{job.companyName || 'Company'}</Text>
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-            <Text style={styles.closeText}>Done</Text>
+            <XIcon size={20} color={Theme.colors.textMuted} />
           </TouchableOpacity>
         </View>
 
-        <ScrollView style={styles.content}>
+        <ScrollView contentContainerStyle={styles.content}>
+          {/* 1. ATS Match Analysis */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>ATS Match Score</Text>
-            <Text style={styles.scoreText}>{ats?.score != null ? `${ats.score}/100` : 'Not Calculated'}</Text>
-            <Text style={styles.analysisText}>{ats?.analysis || 'Compare your active resume against this job description.'}</Text>
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#27272a', marginTop: 12 }]} onPress={handleCalcAts} disabled={isCalcAts}>
-              {isCalcAts ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionBtnText}>{ats?.score != null ? 'Recalculate ATS' : 'Calculate ATS Score'}</Text>}
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>ATS Match Score</Text>
+              {ats?.score != null ? (
+                <View style={styles.scoreBadge}>
+                  <Text style={styles.scoreText}>{ats.score}/100</Text>
+                </View>
+              ) : null}
+            </View>
+
+            <Text style={styles.analysisText}>
+              {ats?.analysis || 'Analyze how well your resume matches the required skills for this job.'}
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnSecondary]}
+              onPress={handleCalcAts}
+              disabled={isCalcAts}
+            >
+              {isCalcAts ? (
+                <ActivityIndicator color={Theme.colors.textMain} size="small" />
+              ) : (
+                <>
+                  <TargetIcon size={16} color={Theme.colors.brandPrimaryLight} />
+                  <Text style={styles.actionBtnSecondaryText}>
+                    {ats?.score != null ? 'Recalculate ATS Score' : 'Calculate ATS Score'}
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
+          {/* 2. Tailor Resume */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>1. Tailor Resume</Text>
-            <Text style={styles.descText}>Use AI to rewrite your resume bullet points specifically for this job description.</Text>
-            <TouchableOpacity style={styles.actionBtn} onPress={handleTailorResume} disabled={isTailoring}>
-              {isTailoring ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionBtnText}>Tailor Resume with AI</Text>}
+            <Text style={styles.cardTitle}>1. AI Resume Tailoring</Text>
+            <Text style={styles.descText}>
+              Inject targeted keywords and optimize bullet points specifically for this position.
+            </Text>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnPrimary]}
+              onPress={handleTailorResume}
+              disabled={isTailoring}
+            >
+              {isTailoring ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <BotIcon size={16} color="#ffffff" />
+                  <Text style={styles.actionBtnPrimaryText}>Tailor Resume with AI</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
+          {/* 3. Cover Letter Generator */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>2. Cover Letter / Email Body</Text>
-            <TouchableOpacity style={[styles.actionBtn, { backgroundColor: '#27272a', marginBottom: 12 }]} onPress={handleGenerateCoverLetter} disabled={isGeneratingCL}>
-              {isGeneratingCL ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionBtnText}>Generate with AI</Text>}
-            </TouchableOpacity>
-            
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardTitle}>2. Tailored Outreach Message</Text>
+              <TouchableOpacity
+                style={styles.aiGenPill}
+                onPress={handleGenerateCoverLetter}
+                disabled={isGeneratingCL}
+              >
+                {isGeneratingCL ? (
+                  <ActivityIndicator size="small" color={Theme.colors.brandPrimaryLight} />
+                ) : (
+                  <>
+                    <FileTextIcon size={13} color={Theme.colors.brandPrimaryLight} />
+                    <Text style={styles.aiGenPillText}>Draft Message</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+
             <TextInput
               style={styles.textInput}
               multiline
               value={coverLetter}
               onChangeText={setCoverLetter}
-              placeholder="Write your email body here..."
-              placeholderTextColor="#71717a"
+              placeholder="Hi [Recruiter Name], I am writing to express my interest in..."
+              placeholderTextColor={Theme.colors.textSubtle}
             />
           </View>
 
+          {/* 4. Recruiter Dispatch */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>3. Send to Recruiter</Text>
-            <Text style={styles.descText}>HR: {job.hrName} ({job.email || 'No email'})</Text>
-            
-            <TouchableOpacity 
-              style={[styles.sendBtn, (!coverLetter || !job.email) && { opacity: 0.5 }]} 
-              onPress={handleSendEmail} 
-              disabled={isSending || !coverLetter || !job.email}
+            <View style={styles.recruiterBox}>
+              <UserIcon size={14} color={Theme.colors.textSubtle} />
+              <Text style={styles.recruiterText}>
+                {job.hrName || 'Recruiter'} ({job.hrEmail || job.email || 'No email specified'})
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={[
+                styles.sendBtn,
+                (!coverLetter || (!job.hrEmail && !job.email)) && styles.sendBtnDisabled,
+              ]}
+              onPress={handleSendEmail}
+              disabled={isSending || !coverLetter || (!job.hrEmail && !job.email)}
             >
-              {isSending ? <ActivityIndicator color="#fff" /> : <Text style={styles.sendBtnText}>Send Application</Text>}
+              {isSending ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <SendIcon size={16} color="#ffffff" />
+                  <Text style={styles.sendBtnText}>Dispatch Outreach Email</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
         </ScrollView>
@@ -180,21 +272,174 @@ export default function OutreachModal({ visible, job, onClose }: { visible: bool
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  company: { fontSize: 14, color: '#a1a1aa' },
-  closeBtn: { padding: 8 },
-  closeText: { color: '#4f46e5', fontSize: 16, fontWeight: '600' },
-  content: { padding: 16 },
-  card: { backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  cardTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
-  scoreText: { color: '#10b981', fontSize: 32, fontWeight: 'bold', marginBottom: 8 },
-  analysisText: { color: '#a1a1aa', fontSize: 14 },
-  descText: { color: '#a1a1aa', fontSize: 14, marginBottom: 12 },
-  actionBtn: { backgroundColor: '#4f46e5', padding: 14, borderRadius: 8, alignItems: 'center' },
-  actionBtnText: { color: '#fff', fontSize: 14, fontWeight: 'bold' },
-  textInput: { backgroundColor: '#09090b', borderWidth: 1, borderColor: '#27272a', borderRadius: 8, padding: 12, color: '#f4f4f5', minHeight: 150, textAlignVertical: 'top' },
-  sendBtn: { backgroundColor: '#10b981', padding: 16, borderRadius: 8, alignItems: 'center', marginTop: 8 },
-  sendBtnText: { color: '#fff', fontSize: 16, fontWeight: 'bold' }
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.bgApp,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.borderCard,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+  },
+  company: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    ...Theme.shadows.card,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+  },
+  scoreBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: Theme.radii.full,
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    borderWidth: 1,
+  },
+  scoreText: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: Theme.colors.brandAccent,
+  },
+  analysisText: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  descText: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    lineHeight: 18,
+    marginBottom: 12,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    borderRadius: Theme.radii.md,
+  },
+  actionBtnPrimary: {
+    backgroundColor: Theme.colors.brandPrimary,
+    ...Theme.shadows.glow,
+  },
+  actionBtnPrimaryText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  actionBtnSecondary: {
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+  },
+  actionBtnSecondaryText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Theme.colors.textMain,
+  },
+  aiGenPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: Theme.radii.full,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderWidth: 1,
+  },
+  aiGenPillText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Theme.colors.brandPrimaryLight,
+  },
+  textInput: {
+    backgroundColor: Theme.colors.bgInput,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    color: Theme.colors.textMain,
+    fontSize: 13,
+    lineHeight: 19,
+    padding: 14,
+    minHeight: 140,
+    textAlignVertical: 'top',
+  },
+  recruiterBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.sm,
+    padding: 10,
+    marginBottom: 12,
+  },
+  recruiterText: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    fontWeight: '500',
+  },
+  sendBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    backgroundColor: Theme.colors.brandAccent,
+    borderRadius: Theme.radii.md,
+  },
+  sendBtnDisabled: {
+    opacity: 0.5,
+  },
+  sendBtnText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
 });

@@ -25,7 +25,17 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
  * Prevents open-redirect attacks via the OAuth state parameter.
  */
 const ALLOWED_REDIRECT_ORIGINS = (() => {
-  const base = [FRONTEND_URL, 'http://localhost:5173', 'http://localhost:5174', 'http://localhost:4173'];
+  const base = [
+    FRONTEND_URL,
+    'http://localhost:5173',
+    'http://localhost:5174',
+    'http://localhost:4173',
+    'http://localhost:8081',
+    'http://localhost:8082',
+    'http://127.0.0.1:8081',
+    'http://192.168.1.29:8081',
+    'http://192.168.1.29:3000'
+  ];
   // Also allow the mobile app scheme if configured
   if (process.env.MOBILE_REDIRECT_SCHEME) base.push(process.env.MOBILE_REDIRECT_SCHEME);
   return base;

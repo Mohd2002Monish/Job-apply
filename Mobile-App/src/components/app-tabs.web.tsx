@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Tabs,
   TabList,
@@ -7,29 +8,27 @@ import {
   TabListProps,
 } from 'expo-router/ui';
 import { Pressable, View, StyleSheet } from 'react-native';
-
 import { ThemedText } from './themed-text';
-import { ThemedView } from './themed-view';
-
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { Theme } from '@/constants/theme';
+import { BriefcaseIcon, FileTextIcon, TrendingUpIcon, MailIcon } from '@/components/Icons';
 
 export default function AppTabs() {
   return (
-    <Tabs>
-      <TabSlot style={{ height: '100%' }} />
+    <Tabs style={styles.tabRoot}>
+      <TabSlot style={styles.tabContentSlot} />
       <TabList asChild>
         <CustomTabList>
           <TabTrigger name="index" href="/" asChild>
-            <TabButton>Jobs</TabButton>
+            <TabButton icon={<BriefcaseIcon size={18} />}>Pipeline</TabButton>
           </TabTrigger>
           <TabTrigger name="builder" href="/builder" asChild>
-            <TabButton>Builder</TabButton>
+            <TabButton icon={<FileTextIcon size={18} />}>Builder</TabButton>
           </TabTrigger>
           <TabTrigger name="analytics" href="/analytics" asChild>
-            <TabButton>Analytics</TabButton>
+            <TabButton icon={<TrendingUpIcon size={18} />}>Analytics</TabButton>
           </TabTrigger>
           <TabTrigger name="inbox" href="/inbox" asChild>
-            <TabButton>Inbox</TabButton>
+            <TabButton icon={<MailIcon size={18} />}>Inbox</TabButton>
           </TabTrigger>
         </CustomTabList>
       </TabList>
@@ -37,62 +36,89 @@ export default function AppTabs() {
   );
 }
 
-export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+export function TabButton({ children, isFocused, icon, ...props }: TabTriggerSlotProps & { icon?: React.ReactNode }) {
   return (
-    <Pressable {...props} style={({ pressed }) => pressed && styles.pressed}>
-      <ThemedView
-        type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
-        style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
-          {children}
-        </ThemedText>
-      </ThemedView>
+    <Pressable {...props} style={[styles.tabButton, isFocused && styles.tabButtonActive]}>
+      <View style={[styles.tabIconWrapper, isFocused && styles.tabIconActive]}>
+        {React.cloneElement(icon as React.ReactElement, {
+          color: isFocused ? Theme.colors.brandPrimaryLight : Theme.colors.textSubtle,
+          size: 18,
+        })}
+      </View>
+      <ThemedText
+        style={[
+          styles.tabLabel,
+          { color: isFocused ? Theme.colors.textMain : Theme.colors.textSubtle },
+        ]}
+      >
+        {children}
+      </ThemedText>
     </Pressable>
   );
 }
 
 export function CustomTabList(props: TabListProps) {
   return (
-    <View {...props} style={styles.tabListContainer}>
-      <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          RecoCareer.ai
-        </ThemedText>
-
+    <View {...props} style={styles.tabBarWrapper}>
+      <View style={styles.tabBarInner}>
         {props.children}
-      </ThemedView>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  tabListContainer: {
+  tabRoot: {
+    flex: 1,
+    height: '100%',
+    backgroundColor: Theme.colors.bgApp,
+  },
+  tabContentSlot: {
+    flex: 1,
+    height: '100%',
+  },
+  tabBarWrapper: {
     position: 'absolute',
-    width: '100%',
-    padding: Spacing.three,
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 68,
+    backgroundColor: 'rgba(18, 18, 23, 0.88)',
+    borderTopColor: Theme.colors.borderCard,
+    borderTopWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    flexDirection: 'row',
+    paddingHorizontal: 16,
+    zIndex: 100,
   },
-  innerContainer: {
-    paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
+  tabBarInner: {
     flexDirection: 'row',
     alignItems: 'center',
-    flexGrow: 1,
-    gap: Spacing.two,
-    maxWidth: MaxContentWidth,
+    justifyContent: 'space-around',
+    width: '100%',
+    maxWidth: 600,
   },
-  brandText: {
-    marginRight: 'auto',
+  tabButton: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 6,
+    borderRadius: Theme.radii.md,
+    gap: 3,
   },
-  pressed: {
-    opacity: 0.7,
+  tabButtonActive: {},
+  tabIconWrapper: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 32,
+    height: 28,
+    borderRadius: 8,
   },
-  tabButtonView: {
-    paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+  tabIconActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+  },
+  tabLabel: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });

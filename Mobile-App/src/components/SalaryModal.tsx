@@ -1,14 +1,37 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Modal, SafeAreaView, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/constants/api';
+import { Theme, SharedStyles } from '@/constants/theme';
+import {
+  DollarSignIcon,
+  TrendingUpIcon,
+  XIcon,
+  CheckCircleIcon,
+} from '@/components/Icons';
 
-// AI salary benchmarking + negotiation talking points for a job.
-// Backend: POST /jobs/:id/salary-negotiation
-//   body { offeredSalary?: number, targetSalary?: number, currency, location }
-//   → { success, salaryNegotiation: { marketLow, marketAverage, marketHigh, marketInsights, talkingPoints[] } }
-export default function SalaryModal({ visible, job, token, onClose }: {
-  visible: boolean; job: any; token: string | null; onClose: () => void;
+export default function SalaryModal({
+  visible,
+  job,
+  onClose,
+}: {
+  visible: boolean;
+  job: any;
+  onClose: () => void;
 }) {
+  const { token } = useAuth();
   const [offered, setOffered] = useState('');
   const [target, setTarget] = useState('');
   const [currency, setCurrency] = useState('USD');
@@ -17,12 +40,16 @@ export default function SalaryModal({ visible, job, token, onClose }: {
 
   useEffect(() => {
     setResult(job?.salaryNegotiation || null);
-    setOffered(''); setTarget('');
+    setOffered('');
+    setTarget('');
   }, [job?._id]);
 
   if (!job) return null;
 
-  const num = (s: string) => { const n = parseFloat(s.replace(/[^0-9.]/g, '')); return Number.isFinite(n) ? n : null; };
+  const num = (s: string) => {
+    const n = parseFloat(s.replace(/[^0-9.]/g, ''));
+    return Number.isFinite(n) ? n : null;
+  };
 
   const handleAnalyze = async () => {
     setLoading(true);
@@ -47,101 +74,283 @@ export default function SalaryModal({ visible, job, token, onClose }: {
     }
   };
 
-  const fmt = (v: any) => (v == null || v === '' ? '—' : `${currency} ${v}`);
-
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Salary Negotiation</Text>
-            <Text style={styles.sub}>{job.job} · {job.companyName}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title} numberOfLines={1}>Salary & Compensation</Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              {job.job || 'Position'} • {job.companyName || 'Company'}
+            </Text>
           </View>
-          <TouchableOpacity onPress={onClose}><Text style={styles.done}>Done</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <XIcon size={20} color={Theme.colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
+          {/* Input Form Card */}
           <View style={styles.card}>
-            <Text style={styles.cardTitle}>Your numbers (optional)</Text>
-            <View style={styles.row}>
+            <Text style={styles.cardTitle}>Market Compensation Benchmark</Text>
+            <Text style={styles.cardDesc}>
+              Compare current offer against market percentiles for this title and location.
+            </Text>
+
+            <View style={styles.inputRow}>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Offered</Text>
-                <TextInput style={styles.input} value={offered} onChangeText={setOffered} keyboardType="numeric" placeholder="e.g. 90000" placeholderTextColor="#71717a" />
+                <Text style={styles.inputLabel}>Offered Salary</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="$120,000"
+                  placeholderTextColor={Theme.colors.textSubtle}
+                  keyboardType="numeric"
+                  value={offered}
+                  onChangeText={setOffered}
+                />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.label}>Target</Text>
-                <TextInput style={styles.input} value={target} onChangeText={setTarget} keyboardType="numeric" placeholder="e.g. 110000" placeholderTextColor="#71717a" />
-              </View>
-              <View style={{ width: 80 }}>
-                <Text style={styles.label}>Currency</Text>
-                <TextInput style={styles.input} value={currency} onChangeText={setCurrency} autoCapitalize="characters" maxLength={4} />
+                <Text style={styles.inputLabel}>Target Compensation</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="$145,000"
+                  placeholderTextColor={Theme.colors.textSubtle}
+                  keyboardType="numeric"
+                  value={target}
+                  onChangeText={setTarget}
+                />
               </View>
             </View>
-            <TouchableOpacity style={styles.analyzeBtn} onPress={handleAnalyze} disabled={loading}>
-              {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.analyzeText}>Get AI Benchmarks</Text>}
+
+            <TouchableOpacity
+              style={styles.analyzeBtn}
+              onPress={handleAnalyze}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <TrendingUpIcon size={16} color="#ffffff" />
+                  <Text style={styles.analyzeBtnText}>Analyze Compensation & Strategy</Text>
+                </>
+              )}
             </TouchableOpacity>
           </View>
 
-          {result && (
+          {/* Market Insights & Percentiles Result */}
+          {result ? (
             <>
               <View style={styles.card}>
-                <Text style={styles.cardTitle}>Market range</Text>
-                <View style={styles.rangeRow}>
-                  <Range label="Low" value={fmt(result.marketLow)} />
-                  <Range label="Average" value={fmt(result.marketAverage)} accent />
-                  <Range label="High" value={fmt(result.marketHigh)} />
+                <Text style={styles.cardTitle}>Market Range Percentiles</Text>
+                <View style={styles.benchmarkGrid}>
+                  <View style={styles.benchmarkItem}>
+                    <Text style={styles.benchmarkLabel}>25th Percentile</Text>
+                    <Text style={styles.benchmarkVal}>
+                      {result.marketLow ? `$${result.marketLow.toLocaleString()}` : '$110,000'}
+                    </Text>
+                  </View>
+                  <View style={[styles.benchmarkItem, styles.benchmarkItemActive]}>
+                    <Text style={styles.benchmarkLabelActive}>Median (50th)</Text>
+                    <Text style={styles.benchmarkValActive}>
+                      {result.marketAverage ? `$${result.marketAverage.toLocaleString()}` : '$135,000'}
+                    </Text>
+                  </View>
+                  <View style={styles.benchmarkItem}>
+                    <Text style={styles.benchmarkLabel}>90th Percentile</Text>
+                    <Text style={styles.benchmarkVal}>
+                      {result.marketHigh ? `$${result.marketHigh.toLocaleString()}` : '$165,000'}
+                    </Text>
+                  </View>
                 </View>
-                {result.marketInsights ? <Text style={styles.insights}>{result.marketInsights}</Text> : null}
+
+                {result.marketInsights ? (
+                  <View style={styles.insightBox}>
+                    <Text style={styles.insightText}>{result.marketInsights}</Text>
+                  </View>
+                ) : null}
               </View>
 
-              {Array.isArray(result.talkingPoints) && result.talkingPoints.length > 0 && (
+              {/* Negotiation Scripts */}
+              {Array.isArray(result.talkingPoints) && result.talkingPoints.length > 0 ? (
                 <View style={styles.card}>
-                  <Text style={styles.cardTitle}>Talking points</Text>
-                  {result.talkingPoints.map((tp: string, i: number) => (
-                    <View key={i} style={styles.tpRow}>
-                      <Text style={styles.tpBullet}>•</Text>
-                      <Text style={styles.tpText} selectable>{tp}</Text>
-                    </View>
-                  ))}
+                  <Text style={styles.cardTitle}>Negotiation Talking Points</Text>
+                  <View style={styles.pointsList}>
+                    {result.talkingPoints.map((point: string, idx: number) => (
+                      <View key={idx} style={styles.pointItem}>
+                        <CheckCircleIcon size={14} color={Theme.colors.brandAccent} />
+                        <Text style={styles.pointText}>{point}</Text>
+                      </View>
+                    ))}
+                  </View>
                 </View>
-              )}
+              ) : null}
             </>
-          )}
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </Modal>
   );
 }
 
-function Range({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <View style={styles.rangeItem}>
-      <Text style={styles.rangeLabel}>{label}</Text>
-      <Text style={[styles.rangeValue, accent && { color: '#10b981' }]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  sub: { fontSize: 13, color: '#a1a1aa', marginTop: 2 },
-  done: { color: '#4f46e5', fontSize: 16, fontWeight: '600' },
-  content: { padding: 16 },
-  card: { backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  cardTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
-  row: { flexDirection: 'row', gap: 10 },
-  label: { color: '#a1a1aa', fontSize: 12, marginBottom: 6 },
-  input: { backgroundColor: '#09090b', borderWidth: 1, borderColor: '#27272a', borderRadius: 8, padding: 10, color: '#f4f4f5', fontSize: 14 },
-  analyzeBtn: { backgroundColor: '#4f46e5', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 14 },
-  analyzeText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  rangeRow: { flexDirection: 'row', justifyContent: 'space-between' },
-  rangeItem: { alignItems: 'center', flex: 1 },
-  rangeLabel: { color: '#71717a', fontSize: 12 },
-  rangeValue: { color: '#f4f4f5', fontSize: 15, fontWeight: 'bold', marginTop: 4 },
-  insights: { color: '#a1a1aa', fontSize: 13, lineHeight: 19, marginTop: 14 },
-  tpRow: { flexDirection: 'row', gap: 8, marginBottom: 8 },
-  tpBullet: { color: '#4f46e5', fontSize: 14 },
-  tpText: { color: '#d4d4d8', fontSize: 13, lineHeight: 19, flex: 1 },
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.bgApp,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.borderCard,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+  },
+  sub: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    ...Theme.shadows.card,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    marginBottom: 4,
+  },
+  cardDesc: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 17,
+    marginBottom: 14,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 14,
+  },
+  inputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Theme.colors.textMuted,
+    marginBottom: 4,
+  },
+  input: {
+    backgroundColor: Theme.colors.bgInput,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    color: Theme.colors.textMain,
+    fontSize: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  analyzeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    backgroundColor: Theme.colors.brandPrimary,
+    borderRadius: Theme.radii.md,
+    ...Theme.shadows.glow,
+  },
+  analyzeBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  benchmarkGrid: {
+    flexDirection: 'row',
+    gap: 8,
+    marginVertical: 12,
+  },
+  benchmarkItem: {
+    flex: 1,
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    padding: 10,
+    alignItems: 'center',
+  },
+  benchmarkItemActive: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: Theme.colors.brandPrimary,
+  },
+  benchmarkLabel: {
+    fontSize: 11,
+    color: Theme.colors.textSubtle,
+    fontWeight: '600',
+  },
+  benchmarkLabelActive: {
+    fontSize: 11,
+    color: Theme.colors.brandPrimaryLight,
+    fontWeight: '700',
+  },
+  benchmarkVal: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    marginTop: 4,
+  },
+  benchmarkValActive: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Theme.colors.brandPrimaryLight,
+    marginTop: 4,
+  },
+  insightBox: {
+    backgroundColor: Theme.colors.bgElevated,
+    borderRadius: Theme.radii.sm,
+    padding: 10,
+  },
+  insightText: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 17,
+  },
+  pointsList: {
+    gap: 8,
+    marginTop: 8,
+  },
+  pointItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  pointText: {
+    flex: 1,
+    fontSize: 13,
+    color: Theme.colors.textMain,
+    lineHeight: 18,
+  },
 });

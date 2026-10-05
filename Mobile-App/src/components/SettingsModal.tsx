@@ -1,12 +1,37 @@
 import React from 'react';
-import { StyleSheet, Text, View, Modal, SafeAreaView, ScrollView, TouchableOpacity, Alert, Share } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  TouchableOpacity,
+  Alert,
+  Share,
+  Platform,
+} from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useAuth } from '@/hooks/useAuth';
 import { API_BASE_URL, WEB_URL } from '@/constants/api';
+import { Theme, SharedStyles } from '@/constants/theme';
+import {
+  UserIcon,
+  CopyIcon,
+  LockIcon,
+  XIcon,
+  CheckCircleIcon,
+  ZapIcon,
+  AwardIcon,
+} from '@/components/Icons';
 
-// Account screen: profile, plan + usage, referral link, upgrade, logout.
-// Usage/referral data comes from /auth/status (stored on user by useAuth).
-export default function SettingsModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
+export default function SettingsModal({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
   const { user, logout } = useAuth();
   const isPro = user?.subscriptionTier === 'pro';
   const referralUrl = user?.referralCode ? `${API_BASE_URL}/r/${user.referralCode}` : '';
@@ -23,65 +48,146 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
     try {
       await Share.share({ message: `Join me on RecoCareer.ai — ${referralUrl}` });
     } catch {
-      Alert.alert('Referral link', referralUrl);
+      Alert.alert('Referral Link', referralUrl);
     }
   };
 
   const confirmLogout = () => {
-    Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+    Alert.alert('Sign Out', 'Are you sure you want to sign out of your account?', [
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign out', style: 'destructive', onPress: () => { logout(); onClose(); } },
+      {
+        text: 'Sign Out',
+        style: 'destructive',
+        onPress: () => {
+          logout();
+          onClose();
+        },
+      },
     ]);
   };
+
+  const initials = (user?.name || 'User')
+    .split(' ')
+    .slice(0, 2)
+    .map((w: string) => w[0])
+    .join('')
+    .toUpperCase();
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Account</Text>
-          <TouchableOpacity onPress={onClose}><Text style={styles.done}>Done</Text></TouchableOpacity>
+          <Text style={styles.headerTitle}>Account & Settings</Text>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <XIcon size={20} color={Theme.colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          {/* Profile */}
+          {/* User Profile Card */}
           <View style={styles.card}>
-            <View style={styles.avatar}><Text style={styles.avatarText}>{(user?.name || 'U').charAt(0).toUpperCase()}</Text></View>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.name}>{user?.name || 'User'}</Text>
-              <Text style={styles.email}>{user?.email}</Text>
-            </View>
-            <View style={[styles.planBadge, isPro ? styles.planPro : styles.planFree]}>
-              <Text style={[styles.planText, isPro && { color: '#c7d2fe' }]}>{isPro ? 'PRO' : 'FREE'}</Text>
+            <View style={styles.profileRow}>
+              <View style={styles.avatar}>
+                <Text style={styles.avatarText}>{initials}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.name}>{user?.name || 'Authenticated User'}</Text>
+                <Text style={styles.email}>{user?.email || 'user@recocareer.ai'}</Text>
+              </View>
+              <View style={[styles.planBadge, isPro ? styles.planPro : styles.planFree]}>
+                <Text style={[styles.planText, isPro && { color: Theme.colors.brandPrimaryLight }]}>
+                  {isPro ? 'PRO MEMBER' : 'FREE TIER'}
+                </Text>
+              </View>
             </View>
           </View>
 
-          {/* Usage */}
-          <View style={styles.card2}>
-            <Text style={styles.cardTitle}>Usage</Text>
-            <Meter label="Jobs tracked" value={user?.jobCount || 0} limit={jobLimit} pct={jobPct} />
-            <Meter label="AI features this month" value={user?.aiRequestCount || 0} limit={aiLimit} pct={aiPct} />
-            {!isPro && (
+          {/* Usage & Quota Limits */}
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Monthly Quota & Limits</Text>
+
+            <View style={styles.quotaItem}>
+              <View style={styles.quotaHeader}>
+                <Text style={styles.quotaLabel}>Applications Tracked</Text>
+                <Text style={styles.quotaValue}>
+                  {user?.jobCount || 0} / {isPro ? 'Unlimited' : jobLimit}
+                </Text>
+              </View>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      width: isPro ? '100%' : `${jobPct * 100}%`,
+                      backgroundColor: Theme.colors.brandPrimary,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+
+            <View style={styles.quotaItem}>
+              <View style={styles.quotaHeader}>
+                <Text style={styles.quotaLabel}>AI Tailoring & Cover Letters</Text>
+                <Text style={styles.quotaValue}>
+                  {user?.aiRequestCount || 0} / {isPro ? 'Unlimited' : aiLimit}
+                </Text>
+              </View>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      width: isPro ? '100%' : `${aiPct * 100}%`,
+                      backgroundColor: Theme.colors.brandAccent,
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          </View>
+
+          {/* Pro Upgrade Banner */}
+          {!isPro ? (
+            <View style={styles.upgradeCard}>
+              <View style={styles.upgradeTop}>
+                <View style={styles.sparkleCircle}>
+                  <AwardIcon size={20} color="#ffffff" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.upgradeTitle}>Upgrade to RecoCareer Pro</Text>
+                  <Text style={styles.upgradeSub}>
+                    Unlock unlimited AI auto-tailoring, custom templates, and direct recruiter email dispatch.
+                  </Text>
+                </View>
+              </View>
+
               <TouchableOpacity style={styles.upgradeBtn} onPress={handleUpgrade}>
-                <Text style={styles.upgradeText}>Upgrade to Pro</Text>
+                <ZapIcon size={16} color="#ffffff" />
+                <Text style={styles.upgradeBtnText}>Upgrade Plan</Text>
               </TouchableOpacity>
-            )}
-          </View>
-
-          {/* Referrals */}
-          <View style={styles.card2}>
-            <Text style={styles.cardTitle}>Referrals</Text>
-            <View style={styles.referralStats}>
-              <View style={styles.refStat}><Text style={styles.refNum}>{user?.referralClicks || 0}</Text><Text style={styles.refLabel}>Clicks</Text></View>
-              <View style={styles.refStat}><Text style={[styles.refNum, { color: '#10b981' }]}>{user?.referralConversions || 0}</Text><Text style={styles.refLabel}>Pro converts</Text></View>
             </View>
-            {referralUrl ? <Text style={styles.refLink} selectable numberOfLines={1}>{referralUrl}</Text> : null}
-            <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral} disabled={!referralUrl}>
-              <Text style={styles.shareText}>Share referral link</Text>
-            </TouchableOpacity>
-          </View>
+          ) : null}
 
+          {/* Referral Card */}
+          {referralUrl ? (
+            <View style={styles.card}>
+              <Text style={styles.cardTitle}>Invite Friends & Earn Credits</Text>
+              <Text style={styles.cardDesc}>
+                Share your referral link to earn bonus AI tailoring credits for every friend who joins.
+              </Text>
+
+              <TouchableOpacity style={styles.shareBtn} onPress={handleShareReferral}>
+                <CopyIcon size={14} color={Theme.colors.brandPrimaryLight} />
+                <Text style={styles.shareBtnText}>Share Referral Link</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {/* Logout Action */}
           <TouchableOpacity style={styles.logoutBtn} onPress={confirmLogout}>
-            <Text style={styles.logoutText}>Sign out</Text>
+            <LockIcon size={16} color={Theme.colors.brandRose} />
+            <Text style={styles.logoutText}>Sign Out</Text>
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
@@ -89,53 +195,216 @@ export default function SettingsModal({ visible, onClose }: { visible: boolean; 
   );
 }
 
-function Meter({ label, value, limit, pct }: { label: string; value: number; limit: number; pct: number }) {
-  const display = limit === Infinity ? `${value} / ∞` : `${value} / ${limit}`;
-  const over = limit !== Infinity && value > limit;
-  return (
-    <View style={{ marginBottom: 14 }}>
-      <View style={styles.meterRow}>
-        <Text style={styles.meterLabel}>{label}</Text>
-        <Text style={[styles.meterValue, over && { color: '#f87171' }]}>{display}</Text>
-      </View>
-      <View style={styles.meterTrack}>
-        <View style={[styles.meterFill, { width: `${pct * 100}%`, backgroundColor: over ? '#f87171' : '#6366f1' }]} />
-      </View>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
-  done: { color: '#4f46e5', fontSize: 16, fontWeight: '600' },
-  content: { padding: 16 },
-  card: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  avatar: { width: 48, height: 48, borderRadius: 24, backgroundColor: '#4f46e5', justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#fff', fontSize: 20, fontWeight: 'bold' },
-  name: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },
-  email: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
-  planBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-  planFree: { backgroundColor: '#27272a' },
-  planPro: { backgroundColor: '#3730a3' },
-  planText: { fontSize: 11, fontWeight: 'bold', color: '#a1a1aa' },
-  card2: { backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  cardTitle: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
-  meterRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  meterLabel: { color: '#a1a1aa', fontSize: 13 },
-  meterValue: { color: '#f4f4f5', fontSize: 13, fontWeight: '600' },
-  meterTrack: { height: 8, backgroundColor: '#27272a', borderRadius: 5, overflow: 'hidden' },
-  meterFill: { height: '100%', borderRadius: 5 },
-  upgradeBtn: { backgroundColor: '#4f46e5', padding: 14, borderRadius: 8, alignItems: 'center', marginTop: 4 },
-  upgradeText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  referralStats: { flexDirection: 'row', gap: 24, marginBottom: 12 },
-  refStat: { alignItems: 'center' },
-  refNum: { color: '#f4f4f5', fontSize: 22, fontWeight: 'bold' },
-  refLabel: { color: '#71717a', fontSize: 11, marginTop: 2 },
-  refLink: { color: '#a1a1aa', fontSize: 12, backgroundColor: '#09090b', padding: 10, borderRadius: 8, marginBottom: 10 },
-  shareBtn: { backgroundColor: '#27272a', padding: 12, borderRadius: 8, alignItems: 'center' },
-  shareText: { color: '#f4f4f5', fontWeight: '600', fontSize: 14 },
-  logoutBtn: { padding: 14, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#7f1d1d', marginTop: 4 },
-  logoutText: { color: '#f87171', fontWeight: 'bold', fontSize: 14 },
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.bgApp,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.borderCard,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    ...Theme.shadows.card,
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 16,
+    backgroundColor: Theme.colors.brandPrimary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  name: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+  },
+  email: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  planBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: Theme.radii.full,
+    borderWidth: 1,
+  },
+  planPro: {
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+  },
+  planFree: {
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+  },
+  planText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: Theme.colors.textSubtle,
+    letterSpacing: 0.5,
+  },
+  cardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    marginBottom: 12,
+  },
+  cardDesc: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  quotaItem: {
+    marginBottom: 14,
+    gap: 6,
+  },
+  quotaHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  quotaLabel: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    fontWeight: '500',
+  },
+  quotaValue: {
+    fontSize: 12,
+    color: Theme.colors.textMain,
+    fontWeight: '700',
+  },
+  barTrack: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Theme.colors.bgElevated,
+    overflow: 'hidden',
+  },
+  barFill: {
+    height: '100%',
+    borderRadius: 3,
+  },
+  upgradeCard: {
+    backgroundColor: 'rgba(99, 102, 241, 0.12)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    gap: 14,
+  },
+  upgradeTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  sparkleCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: Theme.colors.brandPrimary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Theme.shadows.glow,
+  },
+  upgradeTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+  },
+  upgradeSub: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  upgradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 42,
+    backgroundColor: Theme.colors.brandPrimary,
+    borderRadius: Theme.radii.md,
+    ...Theme.shadows.glow,
+  },
+  upgradeBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  shareBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 40,
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+  },
+  shareBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: Theme.colors.brandPrimaryLight,
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: 'rgba(244, 63, 94, 0.25)',
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    marginTop: 10,
+  },
+  logoutText: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: Theme.colors.brandRose,
+  },
 });

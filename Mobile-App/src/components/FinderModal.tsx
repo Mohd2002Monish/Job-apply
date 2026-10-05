@@ -1,13 +1,40 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { StyleSheet, Text, View, Modal, SafeAreaView, FlatList, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Modal,
+  SafeAreaView,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/constants/api';
+import { Theme, SharedStyles } from '@/constants/theme';
+import {
+  SearchIcon,
+  PlusIcon,
+  UserIcon,
+  MailIcon,
+  XIcon,
+  CheckCircleIcon,
+  BriefcaseIcon,
+} from '@/components/Icons';
 
-// Shared job / recruiter-contact directory. Search, view recruiter details,
-// and import into your own tracker. Backend: GET /jobs/finder,
-// POST /jobs/finder/import/:id
-export default function FinderModal({ visible, onClose, token, onImported }: {
-  visible: boolean; onClose: () => void; token: string | null; onImported?: () => void;
+export default function FinderModal({
+  visible,
+  onClose,
+  onImported,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  onImported?: () => void;
 }) {
+  const { token } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState('');
@@ -16,7 +43,9 @@ export default function FinderModal({ visible, onClose, token, onImported }: {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch(api('/jobs/finder'), { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(api('/jobs/finder'), {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
       setJobs(Array.isArray(data.jobs) ? data.jobs : []);
     } catch {
@@ -26,7 +55,9 @@ export default function FinderModal({ visible, onClose, token, onImported }: {
     }
   }, [token]);
 
-  useEffect(() => { if (visible) load(); }, [visible, load]);
+  useEffect(() => {
+    if (visible) load();
+  }, [visible, load]);
 
   const handleImport = async (id: string) => {
     setImportingId(id);
@@ -38,7 +69,7 @@ export default function FinderModal({ visible, onClose, token, onImported }: {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Import failed');
       onImported?.();
-      Alert.alert('Imported', 'Job added to your tracker.');
+      Alert.alert('Imported', 'Job and recruiter contact added to your pipeline.');
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
@@ -49,24 +80,48 @@ export default function FinderModal({ visible, onClose, token, onImported }: {
   const q = query.trim().toLowerCase();
   const filtered = q
     ? jobs.filter(j =>
-        [j.job, j.companyName, j.location, j.hrName].some(v => (v || '').toLowerCase().includes(q)))
+        [j.job, j.companyName, j.location, j.hrName, j.email, j.hrEmail].some(v =>
+          (v || '').toLowerCase().includes(q)
+        )
+      )
     : jobs;
 
   const renderItem = ({ item }: { item: any }) => (
     <View style={styles.card}>
-      <Text style={styles.title}>{item.job}</Text>
-      <Text style={styles.company}>{item.companyName}{item.location ? ` · ${item.location}` : ''}</Text>
-      {(item.hrName || item.email) ? (
-        <Text style={styles.recruiter}>
-          {item.hrName || 'Recruiter'}{item.email ? ` — ${item.email}` : ''}
+      <View style={styles.cardTop}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title} numberOfLines={1}>{item.job || 'Position'}</Text>
+          <Text style={styles.company} numberOfLines={1}>
+            {item.companyName || 'Company'}
+            {item.location ? ` • ${item.location}` : ''}
+          </Text>
+        </View>
+        <View style={styles.verifiedPill}>
+          <CheckCircleIcon size={11} color={Theme.colors.brandAccent} />
+          <Text style={styles.verifiedText}>Verified</Text>
+        </View>
+      </View>
+
+      <View style={styles.recruiterBox}>
+        <UserIcon size={13} color={Theme.colors.textSubtle} />
+        <Text style={styles.recruiterText}>
+          {item.hrName || 'Hiring Lead'} • {item.email || item.hrEmail || 'Email on file'}
         </Text>
-      ) : null}
+      </View>
+
       <TouchableOpacity
-        style={styles.importBtn}
+        style={[styles.importBtn, importingId === item._id && styles.importBtnDisabled]}
         onPress={() => handleImport(item._id)}
         disabled={importingId === item._id}
       >
-        {importingId === item._id ? <ActivityIndicator color="#fff" /> : <Text style={styles.importText}>Import to Tracker</Text>}
+        {importingId === item._id ? (
+          <ActivityIndicator color="#ffffff" size="small" />
+        ) : (
+          <>
+            <PlusIcon size={14} color="#ffffff" />
+            <Text style={styles.importText}>Import & Reach Out</Text>
+          </>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -76,29 +131,49 @@ export default function FinderModal({ visible, onClose, token, onImported }: {
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.headerTitle}>Recruiter Finder</Text>
-            <Text style={styles.headerSub}>Shared roles & recruiter contacts</Text>
+            <Text style={styles.headerTitle}>Recruiter Directory</Text>
+            <Text style={styles.headerSubtitle}>Verified hiring managers & talent partners</Text>
           </View>
-          <TouchableOpacity onPress={onClose}><Text style={styles.done}>Done</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <XIcon size={20} color={Theme.colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
-        <TextInput
-          style={styles.search}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Search title, company, recruiter…"
-          placeholderTextColor="#71717a"
-        />
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <SearchIcon size={16} color={Theme.colors.textSubtle} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by company, title, or recruiter name..."
+            placeholderTextColor={Theme.colors.textSubtle}
+            value={query}
+            onChangeText={setQuery}
+          />
+          {query ? (
+            <TouchableOpacity onPress={() => setQuery('')}>
+              <XIcon size={16} color={Theme.colors.textSubtle} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
 
         {loading ? (
-          <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 40 }} />
+          <View style={styles.center}>
+            <ActivityIndicator size="large" color={Theme.colors.brandPrimary} />
+            <Text style={styles.loadingText}>Loading directory...</Text>
+          </View>
         ) : (
           <FlatList
             data={filtered}
-            keyExtractor={(item) => item._id}
+            keyExtractor={item => item._id}
             renderItem={renderItem}
             contentContainerStyle={styles.list}
-            ListEmptyComponent={<Text style={styles.empty}>No matching roles found.</Text>}
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <SearchIcon size={36} color={Theme.colors.textSubtle} />
+                <Text style={styles.emptyTitle}>No matching contacts</Text>
+                <Text style={styles.emptySubtitle}>Try adjusting your search terms.</Text>
+              </View>
+            }
           />
         )}
       </SafeAreaView>
@@ -107,18 +182,161 @@ export default function FinderModal({ visible, onClose, token, onImported }: {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#fff' },
-  headerSub: { fontSize: 13, color: '#a1a1aa', marginTop: 2 },
-  done: { color: '#4f46e5', fontSize: 16, fontWeight: '600' },
-  search: { backgroundColor: '#18181b', borderWidth: 1, borderColor: '#27272a', borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, color: '#f4f4f5', margin: 16, marginBottom: 0 },
-  list: { padding: 16 },
-  card: { backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 12, borderWidth: 1, borderColor: '#27272a' },
-  title: { color: '#f4f4f5', fontSize: 16, fontWeight: 'bold' },
-  company: { color: '#a1a1aa', fontSize: 13, marginTop: 2 },
-  recruiter: { color: '#10b981', fontSize: 13, marginTop: 6 },
-  importBtn: { backgroundColor: '#4f46e5', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 12 },
-  importText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  empty: { color: '#71717a', fontSize: 14, textAlign: 'center', marginTop: 60 },
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.bgApp,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.borderCard,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Theme.colors.bgInput,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: Theme.colors.textMain,
+    fontSize: 14,
+  },
+  list: {
+    padding: 16,
+    gap: 12,
+    paddingBottom: 40,
+  },
+  card: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    ...Theme.shadows.card,
+  },
+  cardTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+  },
+  company: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  verifiedPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Theme.radii.full,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 1,
+  },
+  verifiedText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Theme.colors.brandAccent,
+  },
+  recruiterBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Theme.colors.bgElevated,
+    borderRadius: Theme.radii.sm,
+    padding: 8,
+    marginBottom: 12,
+  },
+  recruiterText: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    fontWeight: '500',
+  },
+  importBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 38,
+    backgroundColor: Theme.colors.brandPrimary,
+    borderRadius: Theme.radii.md,
+    ...Theme.shadows.glow,
+  },
+  importBtnDisabled: {
+    opacity: 0.6,
+  },
+  importText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  center: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Theme.colors.textMuted,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    marginTop: 8,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    textAlign: 'center',
+  },
 });

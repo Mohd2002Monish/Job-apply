@@ -1,4 +1,5 @@
-require("dotenv").config();
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, ".env") });
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
@@ -58,23 +59,35 @@ app.use(express.json({ limit: '3mb' }));
 app.use(express.urlencoded({ extended: true, limit: '3mb' }));
 app.use(cookieParser());
 
-const path = require("path");
 app.use(express.static(path.join(__dirname, "public")));
 
 // ─── MongoDB ───────────────────────────────────────────────────────────────────
 let dbConnected = false;
 const seedAiModels = require("./utils/seedAiModels");
 
-mongoose
-  .connect(process.env.MONGODB_URI)
-  .then(async () => {
-    console.log("MongoDB connected");
+const mongoUri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/jobs";
+const connectDb = async (uri) => {
+  try {
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 4000 });
+    console.log("MongoDB connected:", uri.startsWith("mongodb+srv") ? "Cloud Atlas" : "Local Database");
     dbConnected = true;
     await seedAiModels();
-  })
-  .catch((err) => {
-    console.error("MongoDB error:", err.message);
-  });
+  } catch (err) {
+    console.error("MongoDB connection error:", err.message);
+    if (uri.startsWith("mongodb+srv")) {
+      console.log("Attempting fallback to local MongoDB (mongodb://127.0.0.1:27017/jobs)...");
+      try {
+        await mongoose.connect("mongodb://127.0.0.1:27017/jobs", { serverSelectionTimeoutMS: 4000 });
+        console.log("MongoDB connected: Local Database");
+        dbConnected = true;
+        await seedAiModels();
+      } catch (fallbackErr) {
+        console.error("Local MongoDB fallback error:", fallbackErr.message);
+      }
+    }
+  }
+};
+connectDb(mongoUri);
 
 process.on("uncaughtException", (err) => console.error("Uncaught:", err.message));
 process.on("unhandledRejection", (err) => console.error("Rejection:", err?.message));
@@ -109,7 +122,10 @@ app.get("/start-cron", authenticate, requireOwner, (req, res) => {
 
 // ─── Start server ──────────────────────────────────────────────────────────────
 if (require.main === module) {
-  app.listen(port, () => console.log(`Server running on port ${port}`));
+  app.listen(port, "0.0.0.0", () => console.log(`Server running on port ${port} (0.0.0.0)`));
 }
+
+// Keep event loop active so Express backend remains online on port 3000
+setInterval(() => {}, 60000);
 
 module.exports = app;

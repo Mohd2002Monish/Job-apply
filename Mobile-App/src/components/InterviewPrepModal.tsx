@@ -1,14 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, Modal, SafeAreaView, ScrollView, TextInput, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  Modal,
+  SafeAreaView,
+  ScrollView,
+  TextInput,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
+import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/constants/api';
+import { Theme, SharedStyles } from '@/constants/theme';
+import {
+  BotIcon,
+  AwardIcon,
+  XIcon,
+  CheckCircleIcon,
+  CheckIcon,
+} from '@/components/Icons';
 
-// Written interview practice. Backend:
-//   POST /jobs/:id/interview-prep      → { interviewQuestions: [...] }
-//   PUT  /jobs/:id                     → persist typed answers (question.userNotes)
-//   POST /jobs/:id/grade-answer        → { score, aiFeedback, improvedVersion } for a saved answer
-export default function InterviewPrepModal({ visible, job, token, onClose }: {
-  visible: boolean; job: any; token: string | null; onClose: () => void;
+export default function InterviewPrepModal({
+  visible,
+  job,
+  onClose,
+}: {
+  visible: boolean;
+  job: any;
+  onClose: () => void;
 }) {
+  const { token } = useAuth();
   const [questions, setQuestions] = useState<any[]>([]);
   const [generating, setGenerating] = useState(false);
   const [gradingId, setGradingId] = useState<string | null>(null);
@@ -23,7 +47,10 @@ export default function InterviewPrepModal({ visible, job, token, onClose }: {
   const handleGenerate = async () => {
     setGenerating(true);
     try {
-      const res = await fetch(api(`/jobs/${job._id}/interview-prep`), { method: 'POST', headers: authHeaders });
+      const res = await fetch(api(`/jobs/${job._id}/interview-prep`), {
+        method: 'POST',
+        headers: authHeaders,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate questions');
       setQuestions(data.interviewQuestions || []);
@@ -40,20 +67,36 @@ export default function InterviewPrepModal({ visible, job, token, onClose }: {
 
   const handleGrade = async (idx: number) => {
     const q = questions[idx];
-    if (!q.userNotes?.trim()) { Alert.alert('Write an answer first', 'Type your answer, then grade it.'); return; }
-    setGradingId(q._id);
+    if (!q.userNotes?.trim()) {
+      Alert.alert('Answer Required', 'Type your practice response before requesting AI grading.');
+      return;
+    }
+    setGradingId(q._id || `${idx}`);
     try {
-      // The grader reads the answer from the server, so persist answers first.
       await fetch(api(`/jobs/${job._id}`), {
-        method: 'PATCH', headers: authHeaders, body: JSON.stringify({ interviewQuestions: questions }),
+        method: 'PATCH',
+        headers: authHeaders,
+        body: JSON.stringify({ interviewQuestions: questions }),
       });
       const res = await fetch(api(`/jobs/${job._id}/grade-answer`), {
-        method: 'POST', headers: authHeaders, body: JSON.stringify({ questionId: q._id }),
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({ questionId: q._id }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Grading failed');
-      setQuestions(prev => prev.map((item, i) =>
-        i === idx ? { ...item, score: data.score, aiFeedback: data.aiFeedback, improvedVersion: data.improvedVersion } : item));
+      setQuestions(prev =>
+        prev.map((item, i) =>
+          i === idx
+            ? {
+                ...item,
+                score: data.score,
+                aiFeedback: data.aiFeedback,
+                improvedVersion: data.improvedVersion,
+              }
+            : item
+        )
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message);
     } finally {
@@ -65,56 +108,122 @@ export default function InterviewPrepModal({ visible, job, token, onClose }: {
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={styles.container}>
         <View style={styles.header}>
-          <View>
-            <Text style={styles.title}>Interview Prep</Text>
-            <Text style={styles.sub}>{job.job} · {job.companyName}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.title} numberOfLines={1}>AI Interview Prep</Text>
+            <Text style={styles.company} numberOfLines={1}>
+              {job.job || 'Position'} • {job.companyName || 'Company'}
+            </Text>
           </View>
-          <TouchableOpacity onPress={onClose}><Text style={styles.done}>Done</Text></TouchableOpacity>
+          <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+            <XIcon size={20} color={Theme.colors.textMuted} />
+          </TouchableOpacity>
         </View>
 
         <ScrollView contentContainerStyle={styles.content}>
-          {questions.length === 0 ? (
-            <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>Generate 8 tailored questions based on this job description, then practice your answers and get AI feedback.</Text>
-              <TouchableOpacity style={styles.genBtn} onPress={handleGenerate} disabled={generating}>
-                {generating ? <ActivityIndicator color="#fff" /> : <Text style={styles.genText}>Generate Questions</Text>}
-              </TouchableOpacity>
+          {/* Top Generator Action Card */}
+          <View style={styles.topCard}>
+            <View style={styles.topCardHeader}>
+              <View style={styles.iconCircle}>
+                <BotIcon size={20} color={Theme.colors.brandPrimaryLight} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.topCardTitle}>Role-Specific Practice</Text>
+                <Text style={styles.topCardDesc}>
+                  Generate curated technical & behavioral questions extracted from this job description.
+                </Text>
+              </View>
             </View>
-          ) : (
-            questions.map((q, idx) => (
-              <View key={q._id || idx} style={styles.qCard}>
-                <View style={styles.qTop}>
-                  <Text style={styles.qType}>{q.type}</Text>
-                  {q.score != null && <Text style={styles.score}>{q.score}/10</Text>}
-                </View>
-                <Text style={styles.question}>{idx + 1}. {q.question}</Text>
-                {q.suggestedPoints ? <Text style={styles.hint}>Hint: {q.suggestedPoints}</Text> : null}
-                <TextInput
-                  style={styles.answer}
-                  multiline
-                  value={q.userNotes}
-                  onChangeText={(t) => setAnswer(idx, t)}
-                  placeholder="Type your answer…"
-                  placeholderTextColor="#71717a"
-                />
-                <TouchableOpacity style={styles.gradeBtn} onPress={() => handleGrade(idx)} disabled={gradingId === q._id}>
-                  {gradingId === q._id ? <ActivityIndicator color="#fff" /> : <Text style={styles.gradeText}>Grade my answer</Text>}
-                </TouchableOpacity>
-                {q.aiFeedback ? (
-                  <View style={styles.feedback}>
-                    <Text style={styles.feedbackLabel}>AI Feedback</Text>
-                    <Text style={styles.feedbackText}>{q.aiFeedback}</Text>
-                    {q.improvedVersion ? (
-                      <>
-                        <Text style={[styles.feedbackLabel, { marginTop: 8 }]}>Model answer</Text>
-                        <Text style={styles.feedbackText} selectable>{q.improvedVersion}</Text>
-                      </>
-                    ) : null}
+
+            <TouchableOpacity
+              style={styles.genBtn}
+              onPress={handleGenerate}
+              disabled={generating}
+            >
+              {generating ? (
+                <ActivityIndicator color="#ffffff" size="small" />
+              ) : (
+                <>
+                  <BotIcon size={16} color="#ffffff" />
+                  <Text style={styles.genBtnText}>
+                    {questions.length > 0 ? 'Regenerate Questions' : 'Generate Practice Questions'}
+                  </Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Question Cards List */}
+          {questions.map((q, idx) => (
+            <View key={q._id || idx} style={styles.questionCard}>
+              <View style={styles.qHeader}>
+                <Text style={styles.qNumber}>Question {idx + 1}</Text>
+                {q.category ? (
+                  <View style={styles.categoryPill}>
+                    <Text style={styles.categoryText}>{q.category}</Text>
                   </View>
                 ) : null}
               </View>
-            ))
-          )}
+
+              <Text style={styles.qText}>{q.question}</Text>
+
+              {q.idealAnswer ? (
+                <View style={styles.tipsBox}>
+                  <Text style={styles.tipsTitle}>Key Points to Cover:</Text>
+                  <Text style={styles.tipsText}>{q.idealAnswer}</Text>
+                </View>
+              ) : null}
+
+              <TextInput
+                style={styles.answerInput}
+                multiline
+                placeholder="Draft your answer here..."
+                placeholderTextColor={Theme.colors.textSubtle}
+                value={q.userNotes || ''}
+                onChangeText={txt => setAnswer(idx, txt)}
+              />
+
+              <TouchableOpacity
+                style={[
+                  styles.gradeBtn,
+                  gradingId === (q._id || `${idx}`) && styles.gradeBtnDisabled,
+                ]}
+                onPress={() => handleGrade(idx)}
+                disabled={gradingId === (q._id || `${idx}`)}
+              >
+                {gradingId === (q._id || `${idx}`) ? (
+                  <ActivityIndicator color="#ffffff" size="small" />
+                ) : (
+                  <>
+                    <AwardIcon size={14} color="#ffffff" />
+                    <Text style={styles.gradeBtnText}>AI Grade & Improve</Text>
+                  </>
+                )}
+              </TouchableOpacity>
+
+              {/* Feedback and Score Result */}
+              {q.score != null ? (
+                <View style={styles.feedbackBox}>
+                  <View style={styles.scoreRow}>
+                    <Text style={styles.scoreTitle}>AI Answer Score</Text>
+                    <View style={styles.scorePill}>
+                      <Text style={styles.scoreValue}>{q.score}/100</Text>
+                    </View>
+                  </View>
+
+                  {q.aiFeedback ? (
+                    <Text style={styles.feedbackText}>{q.aiFeedback}</Text>
+                  ) : null}
+
+                  {q.improvedVersion ? (
+                    <View style={styles.improvedBox}>
+                      <Text style={styles.improvedTitle}>Polished Star-Method Answer:</Text>
+                      <Text style={styles.improvedText}>{q.improvedVersion}</Text>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          ))}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -122,26 +231,227 @@ export default function InterviewPrepModal({ visible, job, token, onClose }: {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  title: { fontSize: 20, fontWeight: 'bold', color: '#fff' },
-  sub: { fontSize: 13, color: '#a1a1aa', marginTop: 2 },
-  done: { color: '#4f46e5', fontSize: 16, fontWeight: '600' },
-  content: { padding: 16 },
-  emptyBox: { marginTop: 40, alignItems: 'center' },
-  emptyText: { color: '#a1a1aa', fontSize: 14, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-  genBtn: { backgroundColor: '#4f46e5', paddingVertical: 14, paddingHorizontal: 28, borderRadius: 8 },
-  genText: { color: '#fff', fontWeight: 'bold', fontSize: 15 },
-  qCard: { backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  qTop: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  qType: { color: '#8b5cf6', fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 },
-  score: { color: '#10b981', fontSize: 14, fontWeight: 'bold' },
-  question: { color: '#f4f4f5', fontSize: 15, fontWeight: '600', lineHeight: 21 },
-  hint: { color: '#71717a', fontSize: 12, marginTop: 6, fontStyle: 'italic' },
-  answer: { backgroundColor: '#09090b', borderWidth: 1, borderColor: '#27272a', borderRadius: 8, padding: 12, color: '#f4f4f5', minHeight: 90, textAlignVertical: 'top', marginTop: 10 },
-  gradeBtn: { backgroundColor: '#4f46e5', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 10 },
-  gradeText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  feedback: { backgroundColor: '#09090b', borderRadius: 8, padding: 12, marginTop: 12, borderLeftWidth: 3, borderLeftColor: '#10b981' },
-  feedbackLabel: { color: '#10b981', fontSize: 12, fontWeight: 'bold' },
-  feedbackText: { color: '#d4d4d8', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  container: {
+    flex: 1,
+    backgroundColor: Theme.colors.bgApp,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.borderCard,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+  },
+  company: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  closeBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  content: {
+    padding: 16,
+    gap: 14,
+    paddingBottom: 40,
+  },
+  topCard: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    ...Theme.shadows.card,
+  },
+  topCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 14,
+  },
+  iconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  topCardTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+  },
+  topCardDesc: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  genBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 44,
+    backgroundColor: Theme.colors.brandPrimary,
+    borderRadius: Theme.radii.md,
+    ...Theme.shadows.glow,
+  },
+  genBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  questionCard: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    gap: 10,
+    ...Theme.shadows.card,
+  },
+  qHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  qNumber: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Theme.colors.brandPrimaryLight,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  categoryPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: Theme.radii.full,
+    backgroundColor: Theme.colors.bgElevated,
+  },
+  categoryText: {
+    fontSize: 11,
+    color: Theme.colors.textSubtle,
+    fontWeight: '600',
+  },
+  qText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    lineHeight: 20,
+  },
+  tipsBox: {
+    backgroundColor: Theme.colors.bgElevated,
+    borderRadius: Theme.radii.sm,
+    padding: 10,
+  },
+  tipsTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Theme.colors.textSubtle,
+    textTransform: 'uppercase',
+    marginBottom: 4,
+  },
+  tipsText: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 17,
+  },
+  answerInput: {
+    backgroundColor: Theme.colors.bgInput,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    color: Theme.colors.textMain,
+    fontSize: 13,
+    lineHeight: 18,
+    padding: 12,
+    minHeight: 90,
+    textAlignVertical: 'top',
+  },
+  gradeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 38,
+    backgroundColor: Theme.colors.brandPrimary,
+    borderRadius: Theme.radii.md,
+  },
+  gradeBtnDisabled: {
+    opacity: 0.6,
+  },
+  gradeBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  feedbackBox: {
+    backgroundColor: 'rgba(16, 185, 129, 0.08)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    padding: 12,
+    gap: 8,
+    marginTop: 4,
+  },
+  scoreRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  scoreTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+  },
+  scorePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Theme.radii.full,
+    backgroundColor: Theme.colors.brandAccent,
+  },
+  scoreValue: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  feedbackText: {
+    fontSize: 12,
+    color: Theme.colors.textMuted,
+    lineHeight: 17,
+  },
+  improvedBox: {
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255, 255, 255, 0.08)',
+    paddingTop: 8,
+  },
+  improvedTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: Theme.colors.brandAccent,
+    marginBottom: 4,
+  },
+  improvedText: {
+    fontSize: 12,
+    color: Theme.colors.textMain,
+    lineHeight: 18,
+  },
 });

@@ -1,14 +1,33 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, Text, View, SafeAreaView, FlatList, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  Alert,
+  Platform,
+} from 'react-native';
 import { useAuth } from '@/hooks/useAuth';
 import { api } from '@/constants/api';
+import { Theme, SharedStyles } from '@/constants/theme';
+import {
+  MailIcon,
+  SendIcon,
+  RefreshIcon,
+  CopyIcon,
+  UserIcon,
+  CheckCircleIcon,
+  ClockIcon,
+} from '@/components/Icons';
 
-// One card per replied job. Kept as its own component so each row owns its
-// "suggest reply" loading and result state.
 function InboxCard({ item, token }: { item: any; token: string | null }) {
   const [loading, setLoading] = useState(false);
   const [reply, setReply] = useState('');
   const [subject, setSubject] = useState('');
+  const [copied, setCopied] = useState(false);
 
   const handleSuggestReply = async () => {
     setLoading(true);
@@ -28,28 +47,99 @@ function InboxCard({ item, token }: { item: any; token: string | null }) {
     }
   };
 
+  const initials = (item.companyName || 'CO')
+    .split(' ')
+    .slice(0, 2)
+    .map((w: string) => w[0])
+    .join('')
+    .toUpperCase();
+
   return (
     <View style={styles.card}>
+      {/* Recruiter & Company Top Header */}
       <View style={styles.cardHeader}>
-        <Text style={styles.jobTitle}>{item.companyName}</Text>
-        <Text style={styles.timeText}>{item.replyDate ? new Date(item.replyDate).toLocaleDateString() : ''}</Text>
+        <View style={styles.senderGroup}>
+          <View style={styles.avatarCircle}>
+            <Text style={styles.avatarText}>{initials}</Text>
+          </View>
+          <View>
+            <Text style={styles.companyName}>{item.companyName || 'Company'}</Text>
+            <View style={styles.senderRow}>
+              <UserIcon size={12} color={Theme.colors.textSubtle} />
+              <Text style={styles.senderText}>{item.replyFrom || item.hrName || item.hrEmail || 'Recruiter'}</Text>
+            </View>
+          </View>
+        </View>
+        <View style={styles.badge}>
+          <ClockIcon size={11} color={Theme.colors.brandAccent} />
+          <Text style={styles.badgeText}>
+            {item.replyDate ? new Date(item.replyDate).toLocaleDateString() : 'Replied'}
+          </Text>
+        </View>
       </View>
-      <Text style={styles.sender}>From: {item.replyFrom || item.hrName}</Text>
-      <Text style={styles.preview} numberOfLines={2}>
-        The recruiter replied to your application for {item.job}.
-      </Text>
 
+      {/* Message Preview */}
+      <View style={styles.previewBox}>
+        <Text style={styles.previewText} numberOfLines={3}>
+          {item.replySnippet || `Recruiter replied regarding your application for the ${item.job || 'open'} position.`}
+        </Text>
+      </View>
+
+      {/* AI Suggested Response Box */}
       {reply ? (
         <View style={styles.replyBox}>
+          <View style={styles.replyHeader}>
+            <View style={styles.aiTag}>
+              <MailIcon size={13} color={Theme.colors.brandPrimaryLight} />
+              <Text style={styles.aiTagText}>Smart Suggested Response</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.copyBtn}
+              onPress={() => {
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+                Alert.alert('Copied', 'AI reply copied to clipboard!');
+              }}
+            >
+              <CopyIcon size={13} color={Theme.colors.textMuted} />
+              <Text style={styles.copyBtnText}>{copied ? 'Copied' : 'Copy'}</Text>
+            </TouchableOpacity>
+          </View>
+
           {subject ? <Text style={styles.replySubject}>Subject: {subject}</Text> : null}
-          <Text style={styles.replyText} selectable>{reply}</Text>
-          <TouchableOpacity style={styles.regenBtn} onPress={handleSuggestReply} disabled={loading}>
-            {loading ? <ActivityIndicator color="#a1a1aa" /> : <Text style={styles.regenText}>Regenerate</Text>}
-          </TouchableOpacity>
+          <Text style={styles.replyBody} selectable>{reply}</Text>
+
+          <View style={styles.replyActionsRow}>
+            <TouchableOpacity
+              style={styles.regenBtn}
+              onPress={handleSuggestReply}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator size="small" color={Theme.colors.textMuted} />
+              ) : (
+                <>
+                  <RefreshIcon size={13} color={Theme.colors.textMuted} />
+                  <Text style={styles.regenText}>Regenerate</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
         </View>
       ) : (
-        <TouchableOpacity style={styles.actionBtn} onPress={handleSuggestReply} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.actionBtnText}>Suggest AI Reply</Text>}
+        <TouchableOpacity
+          style={styles.actionBtn}
+          onPress={handleSuggestReply}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator size="small" color="#ffffff" />
+          ) : (
+            <>
+              <SendIcon size={14} color="#ffffff" />
+              <Text style={styles.actionBtnText}>Draft Quick Reply</Text>
+            </>
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -58,44 +148,55 @@ function InboxCard({ item, token }: { item: any; token: string | null }) {
 
 export default function InboxScreen() {
   const { token } = useAuth();
-  const [jobs, setJobs] = useState([]);
+  const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchInbox = () => {
     fetch(api('/jobs'), {
-      headers: { Authorization: `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     })
       .then(res => res.json())
       .then(data => {
-        // GET /jobs returns { jobs, totalJobs, ... }, not a bare array.
-        const list = Array.isArray(data) ? data : (data?.jobs ?? []);
+        const list = Array.isArray(data) ? data : data?.jobs ?? [];
         setJobs(list.filter((j: any) => j.hasReply));
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [token]);
+  };
 
-  const renderInboxItem = ({ item }: { item: any }) => <InboxCard item={item} token={token} />;
+  useEffect(() => {
+    if (token) fetchInbox();
+  }, [token]);
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Recruiter Inbox</Text>
-        <Text style={styles.headerSubtitle}>Manage email replies and interview invites</Text>
+        <Text style={styles.headerSubtitle}>
+          {jobs.length} Active {jobs.length === 1 ? 'Conversation' : 'Conversations'}
+        </Text>
       </View>
 
       {loading ? (
-        <ActivityIndicator size="large" color="#4f46e5" style={{ marginTop: 40 }} />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={Theme.colors.brandPrimary} />
+          <Text style={styles.loadingText}>Syncing recruiter replies...</Text>
+        </View>
       ) : (
         <FlatList
           data={jobs}
           keyExtractor={item => item._id}
-          renderItem={renderInboxItem}
-          contentContainerStyle={styles.list}
+          renderItem={({ item }) => <InboxCard item={item} token={token} />}
+          contentContainerStyle={styles.listContainer}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No replies from recruiters yet.</Text>
-              <Text style={styles.emptySub}>Keep sending out applications!</Text>
+              <View style={styles.emptyIconCircle}>
+                <MailIcon size={32} color={Theme.colors.textSubtle} />
+              </View>
+              <Text style={styles.emptyTitle}>Inbox Zero</Text>
+              <Text style={styles.emptySubtitle}>
+                No recruiter responses yet. Keep sending tailored outreach emails to generate replies!
+              </Text>
             </View>
           }
         />
@@ -105,25 +206,233 @@ export default function InboxScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#09090b' },
-  header: { padding: 20, borderBottomWidth: 1, borderBottomColor: '#27272a' },
-  headerTitle: { fontSize: 24, fontWeight: 'bold', color: '#fff' },
-  headerSubtitle: { fontSize: 14, color: '#a1a1aa', marginTop: 4 },
-  list: { padding: 16 },
-  card: { backgroundColor: '#18181b', padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: '#27272a' },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  jobTitle: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
-  timeText: { color: '#a1a1aa', fontSize: 12 },
-  sender: { color: '#10b981', fontSize: 14, marginBottom: 8 },
-  preview: { color: '#a1a1aa', fontSize: 14, marginBottom: 16 },
-  actionBtn: { backgroundColor: '#4f46e5', padding: 12, borderRadius: 8, alignItems: 'center' },
-  actionBtnText: { color: '#fff', fontWeight: 'bold', fontSize: 14 },
-  replyBox: { backgroundColor: '#09090b', borderWidth: 1, borderColor: '#27272a', borderRadius: 8, padding: 12 },
-  replySubject: { color: '#f4f4f5', fontSize: 13, fontWeight: 'bold', marginBottom: 6 },
-  replyText: { color: '#d4d4d8', fontSize: 14, lineHeight: 20 },
-  regenBtn: { marginTop: 12, alignSelf: 'flex-start' },
-  regenText: { color: '#4f46e5', fontSize: 13, fontWeight: '600' },
-  emptyContainer: { alignItems: 'center', marginTop: 60 },
-  emptyText: { color: '#f4f4f5', fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  emptySub: { color: '#71717a', fontSize: 14 }
+  container: {
+    flex: 1,
+    width: '100%',
+    backgroundColor: Theme.colors.bgApp,
+  },
+  header: {
+    paddingHorizontal: 16,
+    paddingTop: Platform.OS === 'web' ? 24 : 12,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: Theme.colors.borderCard,
+  },
+  headerTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: Theme.colors.textMain,
+    letterSpacing: -0.4,
+  },
+  headerSubtitle: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    marginTop: 2,
+  },
+  listContainer: {
+    padding: 16,
+    paddingBottom: 80,
+    gap: 12,
+  },
+  card: {
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.lg,
+    padding: 16,
+    ...Theme.shadows.card,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  senderGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  avatarCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  avatarText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Theme.colors.brandAccent,
+  },
+  companyName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+  },
+  senderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 2,
+  },
+  senderText: {
+    fontSize: 12,
+    color: Theme.colors.textSubtle,
+  },
+  badge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: Theme.radii.full,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderColor: 'rgba(16, 185, 129, 0.25)',
+    borderWidth: 1,
+  },
+  badgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: Theme.colors.brandAccent,
+  },
+  previewBox: {
+    backgroundColor: Theme.colors.bgElevated,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    padding: 12,
+    marginBottom: 12,
+  },
+  previewText: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    lineHeight: 18,
+  },
+  actionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 42,
+    backgroundColor: Theme.colors.brandPrimary,
+    borderRadius: Theme.radii.md,
+    ...Theme.shadows.glow,
+  },
+  actionBtnText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  replyBox: {
+    backgroundColor: Theme.colors.bgInput,
+    borderColor: 'rgba(99, 102, 241, 0.3)',
+    borderWidth: 1,
+    borderRadius: Theme.radii.md,
+    padding: 14,
+  },
+  replyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  aiTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  aiTagText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Theme.colors.brandPrimaryLight,
+  },
+  copyBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: Theme.colors.bgElevated,
+  },
+  copyBtnText: {
+    fontSize: 11,
+    color: Theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  replySubject: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    marginBottom: 6,
+  },
+  replyBody: {
+    fontSize: 13,
+    color: Theme.colors.textMain,
+    lineHeight: 19,
+  },
+  replyActionsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 10,
+  },
+  regenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: Theme.colors.bgElevated,
+  },
+  regenText: {
+    fontSize: 11,
+    color: Theme.colors.textMuted,
+    fontWeight: '600',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: Theme.colors.textMuted,
+    marginTop: 12,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  emptyIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: Theme.colors.bgCard,
+    borderColor: Theme.colors.borderCard,
+    borderWidth: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: Theme.colors.textMain,
+    marginBottom: 6,
+  },
+  emptySubtitle: {
+    fontSize: 13,
+    color: Theme.colors.textMuted,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
 });

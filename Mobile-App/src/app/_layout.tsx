@@ -1,5 +1,5 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
-import { useColorScheme, View, ActivityIndicator } from 'react-native';
+import React from 'react';
+import { View, ActivityIndicator } from 'react-native';
 
 import { AnimatedSplashOverlay } from '@/components/animated-icon';
 import AppTabs from '@/components/app-tabs';
@@ -27,13 +27,10 @@ function RootNavigation() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <AnimatedSplashOverlay />
-        <RootNavigation />
-      </ThemeProvider>
+      <AnimatedSplashOverlay />
+      <RootNavigation />
     </AuthProvider>
   );
 }
